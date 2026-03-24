@@ -63,7 +63,7 @@ const login = async (req, res) => {
     }
 
     // التحقق من كلمة المرور
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
     if (!isPasswordValid) {
       // تسجيل المحاولة الفاشلة
       failedAttempts.set(clientIP, {
@@ -141,10 +141,10 @@ const login = async (req, res) => {
  */
 const activate = async (req, res) => {
   try {
-    const { code, store_name, owner_name, phone, address, city } = req.body;
+    const { code, store_name, owner_name, phone, address, city, username, password } = req.body;
 
     // التحقق من المدخلات
-    if (!code || !store_name || !owner_name || !phone) {
+    if (!code || !store_name || !owner_name || !phone || !username || !password) {
       return res.status(400).json({
         success: false,
         error: 'جميع الحقول مطلوبة ما عدا العنوان والمدينة',
@@ -202,34 +202,68 @@ const activate = async (req, res) => {
       });
     }
 
-    // تشفير كلمة المرور الافتراضية
-    const defaultPassword = '123456'; // يجب إرسالها للمستخدم عبر SMS/Email
-    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+    // تشفير كلمة المرور
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // إنشاء مستخدم owner
-    const { data: user, error: userError } = await supabaseAdmin
+    // التحقق مما إذا كان المستخدم موجود بالفعل
+    const { data: existingUser, error: existingError } = await supabaseAdmin
       .from('users')
-      .insert({
-        username: owner_name.replace(/\s+/g, '').toLowerCase(), // اسم مستخدم تلقائي
-        password: hashedPassword,
-        full_name: owner_name,
-        role: 'owner',
-        store_id: store.id,
-        can_delete: true,
-        can_edit: true,
-        can_view_reports: true,
-        created_at: new Date().toISOString()
-      })
-      .select()
+      .select('*')
+      .eq('store_id', store.id)
+      .eq('role', 'store_owner')
       .single();
 
-    if (userError) {
-      console.error('خطأ في إنشاء المستخدم:', userError);
-      return res.status(500).json({
-        success: false,
-        error: 'فشل في إنشاء المستخدم',
-        code: ERROR_CODES.INTERNAL_ERROR
-      });
+    let user;
+    if (existingUser) {
+      // تحديث كلمة المرور للمستخدم الموجود
+      const { data: updatedUser, error: updateError } = await supabaseAdmin
+        .from('users')
+        .update({
+          username: username,
+          full_name: owner_name,
+          password_hash: hashedPassword,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingUser.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('خطأ في تحديث المستخدم:', updateError);
+        return res.status(500).json({
+          success: false,
+          error: 'فشل في تحديث المستخدم',
+          code: ERROR_CODES.INTERNAL_ERROR
+        });
+      }
+      user = updatedUser;
+    } else {
+      // إنشاء مستخدم جديد
+      const { data: newUser, error: userError } = await supabaseAdmin
+        .from('users')
+        .insert({
+          store_id: store.id,
+          full_name: owner_name,
+          username: username,
+          password_hash: hashedPassword,
+          role: 'store_owner',
+          can_delete: true,
+          can_edit: true,
+          can_view_reports: true,
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (userError) {
+        console.error('خطأ في إنشاء المستخدم:', userError);
+        return res.status(500).json({
+          success: false,
+          error: 'فشل في إنشاء المستخدم',
+          code: ERROR_CODES.INTERNAL_ERROR
+        });
+      }
+      user = newUser;
     }
 
     // تحديث كود التفعيل
@@ -274,8 +308,7 @@ const activate = async (req, res) => {
           id: store.id,
           name: store.name,
           subscription_end: store.subscription_end
-        },
-        default_password: defaultPassword // للإرسال للمستخدم
+        }
       },
       message: 'تم تفعيل الحساب بنجاح'
     });
