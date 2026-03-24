@@ -1,0 +1,77 @@
+name: taqseet_pro
+description: "تطبيق تقسيط برو - نظام إدارة الأقساط والديون"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Core dependencies
+  supabase_flutter: ^2.0.0
+  sqflite: ^2.3.0
+  path_provider: ^2.1.0
+  provider: ^6.1.0
+  go_router: ^13.0.0
+  dio: ^5.4.0
+  connectivity_plus: ^6.0.0
+  flutter_local_notifications: ^17.0.0
+  pdf: ^3.10.0
+  printing: ^5.12.0
+  qr_flutter: ^4.1.0
+  image_picker: ^1.0.0
+  intl: ^0.20.2
+  shared_preferences: ^2.2.0
+  uuid: ^4.3.0
+  
+  # UI dependencies
+  cupertino_icons: ^1.0.8
+  flutter_svg: ^2.0.9
+  cached_network_image: ^3.3.0
+  shimmer: ^3.0.0
+  
+  # Utilities
+  logger: ^2.0.2+1
+  json_annotation: ^4.8.1
+  
+  # Arabic RTL support
+  flutter_localization: ^0.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  json_serializable: ^6.7.1
+  build_runner: ^2.4.7
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter packages.
+flutter:
+
+  # The following line ensures that the Material Icons font is
+  # included with your application, so that you can use the icons in
+  # the material Icons class.
+  uses-material-design: true
+
+  # Assets
+  assets:
+    - assets/images/
+    - assets/icons/
+
+  # Fonts for Arabic support
+  fonts:
+    - family: Cairo
+      fonts:
+        - asset: assets/fonts/Cairo-Regular.ttf
+        - asset: assets/fonts/Cairo-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Cairo-Light.ttf
+          weight: 300
