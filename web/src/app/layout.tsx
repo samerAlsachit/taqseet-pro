@@ -1,21 +1,27 @@
-import './globals.css'
-import { Inter } from 'next/font/google'
+import type { Metadata } from "next";
+import { Tajawal } from "next/font/google";
+import "./globals.css";
 
-const inter = Inter({ subsets: ['arabic'] })
+const tajawal = Tajawal({ 
+  weight: ['400', '500', '700', '800'],
+  subsets: ["latin"],
+});
 
-export const metadata = {
-  title: 'تقسيط برو - نظام إدارة الأقساط',
-  description: 'نظام متكامل لإدارة الأقساط للتجار والموظفين',
-}
+export const metadata: Metadata = {
+  title: "تقسيط برو",
+  description: "نظام إدارة الأقساط والديون للمحلات التجارية",
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="ar" dir="rtl">
-      <body className={inter.className}>{children}</body>
+      <body className={tajawal.className}>
+        {children}
+      </body>
     </html>
-  )
+  );
 }

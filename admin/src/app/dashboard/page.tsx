@@ -1,8 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useEffect, useState } from 'react';
+import AdminLayout from '@/components/layout/AdminLayout';
+
+interface Stats {
+  total_stores: number;
+  active_stores: number;
+  expiring_soon: number;
+  new_stores_this_month: number;
+}
 
 interface Store {
   id: string;
@@ -10,292 +16,152 @@ interface Store {
   owner_name: string;
   phone: string;
   city: string;
+  plan_name: string;
   subscription_end: string;
-  status: string;
-  created_at: string;
-}
-
-interface Stats {
-  totalActiveStores: number;
-  monthlyRevenue: number;
-  newSubscribersThisMonth: number;
-  storesExpiringIn7Days: number;
-  monthlyData: Array<{
-    month: string;
-    revenue: number;
-    stores: number;
-  }>;
+  is_active: boolean;
 }
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<any>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const router = useRouter();
 
   useEffect(() => {
-    // التحقق من التوكن
-    const token = localStorage.getItem('admin_token');
-    if (!token) {
-      router.push('/login');
-      return;
-    }
-
-    // جلب بيانات المستخدم من التوكن (بسيط)
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      setUser(payload);
-    } catch (err) {
-      localStorage.removeItem('admin_token');
-      router.push('/login');
-      return;
-    }
-
-    fetchDashboardData(token);
-  }, [router]);
-
-  const fetchDashboardData = async (token: string) => {
-    try {
-      setLoading(true);
+    const fetchData = async () => {
+      const token = localStorage.getItem('token');
       
-      // جلب الإحصائيات
-      const statsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/stats`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      try {
+        // جلب الإحصائيات
+        const statsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/stats`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const statsData = await statsRes.json();
+        if (statsData.success) setStats(statsData.data);
 
-      if (statsResponse.ok) {
-        const statsData = await statsResponse.json();
-        setStats(statsData.data);
+        // جلب آخر 5 محلات
+        const storesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/stores?limit=5`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const storesData = await storesRes.json();
+        if (storesData.success) setStores(storesData.data.stores);
+
+      } catch (err) {
+        setError('حدث خطأ في جلب البيانات');
+      } finally {
+        setLoading(false);
       }
+    };
 
-      // جلب أحدث المحلات
-      const storesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/stores?limit=5`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+    fetchData();
+  }, []);
 
-      if (storesResponse.ok) {
-        const storesData = await storesResponse.json();
-        setStores(storesData.data || []);
-      }
-
-    } catch (err) {
-      setError('فشل في جلب البيانات');
-    } finally {
-      setLoading(false);
-    }
+  const getStatusColor = (isActive: boolean, endDate: string) => {
+    if (!isActive) return 'text-danger bg-red-50';
+    const end = new Date(endDate);
+    const today = new Date();
+    const daysLeft = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysLeft <= 7) return 'text-warning bg-yellow-50';
+    return 'text-success bg-green-50';
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('ar-IQ', {
-      style: 'currency',
-      currency: 'IQD',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ar-IQ');
+  const getStatusText = (isActive: boolean, endDate: string) => {
+    if (!isActive) return 'غير نشط';
+    const end = new Date(endDate);
+    const today = new Date();
+    const daysLeft = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysLeft <= 0) return 'منتهي';
+    if (daysLeft <= 7) return `ينتهي خلال ${daysLeft} أيام`;
+    return 'نشط';
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center" dir="rtl">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">جاري التحميل...</p>
+      <AdminLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric mx-auto"></div>
+            <p className="mt-4 text-text-primary">جاري تحميل البيانات...</p>
+          </div>
         </div>
-      </div>
+      </AdminLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AdminLayout>
+        <div className="bg-red-50 text-danger border border-danger/20 rounded-lg p-4 text-center">
+          {error}
+        </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50" dir="rtl">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">لوحة التحكم</h1>
-              <p className="text-sm text-gray-600">
-                {user ? `مرحباً بك، ${user.username || 'المدير'}` : 'مرحباً بك'}
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                localStorage.removeItem('admin_token');
-                router.push('/login');
-              }}
-              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-            >
-              تسجيل الخروج
-            </button>
-          </div>
+    <AdminLayout>
+      <h1 className="text-2xl font-bold text-navy mb-6">لوحة التحكم</h1>
+
+      {/* بطاقات الإحصائيات */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white rounded-xl shadow-sm p-6 border-r-4 border-electric">
+          <p className="text-text-primary text-sm mb-1">إجمالي المحلات</p>
+          <p className="text-3xl font-bold text-navy">{stats?.total_stores || 0}</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm p-6 border-r-4 border-success">
+          <p className="text-text-primary text-sm mb-1">المحلات النشطة</p>
+          <p className="text-3xl font-bold text-navy">{stats?.active_stores || 0}</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm p-6 border-r-4 border-warning">
+          <p className="text-text-primary text-sm mb-1">تنتهي خلال 7 أيام</p>
+          <p className="text-3xl font-bold text-navy">{stats?.expiring_soon || 0}</p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm p-6 border-r-4 border-electric">
+          <p className="text-text-primary text-sm mb-1">محلات جديدة هذا الشهر</p>
+          <p className="text-3xl font-bold text-navy">{stats?.new_stores_this_month || 0}</p>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-6">
-            {error}
-          </div>
-        )}
-
-        {/* Stats Cards */}
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="mr-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">إجمالي المحلات النشطة</dt>
-                      <dd className="text-lg font-medium text-gray-900">{stats.totalActiveStores}</dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="mr-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">الإيرادات الشهرية</dt>
-                      <dd className="text-lg font-medium text-gray-900">{formatCurrency(stats.monthlyRevenue)}</dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="mr-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">المشتركين الجدد هذا الشهر</dt>
-                      <dd className="text-lg font-medium text-gray-900">{stats.newSubscribersThisMonth}</dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="p-5">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="mr-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">المحلات المنتهية خلال 7 أيام</dt>
-                      <dd className="text-lg font-medium text-gray-900">{stats.storesExpiringIn7Days}</dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Chart */}
-        {stats && stats.monthlyData && (
-          <div className="bg-white shadow rounded-lg mb-8">
-            <div className="p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">الإيرادات الشهرية</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={stats.monthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                  <Bar dataKey="revenue" fill="#3B82F6" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        )}
-
-        {/* Recent Stores */}
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-4 py-5 sm:p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">أحدث المحلات المسجلة</h3>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">اسم المحل</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">المالك</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">المدينة</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الحالة</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">تاريخ التسجيل</th>
+      {/* أحدث المحلات */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <h2 className="text-xl font-bold text-navy mb-4">أحدث المحلات</h2>
+        {stores.length === 0 ? (
+          <p className="text-text-primary text-center py-8">لا توجد محلات مسجلة</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-right py-3 px-4 text-text-primary font-semibold">اسم المحل</th>
+                  <th className="text-right py-3 px-4 text-text-primary font-semibold">المالك</th>
+                  <th className="text-right py-3 px-4 text-text-primary font-semibold">الهاتف</th>
+                  <th className="text-right py-3 px-4 text-text-primary font-semibold">المدينة</th>
+                  <th className="text-right py-3 px-4 text-text-primary font-semibold">تاريخ الانتهاء</th>
+                  <th className="text-right py-3 px-4 text-text-primary font-semibold">الحالة</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stores.map((store) => (
+                  <tr key={store.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-3 px-4 text-text-primary">{store.name}</td>
+                    <td className="py-3 px-4 text-text-primary">{store.owner_name}</td>
+                    <td className="py-3 px-4 text-text-primary">{store.phone}</td>
+                    <td className="py-3 px-4 text-text-primary">{store.city || '-'}</td>
+                    <td className="py-3 px-4 text-text-primary">
+                      {new Date(store.subscription_end).toLocaleDateString('ar-IQ')}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`px-3 py-1 rounded-full text-sm ${getStatusColor(store.is_active, store.subscription_end)}`}>
+                        {getStatusText(store.is_active, store.subscription_end)}
+                      </span>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {stores.map((store) => (
-                    <tr key={store.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{store.name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{store.owner_name}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{store.city}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          store.status === 'active' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {store.status === 'active' ? 'نشط' : 'غير نشط'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(store.created_at)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {stores.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  لا توجد محلات مسجلة حالياً
-                </div>
-              )}
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
+        )}
       </div>
-    </div>
+    </AdminLayout>
   );
 }

@@ -177,6 +177,18 @@ const activate = async (req, res) => {
       });
     }
 
+    // بعد إنشاء المحل، جلب تفاصيل الخطة
+    const { data: plan } = await supabase
+      .from('subscription_plans')
+      .select('duration_days')
+      .eq('id', activationCode.plan_id)
+      .single();
+
+    // حساب تاريخ الانتهاء
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + plan.duration_days);
+
     // إنشاء محل جديد
     const { data: store, error: storeError } = await supabaseAdmin
       .from('stores')
@@ -186,8 +198,10 @@ const activate = async (req, res) => {
         phone: phone,
         address: address || '',
         city: city || '',
-        subscription_start: moment().toISOString(),
-        subscription_end: moment().add(30, 'days').toISOString(), // 30 يوم تجريبية
+        plan_id: activationCode.plan_id,
+        subscription_start: startDate.toISOString().split('T')[0],
+        subscription_end: endDate.toISOString().split('T')[0],
+        is_active: true,
         created_at: new Date().toISOString()
       })
       .select()

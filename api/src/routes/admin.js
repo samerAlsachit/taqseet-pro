@@ -143,96 +143,89 @@ router.get('/stores', authenticateToken, requireSuperAdmin, async (req, res) => 
 });
 
 /**
- * POST /api/admin/activation-codes
- * إنشاء كودات تفعيل جديدة
+ * GET /api/admin/activation-codes
+ * جلب قائمة كودات التفعيل
  */
-router.post('/activation-codes', requireSuperAdmin, async (req, res) => {
+router.get('/activation-codes', authenticateToken, requireSuperAdmin, async (req, res) => {
   try {
-    const { plan_id, quantity = 1, duration_days, notes } = req.body;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+    const status = req.query.status || 'all'; // all, used, unused
 
-    // التحقق من المدخلات
-    if (!plan_id || !duration_days) {
-      return res.status(400).json({
-        success: false,
-        error: 'حقل الخطة ومدة الكود مطلوبان',
-        code: ERROR_CODES.VALIDATION_ERROR
-      });
-    }
-
-    // جلب بيانات الخطة
-    const { data: plan, error: planError } = await supabase
-      .from('subscription_plans')
-      .select('*')
-      .eq('id', plan_id)
-      .single();
-
-    if (planError || !plan) {
-      return res.status(404).json({
-        success: false,
-        error: 'خطة الاشتراك غير موجودة',
-        code: ERROR_CODES.NOT_FOUND
-      });
-    }
-
-    // إنشاء الكودات
-    const codes = [];
-    for (let i = 0; i < parseInt(quantity); i++) {
-      const code = `TQST-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-      codes.push({
-        id: uuidv4(),
-        plan_id,
-        code,
-        duration_days: parseInt(duration_days),
-        status: 'active',
-        notes: notes || '',
-        created_by: req.user.id,
-        created_at: new Date().toISOString()
-      });
-    }
-
-    const { error: insertError } = await supabaseAdmin
+    // بناء الـ query بدون joins معقدة
+    let query = supabase
       .from('activation_codes')
-      .insert(codes);
+      .select('*', { count: 'exact' });
 
-    if (insertError) {
-      console.error('خطأ في إنشاء كودات التفعيل:', insertError);
-      throw insertError;
+    // فلترة حسب الحالة
+    if (status === 'used') {
+      query = query.eq('is_used', true);
+    } else if (status === 'unused') {
+      query = query.eq('is_used', false);
     }
 
-    // تسجيل العملية
-    await supabaseAdmin
-      .from('audit_logs')
-      .insert({
-        id: uuidv4(),
-        user_id: req.user.id,
-        action: 'create_activation_codes',
-        entity_type: 'admin',
-        new_data: {
-          plan_id,
-          quantity: codes.length,
-          duration_days,
-          plan_name: plan.name
-        },
-        ip_address: req.ip,
-        user_agent: req.get('User-Agent'),
-        created_at: new Date().toISOString()
-      });
+    const { data: codes, error, count } = await query
+      .range(offset, offset + limit - 1)
+      .order('created_at', { ascending: false });
 
-    res.status(201).json({
+    if (error) throw error;
+
+    // جلب بيانات الخطة والمحل لكل كود على حدة
+    const formattedCodes = await Promise.all((codes || []).map(async (code) => {
+      let planName = null;
+      let storeName = null;
+
+      // جلب اسم الخطة
+      if (code.plan_id) {
+        const { data: plan } = await supabase
+          .from('subscription_plans')
+          .select('name')
+          .eq('id', code.plan_id)
+          .single();
+        planName = plan?.name;
+      }
+
+      // جلب اسم المحل
+      if (code.store_id) {
+        const { data: store } = await supabase
+          .from('stores')
+          .select('name')
+          .eq('id', code.store_id)
+          .single();
+        storeName = store?.name;
+      }
+
+      return {
+        id: code.id,
+        code: code.code,
+        plan_id: code.plan_id,
+        plan_name: planName,
+        duration_days: code.duration_days,
+        is_used: code.is_used,
+        used_at: code.used_at,
+        store_id: code.store_id,
+        store_name: storeName,
+        notes: code.notes,
+        created_at: code.created_at
+      };
+    }));
+
+    res.json({
       success: true,
-      data: codes.map(c => ({
-        id: c.id,
-        code: c.code,
-        plan_name: plan.name,
-        duration_days: c.duration_days,
-        status: c.status,
-        created_at: c.created_at
-      })),
-      message: `تم إنشاء ${codes.length} كود تفعيل بنجاح`
+      data: {
+        codes: formattedCodes,
+        pagination: {
+          page,
+          limit,
+          total: count || 0,
+          totalPages: Math.ceil((count || 0) / limit)
+        }
+      },
+      message: 'تم جلب الكودات بنجاح'
     });
-
   } catch (error) {
-    console.error('خطأ في إنشاء كودات التفعيل:', error);
+    console.error('خطأ في جلب الكودات:', error);
     res.status(500).json({
       success: false,
       error: ERROR_MESSAGES[ERROR_CODES.INTERNAL_ERROR],
@@ -242,82 +235,102 @@ router.post('/activation-codes', requireSuperAdmin, async (req, res) => {
 });
 
 /**
- * GET /api/admin/activation-codes
- * جلب قائمة كودات التفعيل
+ * GET /api/admin/subscription-plans
+ * جلب خطط الاشتراك
  */
-router.get('/activation-codes', requireSuperAdmin, async (req, res) => {
+router.get('/subscription-plans', authenticateToken, requireSuperAdmin, async (req, res) => {
   try {
-    const {
-      page = 1,
-      limit = 20,
-      is_used = ''
-    } = req.query;
+    const { data: plans, error } = await supabase
+      .from('subscription_plans')
+      .select('*')
+      .eq('is_active', true)
+      .order('duration_days');
 
-    const offset = (parseInt(page) - 1) * parseInt(limit);
-    const limitNum = parseInt(limit);
-
-    let query = supabase
-      .from('activation_codes')
-      .select(`
-        *,
-        subscription_plans (
-          id,
-          name as plan_name
-        ),
-        stores!inner (
-          name as store_name,
-          owner_name as store_owner
-        )
-      `, { count: 'exact' })
-      .order('created_at', { ascending: false });
-
-    // تطبيق فلتر الاستخدام
-    if (is_used !== '') {
-      const isUsed = is_used === 'true';
-      query = query.eq('is_used', isUsed);
-    }
-
-    const { data: codes, error, count } = await query.range(offset, offset + limitNum - 1);
-
-    if (error) {
-      console.error('خطأ في جلب كودات التفعيل:', error);
-      throw error;
-    }
-
-    const totalPages = Math.ceil((count || 0) / limitNum);
-
-    // تسجيل العملية
-    await supabaseAdmin
-      .from('audit_logs')
-      .insert({
-        id: uuidv4(),
-        user_id: req.user.id,
-        action: 'view_activation_codes',
-        entity_type: 'admin',
-        new_data: {
-          page: parseInt(page),
-          limit: limitNum,
-          is_used,
-          results_count: codes?.length || 0
-        },
-        ip_address: req.ip,
-        user_agent: req.get('User-Agent'),
-        created_at: new Date().toISOString()
-      });
+    if (error) throw error;
 
     res.json({
       success: true,
-      data: codes || [],
-      pagination: {
-        page: parseInt(page),
-        limit: limitNum,
-        total: count || 0,
-        totalPages
-      }
+      data: plans,
+      message: 'تم جلب الخطط بنجاح'
     });
-
   } catch (error) {
-    console.error('خطأ في جلب كودات التفعيل:', error);
+    console.error('خطأ في جلب الخطط:', error);
+    res.status(500).json({
+      success: false,
+      error: ERROR_MESSAGES[ERROR_CODES.INTERNAL_ERROR],
+      code: ERROR_CODES.INTERNAL_ERROR
+    });
+  }
+});
+
+/**
+ * POST /api/admin/activation-codes
+ * إنشاء كودات تفعيل جديدة
+ */
+router.post('/activation-codes', authenticateToken, requireSuperAdmin, async (req, res) => {
+  try {
+    const { plan_id, quantity = 1, notes } = req.body;
+
+    if (!plan_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'الخطة مطلوبة',
+        code: ERROR_CODES.VALIDATION_ERROR
+      });
+    }
+
+    // جلب تفاصيل الخطة
+    const { data: plan, error: planError } = await supabase
+      .from('subscription_plans')
+      .select('duration_days, name')
+      .eq('id', plan_id)
+      .single();
+
+    if (planError || !plan) {
+      return res.status(404).json({
+        success: false,
+        error: 'الخطة غير موجودة',
+        code: ERROR_CODES.NOT_FOUND
+      });
+    }
+
+    const codes = [];
+    const generateCode = () => {
+      const prefix = 'TQST';
+      const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const random2 = Math.random().toString(36).substring(2, 6).toUpperCase();
+      return `${prefix}-${random}-${random2}`;
+    };
+
+    for (let i = 0; i < quantity; i++) {
+      const code = generateCode();
+      codes.push({
+        id: uuidv4(),
+        code,
+        plan_id,
+        duration_days: plan.duration_days,
+        notes: notes || null,
+        created_at: new Date().toISOString()
+      });
+    }
+
+    const { data: insertedCodes, error: insertError } = await supabase
+      .from('activation_codes')
+      .insert(codes)
+      .select();
+
+    if (insertError) {
+      console.error('خطأ في إنشاء الكودات:', insertError);
+      throw insertError;
+    }
+
+    res.json({
+      success: true,
+      data: insertedCodes,
+      message: `تم إنشاء ${quantity} كود بنجاح` 
+    });
+  } catch (error) {
+    console.error('خطأ في إنشاء الكودات:', error);
     res.status(500).json({
       success: false,
       error: ERROR_MESSAGES[ERROR_CODES.INTERNAL_ERROR],
@@ -330,24 +343,23 @@ router.get('/activation-codes', requireSuperAdmin, async (req, res) => {
  * POST /api/admin/stores/:id/extend
  * تمديد اشتراك محل
  */
-router.post('/stores/:id/extend', requireSuperAdmin, async (req, res) => {
+router.post('/stores/:id/extend', authenticateToken, requireSuperAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { additional_days, plan_id } = req.body;
 
-    // التحقق من المدخلات
-    if (!additional_days) {
+    if (!additional_days && !plan_id) {
       return res.status(400).json({
         success: false,
-        error: 'عدد الأيام الإضافية مطلوب',
+        error: 'عدد الأيام أو الخطة الجديدة مطلوب',
         code: ERROR_CODES.VALIDATION_ERROR
       });
     }
 
-    // جلب بيانات المحل
+    // جلب المحل الحالي
     const { data: store, error: storeError } = await supabase
       .from('stores')
-      .select('*')
+      .select('subscription_end, plan_id')
       .eq('id', id)
       .single();
 
@@ -359,65 +371,51 @@ router.post('/stores/:id/extend', requireSuperAdmin, async (req, res) => {
       });
     }
 
-    // حساب التاريخ الجديد
-    const currentEndDate = moment(store.subscription_end);
-    const newEndDate = currentEndDate.add(parseInt(additional_days), 'days');
+    let newEndDate = new Date(store.subscription_end);
+    let newPlanId = store.plan_id;
 
-    // تحديث بيانات المحل
-    const updateData = {
-      subscription_end: newEndDate.toISOString(),
-      updated_at: new Date().toISOString()
-    };
-
+    // إذا تم تحديد خطة جديدة
     if (plan_id) {
-      updateData.plan_id = plan_id;
+      const { data: plan } = await supabase
+        .from('subscription_plans')
+        .select('duration_days')
+        .eq('id', plan_id)
+        .single();
+      
+      if (plan) {
+        newEndDate = new Date();
+        newEndDate.setDate(newEndDate.getDate() + plan.duration_days);
+        newPlanId = plan_id;
+      }
     }
 
-    const { error: updateError } = await supabaseAdmin
+    // إضافة أيام إضافية
+    if (additional_days) {
+      newEndDate.setDate(newEndDate.getDate() + additional_days);
+    }
+
+    // تحديث المحل
+    const { error: updateError } = await supabase
       .from('stores')
-      .update(updateData)
+      .update({
+        subscription_end: newEndDate.toISOString().split('T')[0],
+        plan_id: newPlanId,
+        updated_at: new Date().toISOString()
+      })
       .eq('id', id);
 
-    if (updateError) {
-      console.error('خطأ في تمديد اشتراك المحل:', updateError);
-      throw updateError;
-    }
-
-    // تسجيل العملية
-    await supabaseAdmin
-      .from('audit_logs')
-      .insert({
-        id: uuidv4(),
-        user_id: req.user.id,
-        action: 'extend_store_subscription',
-        entity_type: 'store',
-        entity_id: id,
-        old_data: {
-          subscription_end: store.subscription_end
-        },
-        new_data: {
-          additional_days: parseInt(additional_days),
-          new_subscription_end: newEndDate.toISOString(),
-          plan_id
-        },
-        ip_address: req.ip,
-        user_agent: req.get('User-Agent'),
-        created_at: new Date().toISOString()
-      });
+    if (updateError) throw updateError;
 
     res.json({
       success: true,
       data: {
-        store_id: id,
-        previous_end: store.subscription_end,
-        new_end: newEndDate.toISOString(),
-        additional_days: parseInt(additional_days)
+        subscription_end: newEndDate.toISOString().split('T')[0],
+        plan_id: newPlanId
       },
-      message: 'تم تمديد اشتراك المحل بنجاح'
+      message: 'تم تمديد الاشتراك بنجاح'
     });
-
   } catch (error) {
-    console.error('خطأ في تمديد اشتراك المحل:', error);
+    console.error('خطأ في تمديد الاشتراك:', error);
     res.status(500).json({
       success: false,
       error: ERROR_MESSAGES[ERROR_CODES.INTERNAL_ERROR],
