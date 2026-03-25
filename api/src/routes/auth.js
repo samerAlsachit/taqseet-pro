@@ -35,6 +35,74 @@ router.post('/refresh', refreshToken);
 router.get('/me', authenticateToken, getMe);
 
 /**
+ * @route   POST /api/auth/verify-code
+ * @desc    التحقق من كود التفعيل قبل التفعيل
+ * @access  Public
+ */
+router.post('/verify-code', async (req, res) => {
+  try {
+    const { code } = req.body;
+
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        error: 'كود التفعيل مطلوب',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    // البحث عن الكود في قاعدة البيانات
+    const { data: activationCode, error } = await supabase
+      .from('activation_codes')
+      .select('id, plan_id, is_used, expires_at')
+      .eq('code', code.toUpperCase())
+      .single();
+
+    if (error || !activationCode) {
+      return res.status(404).json({
+        success: false,
+        error: 'الكود غير صالح',
+        code: 'NOT_FOUND'
+      });
+    }
+
+    // التحقق من أن الكود لم يُستخدم
+    if (activationCode.is_used) {
+      return res.status(400).json({
+        success: false,
+        error: 'هذا الكود تم استخدامه مسبقاً',
+        code: 'CODE_ALREADY_USED'
+      });
+    }
+
+    // التحقق من صلاحية الكود
+    if (activationCode.expires_at && new Date(activationCode.expires_at) < new Date()) {
+      return res.status(400).json({
+        success: false,
+        error: 'انتهت صلاحية الكود',
+        code: 'CODE_EXPIRED'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        plan_id: activationCode.plan_id,
+        is_valid: true
+      },
+      message: 'الكود صالح'
+    });
+  } catch (error) {
+    console.error('خطأ في التحقق من الكود:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+/**
  * @route   POST /api/auth/register-super-admin
  * @desc    تسجيل سوبر أدمن جديد
  * @access  Public
