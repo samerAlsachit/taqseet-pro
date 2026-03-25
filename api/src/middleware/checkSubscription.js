@@ -17,16 +17,15 @@ const checkSubscription = async (req, res, next) => {
 
     const storeId = req.user.store_id;
 
-    // جلب بيانات اشتراك المحل
-    const { data: subscription, error } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('store_id', storeId)
-      .eq('status', SUBSCRIPTION_STATUS.ACTIVE)
+    // جلب بيانات المحل أولاً
+    const { data: store, error: storeError } = await supabase
+      .from('stores')
+      .select('subscription_end, subscription_start, plan_id')
+      .eq('id', storeId)
       .single();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-      console.error('خطأ في جلب بيانات الاشتراك:', error);
+    if (storeError || !store) {
+      console.error('خطأ في جلب بيانات المحل:', storeError);
       return res.status(500).json({
         success: false,
         error: ERROR_MESSAGES[ERROR_CODES.INTERNAL_ERROR],
@@ -34,8 +33,27 @@ const checkSubscription = async (req, res, next) => {
       });
     }
 
-    // التحقق من وجود اشتراك فعال
-    if (!subscription) {
+    let plan = null;
+    if (store.plan_id) {
+      // جلب تفاصيل الخطة إذا كانت موجودة
+      const { data: planData, error: planError } = await supabase
+        .from('subscription_plans')
+        .select('name, duration_days')
+        .eq('id', store.plan_id)
+        .single();
+
+      if (planError) {
+        console.error('خطأ في جلب بيانات الخطة:', planError);
+      } else {
+        plan = planData;
+      }
+    }
+
+    // حساب الأيام المتبقية
+    const daysRemaining = Math.ceil((new Date(store.subscription_end) - new Date()) / (1000 * 60 * 60 * 24));
+
+    // التحقق من انتهاء الاشتراك
+    if (daysRemaining <= 0) {
       return res.status(403).json({
         success: false,
         error: ERROR_MESSAGES[ERROR_CODES.SUBSCRIPTION_EXPIRED],
@@ -43,28 +61,9 @@ const checkSubscription = async (req, res, next) => {
       });
     }
 
-    // التحقق من تاريخ انتهاء الاشتراك
-    const now = moment();
-    const endDate = moment(subscription.end_date);
-
-    if (now.isAfter(endDate)) {
-      // تحديث حالة الاشتراك إلى منتهي
-      await supabase
-        .from('subscriptions')
-        .update({ status: SUBSCRIPTION_STATUS.EXPIRED })
-        .eq('id', subscription.id);
-
-      return res.status(403).json({
-        success: false,
-        error: ERROR_MESSAGES[ERROR_CODES.SUBSCRIPTION_EXPIRED],
-        code: ERROR_CODES.SUBSCRIPTION_EXPIRED
-      });
-    }
-
-    // التحقق من المدة المتبقية (أقل من 7 أيام)
-    const daysRemaining = endDate.diff(now, 'days');
     let response = null;
 
+    // التحقق من المدة المتبقية (أقل من 7 أيام)
     if (daysRemaining <= 7 && daysRemaining > 0) {
       // إضافة تحذير للاستجابة
       response = {
@@ -75,7 +74,11 @@ const checkSubscription = async (req, res, next) => {
     }
 
     // إضافة بيانات الاشتراك للطلب
-    req.subscription = subscription;
+    req.subscription = {
+      store,
+      plan,
+      daysRemaining
+    };
 
     if (response) {
       // إذا كان هناك تحذير، نمرر البيانات للmiddleware التالي

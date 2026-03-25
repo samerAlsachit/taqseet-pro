@@ -41,116 +41,86 @@ const createPayment = async (req, res) => {
       plan_id,
       schedule_id,
       amount_paid,
-      payment_date,
-      notes,
-      local_id
+      payment_date = new Date().toISOString().split('T')[0],
+      notes
     } = req.body;
 
-    // التحقق من المدخلات الأساسية
-    if (!plan_id || !amount_paid || !payment_date) {
+    // التحقق من المدخلات
+    if (!plan_id || !schedule_id || !amount_paid) {
       return res.status(400).json({
         success: false,
-        error: 'خطة الأقساط والمبلغ المدفوع وتاريخ الدفع مطلوبون',
+        error: 'جميع الحقول المطلوبة يجب أن توفر',
         code: ERROR_CODES.VALIDATION_ERROR
       });
     }
 
-    // جلب بيانات خطة الأقساط
+    // 1. جلب خطة القسط
     const { data: plan, error: planError } = await supabase
       .from('installment_plans')
-      .select(`
-        *,
-        customers (
-          id,
-          full_name,
-          phone
-        ),
-        products (
-          id,
-          name
-        )
-      `)
+      .select('*')
       .eq('id', plan_id)
       .eq('store_id', storeId)
-      .eq('status', 'active')
       .single();
 
     if (planError || !plan) {
       return res.status(404).json({
         success: false,
-        error: 'خطة الأقساط غير موجودة أو غير نشطة',
+        error: 'خطة القسط غير موجودة',
         code: ERROR_CODES.NOT_FOUND
       });
     }
 
-    // جلب بيانات المحل
-    const { data: store, error: storeError } = await supabase
-      .from('stores')
+    // 2. جلب تفاصيل القسط من جدول المدفوعات
+    const { data: schedule, error: scheduleError } = await supabase
+      .from('payment_schedule')
       .select('*')
-      .eq('id', storeId)
+      .eq('id', schedule_id)
+      .eq('plan_id', plan_id)
       .single();
 
-    if (storeError || !store) {
+    if (scheduleError || !schedule) {
       return res.status(404).json({
         success: false,
-        error: 'المحل غير موجود',
-        code: ERROR_CODES.STORE_NOT_FOUND
+        error: 'القسط غير موجود',
+        code: ERROR_CODES.NOT_FOUND
       });
     }
 
-    let installmentToUpdate = null;
-    let isEarlyPayment = false;
-
-    if (schedule_id) {
-      // دفعة لقسط محدد
-      const { data: installment, error: installmentError } = await supabase
-        .from('payment_schedule')
-        .select('*')
-        .eq('id', schedule_id)
-        .eq('plan_id', plan_id)
-        .eq('store_id', storeId)
-        .neq('status', 'paid')
-        .single();
-
-      if (installmentError || !installment) {
-        return res.status(404).json({
-          success: false,
-          error: 'القسط المحدد غير موجود أو تم دفعه',
-          code: ERROR_CODES.NOT_FOUND
-        });
-      }
-
-      installmentToUpdate = installment;
-    } else {
-      // دفعة مبكرة
-      isEarlyPayment = true;
+    // 3. التحقق من أن القسط لم يُدفع بعد
+    if (schedule.status === 'paid') {
+      return res.status(400).json({
+        success: false,
+        error: 'هذا القسط تم دفعه مسبقاً',
+        code: ERROR_CODES.VALIDATION_ERROR
+      });
     }
 
-    // توليد رقم الوصل
-    const receiptNumber = await generateReceiptNumber(storeId);
+    // 4. التحقق من أن المبلغ المدفوع يساوي قيمة القسط (أو أقل في حالة الدفع الجزئي)
+    if (amount_paid > schedule.amount) {
+      return res.status(400).json({
+        success: false,
+        error: 'المبلغ المدفوع أكبر من قيمة القسط',
+        code: ERROR_CODES.VALIDATION_ERROR
+      });
+    }
 
-    // حساب المبلغ المتبقي
-    const currentTotalPaid = plan.total_paid || 0;
-    const newTotalPaid = currentTotalPaid + parseFloat(amount_paid);
-    const remainingAmount = plan.total_amount - newTotalPaid;
+    // 5. إنشاء رقم وصل
+    const receiptNumber = `RCP-${storeId.slice(0, 8)}-${Date.now()}`;
 
-    // بدء الـ transaction
-    // 1. إنشاء سجل الدفع
-    const { data: payment, error: paymentError } = await supabaseAdmin
+    // 6. إدراج الدفعة
+    const { data: payment, error: paymentError } = await supabase
       .from('payments')
       .insert({
         id: uuidv4(),
+        schedule_id: schedule_id,
+        plan_id: plan_id,
         store_id: storeId,
-        plan_id,
-        schedule_id: schedule_id || null,
-        customer_id: plan.customer_id,
+        received_by: req.user.id,
+        amount_paid: amount_paid,
+        payment_date: payment_date,
+        is_early: payment_date < schedule.due_date,
         receipt_number: receiptNumber,
-        amount_paid: parseFloat(amount_paid),
-        payment_date,
-        is_early_payment: isEarlyPayment,
-        notes: notes || '',
-        local_id: local_id || null,
-        created_by: req.user.id,
+        notes: notes,
         created_at: new Date().toISOString()
       })
       .select()
@@ -158,107 +128,65 @@ const createPayment = async (req, res) => {
 
     if (paymentError) {
       console.error('خطأ في إنشاء الدفعة:', paymentError);
-      throw paymentError;
+      return res.status(500).json({
+        success: false,
+        error: 'فشل في تسجيل الدفعة',
+        code: ERROR_CODES.INTERNAL_ERROR
+      });
     }
 
-    // 2. تحديث القسط إذا كان محدداً
-    if (installmentToUpdate) {
-      const installmentAmount = installmentToUpdate.amount;
-      const newPaidAmount = (installmentToUpdate.paid_amount || 0) + parseFloat(amount_paid);
-      
-      const { error: updateInstallmentError } = await supabaseAdmin
-        .from('payment_schedule')
-        .update({
-          paid_amount: newPaidAmount,
-          status: newPaidAmount >= installmentAmount ? 'paid' : 'pending',
-          paid_at: newPaidAmount >= installmentAmount ? new Date().toISOString() : null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', installmentToUpdate.id);
+    // 7. تحديث حالة القسط في payment_schedule
+    const { error: updateScheduleError } = await supabase
+      .from('payment_schedule')
+      .update({ 
+        status: 'paid'
+      })
+      .eq('id', schedule_id);
 
-      if (updateInstallmentError) {
-        console.error('خطأ في تحديث القسط:', updateInstallmentError);
-        throw updateInstallmentError;
-      }
+    if (updateScheduleError) {
+      console.error('خطأ في تحديث القسط:', updateScheduleError);
     }
 
-    // 3. تحديث خطة الأقساط
-    const planUpdateData = {
-      total_paid: newTotalPaid,
-      remaining_amount: remainingAmount,
-      updated_at: new Date().toISOString()
-    };
+    // 8. حساب المبلغ المتبقي الجديد
+    const newTotalPaid = (plan.total_paid || 0) + amount_paid;
+    const newRemainingAmount = plan.total_price - plan.down_payment - newTotalPaid;
 
-    if (remainingAmount <= 0) {
-      planUpdateData.status = 'completed';
-      planUpdateData.completed_at = new Date().toISOString();
-    }
-
-    const { error: updatePlanError } = await supabaseAdmin
+    // 9. تحديث خطة الأقساط
+    const { error: updatePlanError } = await supabase
       .from('installment_plans')
-      .update(planUpdateData)
-      .eq('id', plan_id)
-      .eq('store_id', storeId);
+      .update({
+        total_paid: newTotalPaid,
+        remaining_amount: newRemainingAmount,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', plan_id);
 
     if (updatePlanError) {
       console.error('خطأ في تحديث خطة الأقساط:', updatePlanError);
-      throw updatePlanError;
     }
 
-    // 4. تحديث حالة الأقساط المتأخرة
-    if (!isEarlyPayment) {
-      const { data: allInstallments } = await supabase
-        .from('payment_schedule')
-        .select('*')
-        .eq('plan_id', plan_id)
-        .eq('store_id', storeId)
-        .neq('status', 'paid');
-
-      if (allInstallments) {
-        const updatedInstallments = updateInstallmentsStatus(allInstallments);
-        
-        for (const installment of updatedInstallments) {
-          if (installment.status !== allInstallments.find(i => i.id === installment.id)?.status) {
-            await supabaseAdmin
-              .from('payment_schedule')
-              .update({ status: installment.status, updated_at: new Date().toISOString() })
-              .eq('id', installment.id);
-          }
-        }
-      }
+    // 10. التحقق إذا اكتملت الخطة
+    if (newRemainingAmount <= 0) {
+      await supabase
+        .from('installment_plans')
+        .update({ status: 'completed' })
+        .eq('id', plan_id);
     }
 
-    // 5. تسجيل العملية في audit_logs
-    await supabaseAdmin
-      .from('audit_logs')
-      .insert({
-        id: uuidv4(),
-        user_id: req.user.id,
-        store_id: storeId,
-        action: 'create_payment',
-        entity_type: 'payment',
-        entity_id: payment.id,
-        new_data: {
-          receipt_number: receiptNumber,
-          amount_paid: parseFloat(amount_paid),
-          customer_name: plan.customers.full_name,
-          product_name: plan.products.name
-        },
-        ip_address: req.ip,
-        user_agent: req.get('User-Agent'),
-        created_at: new Date().toISOString()
-      });
-
-    // 6. توليد بيانات الوصل
-    const receiptData = prepareReceiptData(payment, plan, store);
-
-    res.status(201).json({
+    res.json({
       success: true,
       data: {
         payment,
         receipt_number: receiptNumber,
-        remaining_amount: remainingAmount,
-        receipt_data: receiptData
+        remaining_amount: newRemainingAmount,
+        receipt_data: {
+          receipt_number: receiptNumber,
+          payment_date: payment_date,
+          customer_name: plan.customer_name || 'غير محدد',
+          store_name: req.user.store_name || 'تقسيط برو',
+          amount_paid: amount_paid,
+          remaining_amount: newRemainingAmount
+        }
       },
       message: 'تم تسجيل الدفعة بنجاح'
     });

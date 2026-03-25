@@ -62,7 +62,7 @@ const createInstallmentPlan = async (req, res) => {
     const {
       customer_id,
       product_id,
-      total_amount,
+      total_price,
       down_payment = 0,
       installment_amount,
       frequency,
@@ -72,7 +72,7 @@ const createInstallmentPlan = async (req, res) => {
     } = req.body;
 
     // التحقق من المدخلات الأساسية
-    if (!customer_id || !product_id || !total_amount || !installment_amount || !frequency || !start_date) {
+    if (!customer_id || !product_id || !total_price || !installment_amount || !frequency || !start_date) {
       return res.status(400).json({
         success: false,
         error: 'جميع الحقول المطلوبة يجب أن توفر',
@@ -122,7 +122,7 @@ const createInstallmentPlan = async (req, res) => {
 
     // حساب جدول الأقساط
     const schedule = calculateInstallments({
-      totalPrice: parseFloat(total_amount),
+      totalPrice: parseFloat(total_price),
       downPayment: parseFloat(down_payment),
       installmentAmount: parseFloat(installment_amount),
       frequency,
@@ -136,7 +136,7 @@ const createInstallmentPlan = async (req, res) => {
       p_store_id: storeId,
       p_customer_id: customer_id,
       p_product_id: product_id,
-      p_total_amount: parseFloat(total_amount),
+      p_total_amount: parseFloat(total_price),
       p_down_payment: parseFloat(down_payment),
       p_currency: currency,
       p_frequency: frequency,
@@ -152,8 +152,8 @@ const createInstallmentPlan = async (req, res) => {
 
     if (planError) {
       console.error('خطأ في إنشاء خطة الأقساط:', planError);
-      // في حالة فشل الـ RPC، نستخدم الطريقة العادية
-      return await createPlanManually(req, res, schedule, customer, product);
+      // في حالة فشل الـ RPC، نستخدم الطريقة المباشرة
+      return await createPlanDirectly(req, res, schedule, customer, product);
     }
 
     res.status(201).json({
@@ -180,7 +180,7 @@ const createPlanManually = async (req, res, schedule, customer, product) => {
   const {
     customer_id,
     product_id,
-    total_amount,
+    total_price,
     down_payment = 0,
     frequency,
     start_date,
@@ -197,7 +197,7 @@ const createPlanManually = async (req, res, schedule, customer, product) => {
         store_id: storeId,
         customer_id,
         product_id,
-        total_amount: parseFloat(total_amount),
+        total_price: parseFloat(total_price),
         down_payment: parseFloat(down_payment),
         currency,
         frequency,
@@ -579,6 +579,99 @@ const getDueInstallments = async (req, res) => {
 };
 
 /**
+ * إنشاء خطة الأقساط مباشرة (بدون RPC)
+ */
+const createPlanDirectly = async (req, res, schedule, customer, product) => {
+  const {
+    customer_id,
+    product_id,
+    total_price,
+    down_payment,
+    currency,
+    frequency,
+    start_date,
+    notes
+  } = req.body;
+
+  const storeId = req.user.store_id;
+  const planId = uuidv4();
+  const financedAmount = total_price - down_payment;
+
+  // 1. إدراج خطة القسط مع جميع الحقول
+  const { data: plan, error: planError } = await supabase
+    .from('installment_plans')
+    .insert({
+      id: planId,
+      store_id: storeId,
+      customer_id: customer_id,
+      product_id: product_id,
+      created_by: req.user.id,
+      product_name: product.name,
+      product_description: product.description || '',
+      total_price: total_price,
+      down_payment: down_payment,
+      financed_amount: financedAmount,
+      remaining_amount: financedAmount,
+      total_paid: 0,
+      currency: currency,
+      frequency: frequency,
+      start_date: start_date,
+      end_date: schedule.endDate,
+      status: 'active',
+      installments_count: schedule.installmentsCount,
+      installment_amount: schedule.installmentAmount,
+      last_installment_amount: schedule.lastInstallmentAmount,
+      notes: notes || '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .select()
+    .single();
+
+  if (planError) {
+    console.error('خطأ في إدراج الخطة:', planError);
+    return res.status(500).json({
+      success: false,
+      error: 'فشل في إنشاء خطة القسط: ' + planError.message,
+      code: ERROR_CODES.INTERNAL_ERROR
+    });
+  }
+
+  // 2. إدراج جدول الأقساط
+  const scheduleInserts = schedule.schedule.map(item => ({
+    id: uuidv4(),
+    plan_id: planId,
+    store_id: storeId,
+    installment_no: item.installment_no,
+    due_date: item.due_date,
+    amount: item.amount,
+    status: 'pending',
+    created_at: new Date().toISOString()
+  }));
+
+  const { error: scheduleError } = await supabase
+    .from('payment_schedule')
+    .insert(scheduleInserts);
+
+  if (scheduleError) {
+    console.error('خطأ في إدراج جدول الأقساط:', scheduleError);
+    // لا نرجع خطأ هنا لأن الخطة تم إنشاؤها
+  }
+
+  // 3. تنقيص المخزون
+  await supabase
+    .from('products')
+    .update({ quantity: product.quantity - 1, updated_at: new Date().toISOString() })
+    .eq('id', product_id);
+
+  return res.status(201).json({
+    success: true,
+    data: plan,
+    message: 'تم إنشاء خطة الأقساط بنجاح'
+  });
+};
+
+/**
  * إلغاء خطة الأقساط
  */
 const cancelInstallmentPlan = async (req, res) => {
@@ -725,5 +818,6 @@ module.exports = {
   getInstallmentPlans,
   getInstallmentPlan,
   getDueInstallments,
-  cancelInstallmentPlan
+  cancelInstallmentPlan,
+  createPlanDirectly
 };
