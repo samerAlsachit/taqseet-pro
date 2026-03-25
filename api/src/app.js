@@ -57,6 +57,7 @@ app.use('/api/products', require('./routes/products'));
 app.use('/api/installments', require('./routes/installments'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/sync', require('./routes/sync'));
+app.use('/api/admin', require('./routes/admin'));
 // app.use('/api/stores', require('./routes/stores'));
 
 // معالجة المسارات غير الموجودة
