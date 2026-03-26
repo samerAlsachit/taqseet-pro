@@ -658,7 +658,26 @@ const createPlanDirectly = async (req, res, schedule, customer, product) => {
     // لا نرجع خطأ هنا لأن الخطة تم إنشاؤها
   }
 
-  // 3. تنقيص المخزون
+  // 3. إذا كان هناك دفعة مقدمة، سجلها كدفعة
+  if (down_payment > 0) {
+    const receiptNumber = `RCP-${storeId.slice(0, 8)}-${Date.now()}`;
+    
+    await supabase
+      .from('payments')
+      .insert({
+        id: uuidv4(),
+        plan_id: planId,
+        store_id: storeId,
+        received_by: req.user.id,
+        amount_paid: down_payment,
+        payment_date: new Date().toISOString().split('T')[0],
+        is_early: true,
+        receipt_number: receiptNumber,
+        notes: `دفعة مقدمة عن قسط ${product.name}` 
+      });
+  }
+
+  // 4. تنقيص المخزون
   await supabase
     .from('products')
     .update({ quantity: product.quantity - 1, updated_at: new Date().toISOString() })

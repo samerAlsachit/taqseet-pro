@@ -58,6 +58,8 @@ app.use('/api/installments', require('./routes/installments'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/sync', require('./routes/sync'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/reports', require('./routes/reports'));
 // app.use('/api/stores', require('./routes/stores'));
 
 // معالجة المسارات غير الموجودة
