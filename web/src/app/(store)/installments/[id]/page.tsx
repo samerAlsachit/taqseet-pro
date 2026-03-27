@@ -43,9 +43,9 @@ export default function InstallmentDetailPage() {
   const params = useParams();
   const installmentId = params.id as string;
 
-  const [plan, setPlan] = useState<InstallmentDetail | null>(null);
-  const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const [plan, setPlan] = useState<any>(null);
+  const [schedule, setSchedule] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
@@ -64,162 +64,178 @@ export default function InstallmentDetailPage() {
         setStoreSettings(data.data);
       }
     } catch (error) {
-      console.error('خطأ في جلب إعدادات المحل', error);
+      // خطأ في جلب إعدادات المحل
     }
   };
 
-  const handlePrintReceipt = (payment: Payment) => {
-    // إنشاء محتوى الوصل للطباعة
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    
-    const html = `
-      <!DOCTYPE html>
-      <html dir="rtl">
-      <head>
-        <meta charset="UTF-8">
-        <title>وصل دفع - مرساة</title>
-        <style>
+  const handlePrintReceipt = async (payment: Payment) => {
+  // جلب إعدادات المحل الطازجة
+  const token = localStorage.getItem('token');
+  let storeName = 'مرساة';
+  let receiptHeader = 'شكراً لثقتكم بنا';
+  let receiptFooter = 'مرساة - نظام إدارة الأقساط';  
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/store/settings`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (data.success) {
+      storeName = data.data.name || storeName;
+      receiptHeader = data.data.receipt_header || receiptHeader;
+      receiptFooter = data.data.receipt_footer || receiptFooter;
+    }
+  } catch (error) {
+    // استخدم القيم الافتراضية
+  }
+
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return;  
+  const html = `
+    <!DOCTYPE html>
+    <html dir="rtl">
+    <head>
+      <meta charset="UTF-8">
+      <title>وصل دفع - ${storeName}</title>
+      <style>
+        body {
+          font-family: 'Tajawal', 'Arial', sans-serif;
+          padding: 20px;
+          max-width: 300px;
+          margin: 0 auto;
+        }
+        .receipt {
+          border: 1px solid #ddd;
+          padding: 20px;
+          border-radius: 8px;
+        }
+        .header {
+          text-align: center;
+          border-bottom: 1px solid #ddd;
+          padding-bottom: 10px;
+          margin-bottom: 20px;
+        }
+        .header h1 {
+          margin: 0;
+          color: #0A192F;
+          font-size: 20px;
+        }
+        .header p {
+          margin: 5px 0;
+          color: #666;
+          font-size: 12px;
+        }
+        .info {
+          margin-bottom: 20px;
+        }
+        .info-row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 8px;
+          font-size: 14px;
+        }
+        .info-label {
+          font-weight: bold;
+          color: #333;
+        }
+        .info-value {
+          color: #666;
+        }
+        .divider {
+          border-top: 1px dashed #ddd;
+          margin: 15px 0;
+        }
+        .amount {
+          font-size: 18px;
+          font-weight: bold;
+          text-align: center;
+          color: #28A745;
+          margin: 15px 0;
+        }
+        .footer {
+          text-align: center;
+          font-size: 12px;
+          color: #999;
+          margin-top: 20px;
+          padding-top: 10px;
+          border-top: 1px solid #ddd;
+        }
+        @media print {
           body {
-            font-family: 'Tajawal', 'Arial', sans-serif;
-            padding: 20px;
-            max-width: 300px;
-            margin: 0 auto;
+            padding: 0;
           }
-          .receipt {
-            border: 1px solid #ddd;
-            padding: 20px;
-            border-radius: 8px;
+          .no-print {
+            display: none;
           }
-          .header {
-            text-align: center;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-          }
-          .header h1 {
-            margin: 0;
-            color: #0A192F;
-            font-size: 20px;
-          }
-          .header p {
-            margin: 5px 0;
-            color: #666;
-            font-size: 12px;
-          }
-          .info {
-            margin-bottom: 20px;
-          }
-          .info-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            font-size: 14px;
-          }
-          .info-label {
-            font-weight: bold;
-            color: #333;
-          }
-          .info-value {
-            color: #666;
-          }
-          .divider {
-            border-top: 1px dashed #ddd;
-            margin: 15px 0;
-          }
-          .amount {
-            font-size: 18px;
-            font-weight: bold;
-            text-align: center;
-            color: #28A745;
-            margin: 15px 0;
-          }
-          .footer {
-            text-align: center;
-            font-size: 12px;
-            color: #999;
-            margin-top: 20px;
-            padding-top: 10px;
-            border-top: 1px solid #ddd;
-          }
-          @media print {
-            body {
-              padding: 0;
-            }
-            .no-print {
-              display: none;
-            }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="receipt">
-          <div class="header">
-            <h1 style="color: #0A192F; font-size: 20px;">${storeSettings?.name || 'مرساة'}</h1>
-            <p style="color: #666; font-size: 12px;">${storeSettings?.receipt_header || 'شكراً لثقتكم بنا'}</p>
+        }
+      </style>
+    </head>
+    <body>
+      <div class="receipt">
+        <div class="header">
+          <h1>${storeName}</h1>
+          <p>${receiptHeader}</p>
+        </div>
+        
+        <div class="info">
+          <div class="info-row">
+            <span class="info-label">رقم الوصل:</span>
+            <span class="info-value">${payment.receipt_number}</span>
           </div>
-          
-          <div class="info">
-            <div class="info-row">
-              <span class="info-label">رقم الوصل:</span>
-              <span class="info-value">${payment.receipt_number}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">التاريخ:</span>
-              <span class="info-value">${new Date(payment.payment_date).toLocaleDateString('ar-IQ')}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">المنتج:</span>
-              <span class="info-value">${plan?.product_name || ''}</span>
-            </div>
+          <div class="info-row">
+            <span class="info-label">التاريخ:</span>
+            <span class="info-value">${new Date(payment.payment_date).toLocaleDateString('ar-IQ')}</span>
           </div>
-          
-          <div class="divider"></div>
-          
-          <div class="amount">
-            المبلغ: ${payment?.amount_paid ? payment.amount_paid.toLocaleString() : '0'} IQD
-          </div>
-          
-          <div class="divider"></div>
-          
-          <div class="info">
-            <div class="info-row">
-              <span class="info-label">المبلغ المتبقي:</span>
-              <span class="info-value">${plan?.remaining_amount?.toLocaleString() || '0'} IQD</span>
-            </div>
-            ${payment.notes ? `
-            <div class="info-row">
-              <span class="info-label">ملاحظات:</span>
-              <span class="info-value">${payment.notes}</span>
-            </div>
-            ` : ''}
-          </div>
-          
-          <div class="footer">
-            <p>${storeSettings?.receipt_footer || 'مرساة - نظام إدارة الأقساط'}</p>
+          <div class="info-row">
+            <span class="info-label">المنتج:</span>
+            <span class="info-value">${plan?.product_name || ''}</span>
           </div>
         </div>
         
-        <div class="no-print" style="text-align: center; margin-top: 20px;">
-          <button onclick="window.print()" style="padding: 10px 20px; margin: 5px; background: #3A86FF; color: white; border: none; border-radius: 5px; cursor: pointer;">طباعة</button>
-          <button onclick="window.close()" style="padding: 10px 20px; margin: 5px; background: #DC3545; color: white; border: none; border-radius: 5px; cursor: pointer;">إغلاق</button>
+        <div class="divider"></div>
+        
+        <div class="amount">
+          المبلغ: ${payment?.amount_paid ? payment.amount_paid.toLocaleString() : '0'} IQD
         </div>
         
-        <script>
-          // طباعة تلقائية عند فتح النافذة
-          window.onload = () => {
-            setTimeout(() => {
-              window.print();
-            }, 500);
-          };
-        </script>
-      </body>
-      </html>
-    `;
-    
-    printWindow.document.write(html);
-    printWindow.document.close();
-  };
+        <div class="divider"></div>
+        
+        <div class="info">
+          <div class="info-row">
+            <span class="info-label">المبلغ المتبقي:</span>
+            <span class="info-value">${plan?.remaining_amount?.toLocaleString() || '0'} IQD</span>
+          </div>
+          ${payment.notes ? `
+          <div class="info-row">
+            <span class="info-label">ملاحظات:</span>
+            <span class="info-value">${payment.notes}</span>
+          </div>
+          ` : ''}
+        </div>
+        
+        <div class="footer">
+          <p>${receiptFooter}</p>
+        </div>
+      </div>
+      
+      <div class="no-print" style="text-align: center; margin-top: 20px;">
+        <button onclick="window.print()" style="padding: 10px 20px; margin:5px; background: #3A86FF; color: white; border: none; border-radius:5px; cursor: pointer;">طباعة</button>
+        <button onclick="window.close()" style="padding: 10px 20px; margin: 5px; background: #DC3545; color: white; border: none; border-radius: 5px; cursor: pointer;">إغلاق</button>
+      </div>
+      
+      <script>
+        window.onload = () => {
+          setTimeout(() => {
+            window.print();
+          }, 500);
+        };
+      </script>
+    </body>
+    </html>
+  `;
+  
+  printWindow.document.write(html);
+  printWindow.document.close();
+};
 
   const handleSendWhatsApp = (payment: Payment) => {
     const message = `
@@ -257,68 +273,45 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
   const [paymentLoading, setPaymentLoading] = useState(false);
 
   const fetchInstallmentData = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      router.push('/login');
-      return;
+  const token = localStorage.getItem('token');
+  if (!token) {
+    router.push('/login');
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/installments/${installmentId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const result = await res.json();
+    
+    if (result.success) {
+      setPlan(result.data.plan);
+      setSchedule(result.data.installments);
+      setPayments(result.data.payments);
+    } else {
+      setError(result.error || 'القسط غير موجود');
     }
-
-    setLoading(true);
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/installments/${installmentId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (data.success) {
-        console.log('Plan data:', data.data.plan);
-        const planData = data.data;
-        setPlan(planData);
-
-        // جلب جدول الأقساط
-        const scheduleRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payment-schedule?plan_id=${installmentId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const scheduleData = await scheduleRes.json();
-        if (scheduleData.success) {
-          setSchedule(scheduleData.data);
-        }
-
-        // جلب الدفعات
-        const paymentsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments?plan_id=${installmentId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const paymentsData = await paymentsRes.json();
-        if (paymentsData.success) {
-          setPayments(paymentsData.data);
-        }
-      } else {
-        setError(data.error || 'فشل في جلب البيانات');
-      }
-    } catch (error) {
-      setError('حدث خطأ في جلب البيانات');
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (err) {
+    setError('حدث خطأ في جلب البيانات');
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
-    const fetchStoreSettings = async () => {
-      const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token');
+    if (token) {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/store/settings`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (data.success) {
-          setStoreSettings(data.data);
-        }
-      } catch (error) {
-        console.error('خطأ في جلب إعدادات المحل', error);
+        const payload = JSON.parse(atob(token.split('.')[1]));
+      } catch(e) {
+        // Cannot decode token
       }
-    };
+    }
 
     if (installmentId) {
-      fetchStoreSettings();
       fetchInstallmentData();
     }
   }, [router, installmentId]);
@@ -425,62 +418,67 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
         <h1 className="text-2xl font-bold text-navy">تفاصيل القسط</h1>
       </div>
 
+      
       {/* معلومات القسط */}
       <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
         <div className="flex justify-between items-start mb-4">
           <h2 className="text-xl font-bold text-navy">معلومات القسط</h2>
-          {getPlanStatusBadge(plan.status)}
+          {plan && getPlanStatusBadge(plan?.status)}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <p className="text-text-primary text-sm">العميل</p>
-            <p className="font-medium">{plan.customer_name}</p>
-            <p className="text-sm text-text-primary/70">{plan.customer_phone}</p>
+        {plan && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <p className="text-text-primary text-sm">العميل</p>
+              <p className="font-medium">{plan.customer_name || 'غير محدد'}</p>
+              <p className="text-sm text-text-primary/70">{plan.customer_phone || ''}</p>
+            </div>
+            <div>
+              <p className="text-text-primary text-sm">المنتج</p>
+              <p className="font-medium">{plan.product_name || 'غير محدد'}</p>
+            </div>
+            <div>
+              <p className="text-text-primary text-sm">المبلغ الكلي</p>
+              <p className="font-medium">{plan.total_price?.toLocaleString() || 0} IQD</p>
+            </div>
+            <div>
+              <p className="text-text-primary text-sm">المبلغ المتبقي</p>
+              <p className="font-medium text-danger">{plan.remaining_amount?.toLocaleString() || 0} IQD</p>
+            </div>
+            <div>
+              <p className="text-text-primary text-sm">الدفعة المقدمة</p>
+              <p className="font-medium">{plan.down_payment?.toLocaleString() || 0} IQD</p>
+            </div>
+            <div>
+              <p className="text-text-primary text-sm">قيمة القسط</p>
+              <p className="font-medium">{plan.installment_amount?.toLocaleString() || 0} IQD</p>
+            </div>
+            <div>
+              <p className="text-text-primary text-sm">نظام الدفع</p>
+              <p className="font-medium">
+                {plan.frequency === 'monthly' ? 'شهري' : plan.frequency === 'weekly' ? 'أسبوعي' : 'يومي'}
+              </p>
+            </div>
+            <div>
+              <p className="text-text-primary text-sm">المدة</p>
+              <p className="font-medium">{plan.installments_count} قسط</p>
+            </div>
           </div>
-          <div>
-            <p className="text-text-primary text-sm">المنتج</p>
-            <p className="font-medium">{plan.product_name}</p>
-          </div>
-          <div>
-            <p className="text-text-primary text-sm">المبلغ الكلي</p>
-            <p className="font-medium">{plan?.total_price ? plan.total_price.toLocaleString() : '0'} IQD</p>
-          </div>
-          <div>
-            <p className="text-text-primary text-sm">المبلغ المتبقي</p>
-            <p className="font-medium text-danger">{plan?.remaining_amount ? plan.remaining_amount.toLocaleString() : '0'} IQD</p>
-          </div>
-          <div>
-            <p className="text-text-primary text-sm">الدفعة المقدمة</p>
-            <p className="font-medium">{plan?.down_payment ? plan.down_payment.toLocaleString() : '0'} IQD</p>
-          </div>
-          <div>
-            <p className="text-text-primary text-sm">قيمة القسط</p>
-            <p className="font-medium">{plan?.installment_amount ? plan.installment_amount.toLocaleString() : '0'} IQD</p>
-          </div>
-          <div>
-            <p className="text-text-primary text-sm">نظام الدفع</p>
-            <p className="font-medium">{plan.frequency === 'monthly' ? 'شهري' : plan.frequency === 'weekly' ? 'أسبوعي' : 'يومي'}</p>
-          </div>
-          <div>
-            <p className="text-text-primary text-sm">المدة</p>
-            <p className="font-medium">{plan.installments_count} قسط</p>
-          </div>
-        </div>
+        )}
         
         <div className="mt-4">
           <div className="flex justify-between text-sm mb-1">
             <span>التقدم</span>
-            <span>{paidCount}/{plan.installments_count} قسط مدفوع</span>
+            <span>{paidCount}/{plan?.installments_count || 0} قسط مدفوع</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
-              className="bg-electric rounded-full h-2"
-              style={{ width: `${progress}%` }}
-            />
+              className="bg-electric h-2 rounded-full transition-all duration-300"
+              style={{ width: `${(paidCount / (plan?.installments_count || 1)) * 100}%` }}
+            ></div>
           </div>
         </div>
 
-        {plan.notes && (
+        {plan?.notes && (
           <div className="mt-4 p-3 bg-gray-bg rounded-lg">
             <p className="text-text-primary text-sm">ملاحظات</p>
             <p className="text-text-primary">{plan.notes}</p>
@@ -503,14 +501,15 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
                </tr>
             </thead>
             <tbody>
-              {schedule.map((item) => (
+              {schedule.length > 0 ? (
+              schedule.map((item) => (
                 <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-4">{item.installment_no}</td>
                   <td className="py-3 px-4">{new Date(item.due_date).toLocaleDateString('ar-IQ')}</td>
                   <td className="py-3 px-4">{item?.amount ? item.amount.toLocaleString() : '0'} IQD</td>
                   <td className="py-3 px-4">{getStatusBadge(item.status)}</td>
                   <td className="py-3 px-4">
-                    {item.status === 'pending' && plan.status === 'active' && (
+                    {item.status === 'pending' && plan?.status === 'active' && (
                       <button
                         onClick={() => openPaymentModal(item)}
                         className="bg-electric hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-sm transition"
@@ -520,7 +519,10 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
                     )}
                   </td>
                 </tr>
-              ))}
+              ))
+            ) : (
+              <tr><td colSpan={4} className="text-center py-8">لا توجد أقساط</td></tr>
+            )}
             </tbody>
            </table>
         </div>
@@ -542,7 +544,8 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
                  </tr>
               </thead>
               <tbody>
-                {payments.map((payment) => (
+                {payments.length > 0 ? (
+                payments.map((payment) => (
                   <tr key={payment.id} className="border-b border-gray-100">
                     <td className="py-3 px-4 font-mono text-sm">{payment.receipt_number}</td>
                     <td className="py-3 px-4">{new Date(payment.payment_date).toLocaleDateString('ar-IQ')}</td>
@@ -558,14 +561,17 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
                         </button>
                         <button
                           onClick={() => handleSendWhatsApp(payment)}
-                          className="text-success hover:underline text-sm"
+                          className="text-green-600 hover:underline text-sm"
                         >
-                          📱 واتساب
+                          📱 WhatsApp
                         </button>
                       </div>
                     </td>
                   </tr>
-                ))}
+                ))
+              ) : (
+                <tr><td colSpan={4} className="text-center py-8">لا توجد دفعات</td></tr>
+              )}
               </tbody>
              </table>
           </div>
