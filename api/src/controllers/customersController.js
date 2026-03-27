@@ -443,10 +443,10 @@ const deleteCustomer = async (req, res) => {
 
     // التحقق من وجود أقساط نشطة
     const { data: activeInstallments, error: installmentsError } = await supabase
-      .from('installments')
+      .from('installment_plans')
       .select('id')
       .eq('customer_id', id)
-      .in('status', ['pending', 'overdue'])
+      .eq('status', 'active')
       .limit(1);
 
     if (installmentsError) {

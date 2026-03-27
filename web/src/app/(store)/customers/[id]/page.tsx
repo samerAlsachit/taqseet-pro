@@ -128,9 +128,9 @@ export default function CustomerDetailPage() {
           <h2 className="text-xl font-bold text-navy">معلومات العميل</h2>
           <Link
             href={`/customers/${customerId}/edit`}
-            className="text-electric hover:underline"
+            className="bg-electric hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm transition"
           >
-            تعديل
+            ✏️ تعديل
           </Link>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

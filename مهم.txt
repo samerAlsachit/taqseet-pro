@@ -1,1 +1,2 @@
 supabase project password : CVRwYZjDmdwO3g5U
+resend api key : re_P9jkVUJU_E1Fxw1AkjyevD3GGsQXv1pXV

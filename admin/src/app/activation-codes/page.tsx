@@ -137,7 +137,7 @@ export default function ActivationCodesPage() {
   return (
     <AdminLayout>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-navy">كودات التفعيل</h1>
+        <h1 className="text-2xl font-bold text-navy">مرساة - كودات التفعيل</h1>
         <button
           onClick={() => setShowModal(true)}
           className="bg-electric hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition"

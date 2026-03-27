@@ -1,46 +1,364 @@
 const express = require('express');
 const router = express.Router();
-const { login, activate, refreshToken, getMe } = require('../controllers/authController');
-const { authenticateToken } = require('../middleware/auth');
-const { supabase } = require('../config/supabase');
-const { v4: uuidv4 } = require('uuid');
-const { ERROR_CODES, ERROR_MESSAGES } = require('../config/constants');
-const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const { v4: uuidv4 } = require('uuid');
+const { supabase, supabaseAdmin } = require('../config/supabase');
+const { auth } = require('../middleware/auth');
+const { ERROR_CODES, ERROR_MESSAGES } = require('../config/constants');
+const { sendPasswordResetEmail, sendUsernameReminder } = require('../services/emailService');
 
-/**
- * @route   POST /api/auth/login
- * @desc    تسجيل الدخول
- * @access  Public
- */
-router.post('/login', login);
+// POST /api/auth/login
+router.post('/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
 
-/**
- * @route   POST /api/auth/activate
- * @desc    تفعيل الحساب باستخدام كود التفعيل
- * @access  Public
- */
-router.post('/activate', activate);
+    if (!username || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'اسم المستخدم وكلمة المرور مطلوبان',
+        code: 'VALIDATION_ERROR'
+      });
+    }
 
-/**
- * @route   POST /api/auth/refresh
- * @desc    تجديد التوكن
- * @access  Public
- */
-router.post('/refresh', refreshToken);
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, username, password_hash, role, store_id, can_delete, can_edit, can_view_reports')
+      .eq('username', username)
+      .single();
 
-/**
- * @route   GET /api/auth/me
- * @desc    جلب بيانات المستخدم الحالي
- * @access  Private
- */
-router.get('/me', authenticateToken, getMe);
+    if (error || !user) {
+      return res.status(401).json({
+        success: false,
+        error: 'اسم المستخدم أو كلمة المرور غلط',
+        code: 'UNAUTHORIZED'
+      });
+    }
 
-/**
- * @route   POST /api/auth/verify-code
- * @desc    التحقق من كود التفعيل قبل التفعيل
- * @access  Public
- */
+    const isValid = await bcrypt.compare(password, user.password_hash);
+    if (!isValid) {
+      return res.status(401).json({
+        success: false,
+        error: 'اسم المستخدم أو كلمة المرور غلط',
+        code: 'UNAUTHORIZED'
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        user_id: user.id,
+        store_id: user.store_id,
+        role: user.role,
+        can_delete: user.can_delete,
+        can_edit: user.can_edit,
+        can_view_reports: user.can_view_reports
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    // تسجيل عملية الدخول في سجل التدقيق
+    await supabaseAdmin
+      .from('audit_logs')
+      .insert({
+        id: uuidv4(),
+        user_id: user.id,
+        store_id: user.store_id,
+        action: 'login',
+        ip_address: req.ip || req.connection.remoteAddress,
+        user_agent: req.get('User-Agent'),
+        created_at: new Date().toISOString()
+      });
+
+    res.json({
+      success: true,
+      data: {
+        token,
+        user: {
+          id: user.id,
+          username: user.username,
+          full_name: user.full_name,
+          role: user.role,
+          store_id: user.store_id,
+          can_delete: user.can_delete,
+          can_edit: user.can_edit,
+          can_view_reports: user.can_view_reports
+        }
+      },
+      message: 'تم تسجيل الدخول بنجاح'
+    });
+
+  } catch (error) {
+    console.error('خطأ في تسجيل الدخول:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+// POST /api/auth/activate
+router.post('/activate', async (req, res) => {
+  try {
+    const { code, store_name, owner_name, phone, address, city, username, password } = req.body;
+
+    if (!code || !store_name || !owner_name || !phone || !username || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'جميع الحقول مطلوبة ما عدا العنوان والمدينة',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    // البحث عن كود التفعيل
+    const { data: activationCode, error: codeError } = await supabase
+      .from('activation_codes')
+      .select('*')
+      .eq('code', code)
+      .eq('is_used', false)
+      .single();
+
+    if (codeError || !activationCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'كود التفعيل غير صالح أو تم استخدامه',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    // التحقق من صلاحية الكود
+    const moment = require('moment');
+    if (moment(activationCode.expires_at).isBefore(moment())) {
+      return res.status(400).json({
+        success: false,
+        error: 'كود التفعيل منتهي الصلاحية',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    // بعد إنشاء المحل، جلب تفاصيل الخطة
+    const { data: plan } = await supabase
+      .from('subscription_plans')
+      .select('duration_days')
+      .eq('id', activationCode.plan_id)
+      .single();
+
+    // حساب تاريخ الانتهاء
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + plan.duration_days);
+
+    // إنشاء محل جديد
+    const { data: store, error: storeError } = await supabaseAdmin
+      .from('stores')
+      .insert({
+        name: store_name,
+        owner_name: owner_name,
+        phone: phone,
+        address: address || '',
+        city: city || '',
+        plan_id: activationCode.plan_id,
+        subscription_start: startDate.toISOString().split('T')[0],
+        subscription_end: endDate.toISOString().split('T')[0],
+        is_active: true,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (storeError) {
+      console.error('خطأ في إنشاء المحل:', storeError);
+      return res.status(500).json({
+        success: false,
+        error: 'فشل في إنشاء المحل',
+        code: 'INTERNAL_ERROR'
+      });
+    }
+
+    // تشفير كلمة المرور
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // التحقق مما إذا كان المستخدم موجود بالفعل
+    const { data: existingUser, error: existingError } = await supabaseAdmin
+      .from('users')
+      .select('*')
+      .eq('store_id', store.id)
+      .eq('role', 'store_owner')
+      .single();
+
+    let user;
+    if (existingUser) {
+      // تحديث كلمة المرور للمستخدم الموجود
+      const { data: updatedUser, error: updateError } = await supabaseAdmin
+        .from('users')
+        .update({
+          username: username,
+          full_name: owner_name,
+          password_hash: hashedPassword,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingUser.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('خطأ في تحديث المستخدم:', updateError);
+        return res.status(500).json({
+          success: false,
+          error: 'فشل في تحديث المستخدم',
+          code: 'INTERNAL_ERROR'
+        });
+      }
+      user = updatedUser;
+    } else {
+      // إنشاء مستخدم جديد
+      const { data: newUser, error: userError } = await supabaseAdmin
+        .from('users')
+        .insert({
+          store_id: store.id,
+          full_name: owner_name,
+          username: username,
+          password_hash: hashedPassword,
+          role: 'store_owner',
+          can_delete: true,
+          can_edit: true,
+          can_view_reports: true,
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (userError) {
+        console.error('خطأ في إنشاء المستخدم:', userError);
+        return res.status(500).json({
+          success: false,
+          error: 'فشل في إنشاء المستخدم',
+          code: 'INTERNAL_ERROR'
+        });
+      }
+      user = newUser;
+    }
+
+    // تحديث كود التفعيل
+    await supabaseAdmin
+      .from('activation_codes')
+      .update({
+        is_used: true,
+        used_at: new Date().toISOString(),
+        store_id: store.id
+      })
+      .eq('id', activationCode.id);
+
+    // إنشاء JWT token
+    const token = jwt.sign(
+      {
+        user_id: user.id,
+        store_id: user.store_id,
+        role: user.role,
+        can_delete: user.can_delete,
+        can_edit: user.can_edit,
+        can_view_reports: user.can_view_reports
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    res.status(201).json({
+      success: true,
+      data: {
+        token,
+        user: {
+          id: user.id,
+          username: user.username,
+          full_name: user.full_name,
+          role: user.role,
+          store_id: user.store_id,
+          can_delete: user.can_delete,
+          can_edit: user.can_edit,
+          can_view_reports: user.can_view_reports
+        },
+        store: {
+          id: store.id,
+          name: store.name,
+          subscription_end: store.subscription_end
+        }
+      },
+      message: 'تم تفعيل الحساب بنجاح'
+    });
+
+  } catch (error) {
+    console.error('خطأ في تفعيل الحساب:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+// GET /api/auth/me
+router.get('/me', auth, async (req, res) => {
+  try {
+    const userId = req.user.id || req.user.user_id;
+    const storeId = req.user.store_id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'المستخدم غير مصرح',
+        code: 'UNAUTHORIZED'
+      });
+    }
+
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, username, full_name, role, store_id, can_delete, can_edit, can_view_reports, created_at')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({
+        success: false,
+        error: 'المستخدم غير موجود',
+        code: 'NOT_FOUND'
+      });
+    }
+
+    let store = null;
+    if (storeId) {
+      const { data: storeData } = await supabase
+        .from('stores')
+        .select('id, name, owner_name, phone, address, city, logo_url, receipt_header, receipt_footer, default_currency, subscription_start, subscription_end, is_active')
+        .eq('id', storeId)
+        .single();
+      store = storeData;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        user,
+        store,
+        subscription: {
+          days_remaining: store?.subscription_end ? Math.ceil((new Date(store.subscription_end).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
+          expires_at: store?.subscription_end,
+          is_active: store?.is_active
+        }
+      },
+      message: 'تم جلب البيانات بنجاح'
+    });
+  } catch (error) {
+    console.error('خطأ في جلب بيانات المستخدم:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+// POST /api/auth/verify-code
 router.post('/verify-code', async (req, res) => {
   try {
     const { code } = req.body;
@@ -53,7 +371,6 @@ router.post('/verify-code', async (req, res) => {
       });
     }
 
-    // البحث عن الكود في قاعدة البيانات
     const { data: activationCode, error } = await supabase
       .from('activation_codes')
       .select('id, plan_id, is_used, expires_at')
@@ -68,7 +385,6 @@ router.post('/verify-code', async (req, res) => {
       });
     }
 
-    // التحقق من أن الكود لم يُستخدم
     if (activationCode.is_used) {
       return res.status(400).json({
         success: false,
@@ -77,8 +393,8 @@ router.post('/verify-code', async (req, res) => {
       });
     }
 
-    // التحقق من صلاحية الكود
-    if (activationCode.expires_at && new Date(activationCode.expires_at) < new Date()) {
+    const moment = require('moment');
+    if (activationCode.expires_at && moment(activationCode.expires_at).isBefore(moment())) {
       return res.status(400).json({
         success: false,
         error: 'انتهت صلاحية الكود',
@@ -104,222 +420,60 @@ router.post('/verify-code', async (req, res) => {
   }
 });
 
-/**
- * @route   POST /api/auth/register-super-admin
- * @desc    تسجيل سوبر أدمن جديد
- * @access  Public
- */
-router.post('/register-super-admin', async (req, res) => {
-  try {
-    const { username, password, full_name, phone } = req.body;
-
-    // التحقق من المدخلات
-    if (!username || !password || !full_name) {
-      return res.status(400).json({
-        success: false,
-        error: 'اسم المستخدم وكلمة المرور والاسم الكامل مطلوبة',
-        code: ERROR_CODES.VALIDATION_ERROR
-      });
-    }
-
-    // التحقق من أن المستخدم غير موجود
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('id')
-      .eq('username', username)
-      .single();
-
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        error: 'اسم المستخدم موجود بالفعل',
-        code: ERROR_CODES.VALIDATION_ERROR
-      });
-    }
-
-    // تشفير كلمة المرور
-    const bcrypt = require('bcrypt');
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // إنشاء المستخدم
-    const { data: user, error } = await supabase
-      .from('users')
-      .insert({
-        id: uuidv4(),
-        store_id: null,
-        full_name: full_name,
-        username: username,
-        password_hash: hashedPassword,
-        phone: phone || '',
-        role: 'super_admin',
-        can_delete: true,
-        can_edit: true,
-        can_view_reports: true,
-        is_active: true,
-        created_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('خطأ في إنشاء السوبر أدمن:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'فشل في إنشاء المستخدم',
-        code: ERROR_CODES.INTERNAL_ERROR
-      });
-    }
-
-    res.json({
-      success: true,
-      data: {
-        id: user.id,
-        username: user.username,
-        full_name: user.full_name,
-        role: user.role
-      },
-      message: 'تم إنشاء حساب السوبر أدمن بنجاح'
-    });
-
-  } catch (error) {
-    console.error('خطأ في تسجيل السوبر أدمن:', error);
-    res.status(500).json({
-      success: false,
-      error: ERROR_MESSAGES[ERROR_CODES.INTERNAL_ERROR],
-      code: ERROR_CODES.INTERNAL_ERROR
-    });
-  }
-});
-
-// POST /api/auth/forgot-username
-router.post('/forgot-username', async (req, res) => {
-  try {
-    const { email, phone } = req.body;
-
-    if (!email && !phone) {
-      return res.status(400).json({
-        success: false,
-        error: 'البريد الإلكتروني أو رقم الهاتف مطلوب',
-        code: 'VALIDATION_ERROR'
-      });
-    }
-
-    let query = supabase.from('users').select('username, email, phone');
-    
-    if (email) {
-      query = query.eq('email', email);
-    } else if (phone) {
-      query = query.eq('phone', phone);
-    }
-
-    const { data: users, error } = await query;
-
-    if (error || !users || users.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'لا يوجد حساب مرتبط بهذه المعلومات',
-        code: 'NOT_FOUND'
-      });
-    }
-
-    // في بيئة الإنتاج، نرسل بريد إلكتروني أو رسالة
-    // للاختبار، نرجع اسم المستخدم مباشرة
-    const usernames = users.map(u => u.username);
-
-    res.json({
-      success: true,
-      data: {
-        message: 'تم إرسال اسم المستخدم إلى بريدك الإلكتروني',
-        // للاختبار فقط:
-        usernames: process.env.NODE_ENV === 'development' ? usernames : undefined
-      },
-      message: 'تم إرسال اسم المستخدم إلى بريدك الإلكتروني'
-    });
-  } catch (error) {
-    console.error('خطأ في استعادة اسم المستخدم:', error);
-    res.status(500).json({
-      success: false,
-      error: 'حدث خطأ في الخادم',
-      code: 'INTERNAL_ERROR'
-    });
-  }
-});
-
 // POST /api/auth/forgot-password
 router.post('/forgot-password', async (req, res) => {
   try {
-    const { username, email, phone } = req.body;
+    const { username } = req.body;
 
-    if (!username || (!email && !phone)) {
+    if (!username) {
       return res.status(400).json({
         success: false,
-        error: 'اسم المستخدم والبريد الإلكتروني أو رقم الهاتف مطلوب',
+        error: 'اسم المستخدم مطلوب',
         code: 'VALIDATION_ERROR'
       });
     }
 
-    // البحث عن المستخدم
-    let query = supabase.from('users').select('id, username, email, phone')
-      .eq('username', username);
-    
-    if (email) {
-      query = query.eq('email', email);
-    } else if (phone) {
-      query = query.eq('phone', phone);
-    }
-
-    const { data: user, error } = await query.single();
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, username, email')
+      .eq('username', username)
+      .single();
 
     if (error || !user) {
       return res.status(404).json({
         success: false,
-        error: 'المعلومات غير صحيحة',
+        error: 'اسم المستخدم غير موجود',
         code: 'NOT_FOUND'
       });
     }
 
-    // إنشاء token لإعادة تعيين كلمة المرور (صلاحية ساعة واحدة)
-    const jwt = require('jsonwebtoken');
+    if (!user.email) {
+      return res.status(400).json({
+        success: false,
+        error: 'لا يوجد بريد إلكتروني مرتبط بهذا الحساب',
+        code: 'NO_EMAIL'
+      });
+    }
+
     const resetToken = jwt.sign(
       { user_id: user.id, type: 'password_reset' },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
 
-    // حفظ token في جدول password_resets
-    const { error: insertError } = await supabase
+    await supabase
       .from('password_resets')
       .insert({
         id: uuidv4(),
         user_id: user.id,
         token: resetToken,
-        expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-        created_at: new Date().toISOString()
+        expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString()
       });
 
-    if (insertError) {
-      console.error('خطأ في حفظ token:', insertError);
-    }
-
-    // إنشاء رابط إعادة التعيين
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
     const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
 
-    // في بيئة الإنتاج، نرسل بريد إلكتروني
-    // للاختبار، نرجع الرابط مباشرة
-    if (process.env.NODE_ENV === 'development') {
-      return res.json({
-        success: true,
-        data: {
-          resetUrl,
-          message: 'رابط إعادة تعيين كلمة المرور (للاختبار فقط)'
-        },
-        message: `تم إرسال رابط إعادة التعيين إلى ${user.email || 'بريدك الإلكتروني'}` 
-      });
-    }
-
-    // هنا نضيف إرسال البريد الإلكتروني في الإنتاج
-    // await sendEmail(user.email, 'إعادة تعيين كلمة المرور', `اضغط على الرابط: ${resetUrl}`);
+    await sendPasswordResetEmail(user.email, user.username, resetUrl);
 
     res.json({
       success: true,
@@ -348,12 +502,10 @@ router.post('/reset-password', async (req, res) => {
       });
     }
 
-    // التحقق من صحة token
-    const jwt = require('jsonwebtoken');
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (err) {
+    } catch {
       return res.status(400).json({
         success: false,
         error: 'الرمز غير صالح أو منتهي الصلاحية',
@@ -361,15 +513,14 @@ router.post('/reset-password', async (req, res) => {
       });
     }
 
-    // التحقق من وجود token في جدول password_resets
-    const { data: resetRecord, error: resetError } = await supabase
+    const { data: resetRecord } = await supabase
       .from('password_resets')
       .select('*')
       .eq('token', token)
       .eq('user_id', decoded.user_id)
       .single();
 
-    if (resetError || !resetRecord) {
+    if (!resetRecord) {
       return res.status(400).json({
         success: false,
         error: 'الرمز غير صالح',
@@ -377,7 +528,6 @@ router.post('/reset-password', async (req, res) => {
       });
     }
 
-    // التحقق من صلاحية token
     if (new Date(resetRecord.expires_at) < new Date()) {
       return res.status(400).json({
         success: false,
@@ -386,22 +536,13 @@ router.post('/reset-password', async (req, res) => {
       });
     }
 
-    // تشفير كلمة المرور الجديدة
-    const bcrypt = require('bcrypt');
     const hashedPassword = await bcrypt.hash(new_password, 10);
 
-    // تحديث كلمة المرور
-    const { error: updateError } = await supabase
+    await supabase
       .from('users')
       .update({ password_hash: hashedPassword, updated_at: new Date().toISOString() })
       .eq('id', decoded.user_id);
 
-    if (updateError) {
-      console.error('خطأ في تحديث كلمة المرور:', updateError);
-      throw updateError;
-    }
-
-    // حذف token المستخدم
     await supabase
       .from('password_resets')
       .delete()
@@ -413,6 +554,83 @@ router.post('/reset-password', async (req, res) => {
     });
   } catch (error) {
     console.error('خطأ في إعادة تعيين كلمة المرور:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+// POST /api/auth/register-super-admin
+router.post('/register-super-admin', async (req, res) => {
+  try {
+    const { username, password, full_name, phone } = req.body;
+
+    if (!username || !password || !full_name) {
+      return res.status(400).json({
+        success: false,
+        error: 'اسم المستخدم وكلمة المرور والاسم الكامل مطلوبة',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('username', username)
+      .single();
+
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        error: 'اسم المستخدم موجود بالفعل',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .insert({
+        id: uuidv4(),
+        store_id: null,
+        full_name: full_name,
+        username: username,
+        password_hash: hashedPassword,
+        phone: phone || '',
+        role: 'super_admin',
+        can_delete: true,
+        can_edit: true,
+        can_view_reports: true,
+        is_active: true,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('خطأ في إنشاء السوبر أدمن:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'فشل في إنشاء المستخدم',
+        code: 'INTERNAL_ERROR'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        id: user.id,
+        username: user.username,
+        full_name: user.full_name,
+        role: user.role
+      },
+      message: 'تم إنشاء حساب السوبر أدمن بنجاح'
+    });
+  } catch (error) {
+    console.error('خطأ في تسجيل السوبر أدمن:', error);
     res.status(500).json({
       success: false,
       error: 'حدث خطأ في الخادم',

@@ -426,8 +426,18 @@ const refreshToken = async (req, res) => {
  */
 const getMe = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.id || req.user.user_id;
     const storeId = req.user.store_id;
+
+    console.log('getMe - userId:', userId, 'storeId:', storeId);
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: 'المستخدم غير مصرح',
+        code: 'UNAUTHORIZED'
+      });
+    }
 
     // جلب بيانات المستخدم
     const { data: user, error: userError } = await supabase
@@ -437,51 +447,44 @@ const getMe = async (req, res) => {
       .single();
 
     if (userError || !user) {
+      console.error('خطأ في جلب المستخدم:', userError);
       return res.status(404).json({
         success: false,
         error: 'المستخدم غير موجود',
-        code: ERROR_CODES.NOT_FOUND
+        code: 'NOT_FOUND'
       });
     }
 
     // جلب بيانات المحل
-    const { data: store, error: storeError } = await supabase
-      .from('stores')
-      .select('*')
-      .eq('id', storeId)
-      .single();
-
-    if (storeError || !store) {
-      return res.status(404).json({
-        success: false,
-        error: 'المحل غير موجود',
-        code: ERROR_CODES.STORE_NOT_FOUND
-      });
+    let store = null;
+    if (storeId) {
+      const { data: storeData } = await supabase
+        .from('stores')
+        .select('id, name, owner_name, phone, address, city, logo_url, receipt_header, receipt_footer, default_currency, subscription_start, subscription_end, is_active')
+        .eq('id', storeId)
+        .single();
+      store = storeData;
     }
-
-    // حساب الأيام المتبقية من الاشتراك
-    const now = moment();
-    const endDate = moment(store.subscription_end);
-    const daysRemaining = endDate.diff(now, 'days');
 
     res.json({
       success: true,
       data: {
         user,
-        store: {
-          ...store,
-          days_remaining: Math.max(0, daysRemaining)
+        store,
+        subscription: {
+          days_remaining: store?.subscription_end ? Math.ceil((new Date(store.subscription_end).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
+          expires_at: store?.subscription_end,
+          is_active: store?.is_active
         }
       },
       message: 'تم جلب البيانات بنجاح'
     });
-
   } catch (error) {
     console.error('خطأ في جلب بيانات المستخدم:', error);
     res.status(500).json({
       success: false,
-      error: ERROR_MESSAGES[ERROR_CODES.INTERNAL_ERROR],
-      code: ERROR_CODES.INTERNAL_ERROR
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
     });
   }
 };

@@ -60,7 +60,8 @@ app.use('/api/sync', require('./routes/sync'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/reports', require('./routes/reports'));
-// app.use('/api/stores', require('./routes/stores'));
+const storeRoutes = require('./routes/store');
+app.use('/api/store', storeRoutes);
 
 // معالجة المسارات غير الموجودة
 app.use(notFoundHandler);
@@ -72,9 +73,12 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(`🚀 خادم تقسيط برو يعمل على المنفذ ${PORT}`);
+  console.log(`🚀 خادم مرساة يعمل على المنفذ ${PORT}`);
   console.log(`🌍 البيئة: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📊 الصحة: http://localhost:${PORT}/health`);
 });
+
+// تشغيل Cron Job للتنبيهات
+require('./cron/expiryNotifications');
 
 module.exports = app;

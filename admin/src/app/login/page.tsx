@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -50,11 +51,15 @@ export default function LoginPage() {
   const handleForgotUsername = async () => {
     setForgotLoading(true);
     setForgotMessage('');
+    const input = forgotEmail;
+    const isEmail = input.includes('@');
+    const payload = isEmail ? { email: input } : { phone: input };
+    
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/forgot-username`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: forgotEmail, phone: forgotPhone }),
+        body: JSON.stringify(payload)
       });
       const data = await response.json();
       if (data.success) {
@@ -77,7 +82,7 @@ export default function LoginPage() {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: forgotUsername, email: forgotEmail, phone: forgotPhone }),
+        body: JSON.stringify({ username: forgotUsername })
       });
       const data = await response.json();
       if (data.success) {
@@ -97,9 +102,14 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-bg p-4">
       <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-navy">تقسيط برو</h1>
-          <p className="text-text-primary mt-2">لوحة التحكم</p>
-        </div>
+  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-navy to-electric mb-4">
+    <span className="text-3xl">⚓</span>
+  </div>
+  <h1 className="text-4xl font-bold bg-gradient-to-r from-navy to-electric bg-clip-text text-transparent">
+    مرساة
+  </h1>
+  <p className="text-text-primary mt-2">لوحة التحكم</p>
+</div>
 
         {error && (
           <div className="bg-red-50 text-danger border border-danger/20 rounded-lg p-3 mb-4 text-center">
@@ -165,17 +175,10 @@ export default function LoginPage() {
               <h2 className="text-xl font-bold text-navy mb-4">استعادة اسم المستخدم</h2>
               <p className="text-text-primary text-sm mb-4">أدخل بريدك الإلكتروني أو رقم هاتفك</p>
               <input
-                type="email"
-                placeholder="البريد الإلكتروني"
+                type="text"
+                placeholder="البريد الإلكتروني أو رقم الهاتف"
                 value={forgotEmail}
                 onChange={(e) => setForgotEmail(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-electric"
-              />
-              <input
-                type="tel"
-                placeholder="رقم الهاتف"
-                value={forgotPhone}
-                onChange={(e) => setForgotPhone(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-electric"
               />
               {forgotMessage && (
@@ -184,13 +187,13 @@ export default function LoginPage() {
               <div className="flex gap-3">
                 <button
                   onClick={handleForgotUsername}
-                  disabled={forgotLoading}
+                  disabled={forgotLoading || !forgotEmail}
                   className="flex-1 bg-electric text-white py-2 rounded-lg disabled:opacity-50"
                 >
                   {forgotLoading ? 'جاري الإرسال...' : 'إرسال'}
                 </button>
                 <button
-                  onClick={() => { setShowForgotUsername(false); setForgotMessage(''); setForgotEmail(''); setForgotPhone(''); }}
+                  onClick={() => { setShowForgotUsername(false); setForgotMessage(''); setForgotEmail(''); }}
                   className="flex-1 border border-gray-300 text-text-primary py-2 rounded-lg"
                 >
                   إلغاء
@@ -205,26 +208,12 @@ export default function LoginPage() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-xl p-6 w-full max-w-md">
               <h2 className="text-xl font-bold text-navy mb-4">استعادة كلمة المرور</h2>
-              <p className="text-text-primary text-sm mb-4">أدخل اسم المستخدم والبريد الإلكتروني أو رقم الهاتف</p>
+              <p className="text-text-primary text-sm mb-4">أدخل اسم المستخدم الخاص بك</p>
               <input
                 type="text"
                 placeholder="اسم المستخدم *"
                 value={forgotUsername}
                 onChange={(e) => setForgotUsername(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-electric"
-              />
-              <input
-                type="email"
-                placeholder="البريد الإلكتروني"
-                value={forgotEmail}
-                onChange={(e) => setForgotEmail(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-electric"
-              />
-              <input
-                type="tel"
-                placeholder="رقم الهاتف"
-                value={forgotPhone}
-                onChange={(e) => setForgotPhone(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-electric"
               />
               {forgotMessage && (
@@ -239,7 +228,7 @@ export default function LoginPage() {
                   {forgotLoading ? 'جاري الإرسال...' : 'إرسال'}
                 </button>
                 <button
-                  onClick={() => { setShowForgotPassword(false); setForgotMessage(''); setForgotUsername(''); setForgotEmail(''); setForgotPhone(''); }}
+                  onClick={() => { setShowForgotPassword(false); setForgotMessage(''); setForgotUsername(''); }}
                   className="flex-1 border border-gray-300 text-text-primary py-2 rounded-lg"
                 >
                   إلغاء

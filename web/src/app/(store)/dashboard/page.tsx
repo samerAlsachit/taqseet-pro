@@ -16,6 +16,8 @@ export default function DashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [storeName, setStoreName] = useState('');
+  const [expiringWarning, setExpiringWarning] = useState(false);
+  const [daysRemaining, setDaysRemaining] = useState(0);
   const [stats, setStats] = useState<DashboardStats>({
     total_customers: 0,
     active_installments: 0,
@@ -41,6 +43,13 @@ export default function DashboardPage() {
         const meData = await meRes.json();
         if (meData.success) {
           setStoreName(meData.data.store?.name || 'المحل');
+          
+          // التحقق من انتهاء الاشتراك
+          const daysRemaining = meData.data.subscription?.days_remaining;
+          if (daysRemaining !== null && daysRemaining <= 7) {
+            setExpiringWarning(true);
+            setDaysRemaining(daysRemaining);
+          }
         }
 
         // جلب إحصائيات Dashboard
@@ -91,6 +100,24 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* تنبيه انتهاء الاشتراك */}
+      {expiringWarning && (
+        <div className="bg-warning/20 border border-warning rounded-lg p-4 mb-6 flex justify-between items-center">
+          <div>
+            <p className="font-bold text-warning">⚠️ تنبيه هام</p>
+            <p className="text-text-primary">
+              اشتراكك على وشك الانتهاء خلال {daysRemaining} أيام. يرجى التواصل مع الدعم لتجديد الاشتراك.
+            </p>
+          </div>
+          <button
+            onClick={() => window.open('https://wa.me/966500000000', '_blank')}
+            className="bg-success text-white px-4 py-2 rounded-lg"
+          >
+            تواصل مع الدعم
+          </button>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {/* بطاقات الإحصائيات */}

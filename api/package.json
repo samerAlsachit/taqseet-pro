@@ -1,7 +1,7 @@
 {
-  "name": "taqseet-pro-api",
+  "name": "marsat-api",
   "version": "1.0.0",
-  "description": "نظام SaaS لإدارة الأقساط والديون للمحلات التجارية العراقية",
+  "description": "مرساة - نظام إدارة الأقساط والديون",
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
@@ -29,7 +29,9 @@
     "joi": "^17.11.0",
     "jsonwebtoken": "^9.0.2",
     "moment": "^2.29.4",
+    "node-cron": "^4.2.1",
     "qrcode": "^1.5.3",
+    "resend": "^6.9.4",
     "uuid": "^9.0.1"
   },
   "devDependencies": {

@@ -75,9 +75,14 @@ export default function ActivatePage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-bg p-4">
       <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-navy">تقسيط برو</h1>
-          <p className="text-text-primary mt-2">تفعيل حساب المحل</p>
-        </div>
+  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-navy to-electric mb-4">
+    <span className="text-3xl">⚓</span>
+  </div>
+  <h1 className="text-4xl font-bold bg-gradient-to-r from-navy to-electric bg-clip-text text-transparent">
+    مرساة
+  </h1>
+  <p className="text-text-primary mt-2">تفعيل حساب المحل</p>
+</div>
 
         {error && (
           <div className="bg-red-50 text-danger border border-danger/20 rounded-lg p-3 mb-4 text-center">

@@ -3,18 +3,18 @@ const { supabase, supabaseAdmin } = require('../config/supabase');
 const { ERROR_CODES, ERROR_MESSAGES } = require('../config/constants');
 const moment = require('moment');
 const { v4: uuidv4 } = require('uuid');
-const { authenticateToken, requireSuperAdmin } = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 
 // Apply authentication middleware to all admin routes
-router.use(authenticateToken);
+router.use(auth);
 
 /**
  * GET /api/admin/stats
  * جلب إحصائيات عامة للنظام
  */
-router.get('/stats', authenticateToken, requireSuperAdmin, async (req, res) => {
+router.get('/stats', auth, async (req, res) => {
   try {
     // إجمالي المحلات
     const { count: totalStores } = await supabase
@@ -69,7 +69,7 @@ router.get('/stats', authenticateToken, requireSuperAdmin, async (req, res) => {
  * GET /api/admin/stores
  * جلب قائمة المحلات مع الفلاتر
  */
-router.get('/stores', authenticateToken, requireSuperAdmin, async (req, res) => {
+router.get('/stores', auth, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -146,7 +146,7 @@ router.get('/stores', authenticateToken, requireSuperAdmin, async (req, res) => 
  * GET /api/admin/activation-codes
  * جلب قائمة كودات التفعيل
  */
-router.get('/activation-codes', authenticateToken, requireSuperAdmin, async (req, res) => {
+router.get('/activation-codes', auth, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -238,7 +238,7 @@ router.get('/activation-codes', authenticateToken, requireSuperAdmin, async (req
  * GET /api/admin/subscription-plans
  * جلب خطط الاشتراك
  */
-router.get('/subscription-plans', authenticateToken, requireSuperAdmin, async (req, res) => {
+router.get('/subscription-plans', auth, async (req, res) => {
   try {
     const { data: plans, error } = await supabase
       .from('subscription_plans')
@@ -267,7 +267,7 @@ router.get('/subscription-plans', authenticateToken, requireSuperAdmin, async (r
  * POST /api/admin/activation-codes
  * إنشاء كودات تفعيل جديدة
  */
-router.post('/activation-codes', authenticateToken, requireSuperAdmin, async (req, res) => {
+router.post('/activation-codes', auth, async (req, res) => {
   try {
     const { plan_id, quantity = 1, notes } = req.body;
 
@@ -343,7 +343,7 @@ router.post('/activation-codes', authenticateToken, requireSuperAdmin, async (re
  * POST /api/admin/stores/:id/extend
  * تمديد اشتراك محل
  */
-router.post('/stores/:id/extend', authenticateToken, requireSuperAdmin, async (req, res) => {
+router.post('/stores/:id/extend', auth, async (req, res) => {
   try {
     const { id } = req.params;
     const { additional_days, plan_id } = req.body;
@@ -428,7 +428,7 @@ router.post('/stores/:id/extend', authenticateToken, requireSuperAdmin, async (r
  * POST /api/admin/stores/:id/toggle-status
  * تعطيل/تفعيل محل
  */
-router.post('/stores/:id/toggle-status', requireSuperAdmin, async (req, res) => {
+router.post('/stores/:id/toggle-status', auth, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -500,6 +500,154 @@ router.post('/stores/:id/toggle-status', requireSuperAdmin, async (req, res) => 
       error: ERROR_MESSAGES[ERROR_CODES.INTERNAL_ERROR],
       code: ERROR_CODES.INTERNAL_ERROR
     });
+  }
+});
+
+// POST /api/admin/stores/:id/extend
+router.post('/stores/:id/extend', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { additional_days } = req.body;
+
+    if (!additional_days || additional_days <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'عدد الأيام المطلوبة للتمديد غير صحيح',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    // جلب المحل الحالي
+    const { data: store, error: storeError } = await supabase
+      .from('stores')
+      .select('subscription_end, name')
+      .eq('id', id)
+      .single();
+
+    if (storeError || !store) {
+      return res.status(404).json({
+        success: false,
+        error: 'المحل غير موجود',
+        code: 'NOT_FOUND'
+      });
+    }
+
+    // حساب تاريخ الانتهاء الجديد
+    let currentEndDate = new Date(store.subscription_end);
+    const today = new Date();
+    
+    // إذا كان الاشتراك منتهياً، نبدأ من اليوم
+    if (currentEndDate < today) {
+      currentEndDate = today;
+    }
+    
+    const newEndDate = new Date(currentEndDate);
+    newEndDate.setDate(newEndDate.getDate() + additional_days);
+
+    // تحديث المحل
+    const { error: updateError } = await supabase
+      .from('stores')
+      .update({
+        subscription_end: newEndDate.toISOString().split('T')[0],
+        updated_at: new Date().toISOString(),
+        is_active: true
+      })
+      .eq('id', id);
+
+    if (updateError) {
+      console.error('خطأ في تمديد الاشتراك:', updateError);
+      throw updateError;
+    }
+
+    // تسجيل في سجل التدقيق
+    await supabase
+      .from('audit_logs')
+      .insert({
+        id: uuidv4(),
+        store_id: id,
+        user_id: req.user.id,
+        action: 'extend_subscription',
+        table_name: 'stores',
+        record_id: id,
+        new_data: {
+          additional_days,
+          old_end_date: store.subscription_end,
+          new_end_date: newEndDate.toISOString().split('T')[0]
+        },
+        created_at: new Date().toISOString()
+      });
+
+    res.json({
+      success: true,
+      data: {
+        store_id: id,
+        old_end_date: store.subscription_end,
+        new_end_date: newEndDate.toISOString().split('T')[0],
+        additional_days
+      },
+      message: `تم تمديد اشتراك المحل ${store.name} بمقدار ${additional_days} يوم` 
+    });
+  } catch (error) {
+    console.error('خطأ في تمديد الاشتراك:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+// GET /api/admin/stores/expiring
+router.get('/stores/expiring', auth, async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const nextWeek = new Date();
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    const nextWeekStr = nextWeek.toISOString().split('T')[0];
+
+    const { data: stores, error } = await supabase
+      .from('stores')
+      .select('id, name, owner_name, phone, email, subscription_end, is_active')
+      .lt('subscription_end', nextWeekStr)
+      .gte('subscription_end', today)
+      .order('subscription_end', { ascending: true });
+
+    if (error) throw error;
+
+    const expiringStores = stores.map(store => {
+      const endDate = new Date(store.subscription_end);
+      const todayDate = new Date();
+      const daysLeft = Math.ceil((endDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      return {
+        ...store,
+        days_left: daysLeft
+      };
+    });
+
+    res.json({
+      success: true,
+      data: expiringStores,
+      message: 'تم جلب المحلات المنتهية قريباً'
+    });
+  } catch (error) {
+    console.error('خطأ في جلب المحلات المنتهية:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+// POST /api/admin/test-notifications
+router.post('/test-notifications', auth, async (req, res) => {
+  try {
+    const { sendExpiryNotifications } = require('../cron/expiryNotifications');
+    await sendExpiryNotifications();
+    res.json({ success: true, message: 'تم إرسال التنبيهات بنجاح' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

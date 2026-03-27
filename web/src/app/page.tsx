@@ -15,8 +15,11 @@ export default function HomePage() {
         
         <div className="relative max-w-7xl mx-auto px-4 py-20 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h1 className="text-5xl md:text-6xl font-bold text-navy mb-6">
-              تقسيط برو
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-navy to-electric mb-4">
+              <span className="text-4xl">⚓</span>
+            </div>
+            <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-navy to-electric bg-clip-text text-transparent mb-4">
+              مرساة
             </h1>
             <p className="text-xl text-text-primary mb-8 max-w-2xl mx-auto">
               نظام متكامل لإدارة الأقساط والديون للمحلات التجارية في العراق

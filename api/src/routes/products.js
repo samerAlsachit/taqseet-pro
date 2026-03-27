@@ -1,48 +1,253 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken } = require('../middleware/auth');
-const checkSubscription = require('../middleware/checkSubscription');
-const {
-  getProducts,
-  createProduct,
-  updateProduct,
-  deleteProduct,
-  updateStock
-} = require('../controllers/productsController');
+const { auth } = require('../middleware/auth');
+const { checkSubscription } = require('../middleware/checkSubscription');
+const { supabase } = require('../config/supabase');
+const { v4: uuidv4 } = require('uuid');
 
-/**
- * @route   GET /api/products
- * @desc    جلب قائمة المنتجات
- * @access  Private
- */
-router.get('/', [authenticateToken, checkSubscription], getProducts);
+// GET /api/products
+router.get('/', auth, checkSubscription, async (req, res) => {
+  try {
+    const storeId = req.user.store_id;
+    
+    // إذا كان المستخدم super_admin (لا يوجد store_id)
+    if (!storeId) {
+      return res.json({
+        success: true,
+        data: {
+          products: [],
+          pagination: { page: 1, limit: 20, total: 0, totalPages: 0 }
+        },
+        message: 'لا توجد منتجات للمشرف العام'
+      });
+    }
 
-/**
- * @route   POST /api/products
- * @desc    إنشاء منتج جديد
- * @access  Private
- */
-router.post('/', [authenticateToken, checkSubscription], createProduct);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+    const search = req.query.search || '';
+    const lowStock = req.query.low_stock === 'true';
 
-/**
- * @route   PUT /api/products/:id
- * @desc    تحديث بيانات منتج
- * @access  Private
- */
-router.put('/:id', [authenticateToken, checkSubscription], updateProduct);
+    let query = supabase
+      .from('products')
+      .select('*', { count: 'exact' })
+      .eq('store_id', storeId);
 
-/**
- * @route   DELETE /api/products/:id
- * @desc    حذف منتج
- * @access  Private
- */
-router.delete('/:id', [authenticateToken, checkSubscription], deleteProduct);
+    if (search) {
+      query = query.ilike('name', `%${search}%`);
+    }
 
-/**
- * @route   PATCH /api/products/:id/stock
- * @desc    تعديل المخزون يدوياً
- * @access  Private
- */
-router.patch('/:id/stock', [authenticateToken, checkSubscription], updateStock);
+    if (lowStock) {
+      query = query.lt('quantity', supabase.raw('low_stock_alert'));
+    }
+
+    const { data: products, error, count } = await query
+      .range(offset, offset + limit - 1)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: {
+        products: products || [],
+        pagination: {
+          page,
+          limit,
+          total: count || 0,
+          totalPages: Math.ceil((count || 0) / limit)
+        }
+      },
+      message: 'تم جلب المنتجات بنجاح'
+    });
+  } catch (error) {
+    console.error('خطأ في جلب المنتجات:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+// POST /api/products
+router.post('/', auth, checkSubscription, async (req, res) => {
+  try {
+    const storeId = req.user.store_id;
+    const { name, category, quantity, low_stock_alert, cost_price_iqd, sell_price_cash_iqd, sell_price_install_iqd, description } = req.body;
+
+    if (!name || quantity === undefined || !sell_price_cash_iqd || !sell_price_install_iqd) {
+      return res.status(400).json({
+        success: false,
+        error: 'اسم المنتج، الكمية، وسعر البيع مطلوبة',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    const { data: product, error } = await supabase
+      .from('products')
+      .insert({
+        id: uuidv4(),
+        store_id: storeId,
+        name,
+        category: category || '',
+        quantity: parseInt(quantity),
+        low_stock_alert: low_stock_alert || 5,
+        cost_price_iqd: cost_price_iqd || 0,
+        sell_price_cash_iqd: parseInt(sell_price_cash_iqd),
+        sell_price_install_iqd: parseInt(sell_price_install_iqd),
+        description: description || '',
+        created_by: req.user.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({
+      success: true,
+      data: product,
+      message: 'تم إنشاء المنتج بنجاح'
+    });
+  } catch (error) {
+    console.error('خطأ في إنشاء المنتج:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+// GET /api/products/:id
+router.get('/:id', auth, checkSubscription, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const storeId = req.user.store_id;
+
+    const { data: product, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', id)
+      .eq('store_id', storeId)
+      .single();
+
+    if (error || !product) {
+      return res.status(404).json({
+        success: false,
+        error: 'المنتج غير موجود',
+        code: 'NOT_FOUND'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: product,
+      message: 'تم جلب المنتج بنجاح'
+    });
+  } catch (error) {
+    console.error('خطأ في جلب المنتج:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+// PUT /api/products/:id
+router.put('/:id', auth, checkSubscription, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const storeId = req.user.store_id;
+    const { name, category, quantity, low_stock_alert, cost_price_iqd, sell_price_cash_iqd, sell_price_install_iqd, description } = req.body;
+
+    const { data: product, error } = await supabase
+      .from('products')
+      .update({
+        name,
+        category: category || '',
+        quantity: parseInt(quantity),
+        low_stock_alert: low_stock_alert || 5,
+        cost_price_iqd: cost_price_iqd || 0,
+        sell_price_cash_iqd: parseInt(sell_price_cash_iqd),
+        sell_price_install_iqd: parseInt(sell_price_install_iqd),
+        description: description || '',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .eq('store_id', storeId)
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(404).json({
+        success: false,
+        error: 'المنتج غير موجود',
+        code: 'NOT_FOUND'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: product,
+      message: 'تم تحديث المنتج بنجاح'
+    });
+  } catch (error) {
+    console.error('خطأ في تحديث المنتج:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+// DELETE /api/products/:id
+router.delete('/:id', auth, checkSubscription, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const storeId = req.user.store_id;
+
+    // التحقق من وجود المنتج في أقساط نشطة
+    const { data: usedInInstallments } = await supabase
+      .from('installment_plans')
+      .select('id')
+      .eq('product_id', id)
+      .eq('store_id', storeId)
+      .eq('status', 'active')
+      .limit(1);
+
+    if (usedInInstallments && usedInInstallments.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'لا يمكن حذف منتج مستخدم في أقساط نشطة',
+        code: 'PRODUCT_IN_USE'
+      });
+    }
+
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', id)
+      .eq('store_id', storeId);
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: 'تم حذف المنتج بنجاح'
+    });
+  } catch (error) {
+    console.error('خطأ في حذف المنتج:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
 
 module.exports = router;

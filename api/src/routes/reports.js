@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { auth } = require('../middleware/auth');
+const { checkSubscription } = require('../middleware/checkSubscription');
 const { supabase } = require('../config/supabase');
 
 // GET /api/reports/summary
-router.get('/summary', auth, async (req, res) => {
+router.get('/summary', [auth, checkSubscription], async (req, res) => {
   try {
     const storeId = req.user.store_id;
     const today = new Date().toISOString().split('T')[0];
@@ -53,7 +54,19 @@ router.get('/summary', auth, async (req, res) => {
       .eq('store_id', storeId);
 
     const totalCollection = allPayments?.reduce((sum, p) => sum + (p.amount_paid || 0), 0) || 0;
-    const totalPaidCount = allPayments?.length || 0;
+    const allPaymentsCount = allPayments?.length || 0;
+
+    // عدد الدفعات الكلي (من payments)
+    const { count: totalPaidCount } = await supabase
+      .from('payments')
+      .select('*', { count: 'exact', head: true })
+      .eq('store_id', storeId);
+
+    // عدد الأقساط الجديدة الكلي
+    const { count: totalNewInstallmentsCount } = await supabase
+      .from('installment_plans')
+      .select('*', { count: 'exact', head: true })
+      .eq('store_id', storeId);
 
     const { data: totalRemaining } = await supabase
       .from('installment_plans')
@@ -74,7 +87,19 @@ router.get('/summary', auth, async (req, res) => {
       .select('*', { count: 'exact', head: true })
       .eq('store_id', storeId);
 
-    const { count: totalInstallments } = await supabase
+    const { count: totalInstallmentsCount } = await supabase
+      .from('installment_plans')
+      .select('*', { count: 'exact', head: true })
+      .eq('store_id', storeId);
+
+    // عدد الدفعات الكلي (من payments)
+    const { count: allPaidCount } = await supabase
+      .from('payments')
+      .select('*', { count: 'exact', head: true })
+      .eq('store_id', storeId);
+
+    // عدد الأقساط الجديدة الكلي
+    const { count: totalNewInstallments } = await supabase
       .from('installment_plans')
       .select('*', { count: 'exact', head: true })
       .eq('store_id', storeId);
@@ -97,7 +122,9 @@ router.get('/summary', auth, async (req, res) => {
           total_remaining: totalRemainingAmount,
           active_installments: activeInstallments || 0,
           total_customers: totalCustomers || 0,
-          total_installments: totalInstallments || 0
+          total_installments: totalInstallmentsCount || 0,
+          paid_count: totalPaidCount || 0,
+          new_installments: totalNewInstallmentsCount || 0
         }
       },
       message: 'تم جلب التقارير بنجاح'

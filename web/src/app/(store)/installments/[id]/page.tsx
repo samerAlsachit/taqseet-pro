@@ -59,7 +59,7 @@ export default function InstallmentDetailPage() {
       <html dir="rtl">
       <head>
         <meta charset="UTF-8">
-        <title>وصل دفع - تقسيط برو</title>
+        <title>وصل دفع - مرساة</title>
         <style>
           body {
             font-family: 'Tajawal', 'Arial', sans-serif;
@@ -136,8 +136,8 @@ export default function InstallmentDetailPage() {
       <body>
         <div class="receipt">
           <div class="header">
-            <h1>تقسيط برو</h1>
-            <p>${plan?.customer_name || ''}</p>
+            <h1 style="color: #0A192F; font-size: 20px;">مرساة</h1>
+            <p style="color: #666; font-size: 12px;">نظام إدارة الأقساط والديون</p>
           </div>
           
           <div class="info">
@@ -178,7 +178,7 @@ export default function InstallmentDetailPage() {
           
           <div class="footer">
             <p>شكراً لثقتكم بنا</p>
-            <p>تقسيط برو - نظام إدارة الأقساط</p>
+            <p>مرساة - نظام إدارة الأقساط</p>
           </div>
         </div>
         
@@ -204,7 +204,22 @@ export default function InstallmentDetailPage() {
   };
 
   const handleSendWhatsApp = (payment: Payment) => {
-    const message = `*تقسيط برو - وصل دفع*\n\nرقم الوصل: ${payment.receipt_number}\nالتاريخ: ${new Date(payment.payment_date).toLocaleDateString('ar-IQ')}\nالعميل: ${plan?.customer_name}\nالمنتج: ${plan?.product_name}\n\nالمبلغ المدفوع: ${payment.amount_paid.toLocaleString()} IQD\nالمبلغ المتبقي: ${plan?.remaining_amount?.toLocaleString()} IQD\n\n${payment.notes ? `ملاحظات: ${payment.notes}\n\n` : ''}شكراً لثقتكم بنا\nتقسيط برو`;
+    const message = `
+*مرساة - وصل دفع*
+
+رقم الوصل: ${payment.receipt_number}
+التاريخ: ${new Date(payment.payment_date).toLocaleDateString('ar-IQ')}
+العميل: ${plan?.customer_name}
+المنتج: ${plan?.product_name}
+
+المبلغ المدفوع: ${payment.amount_paid.toLocaleString()} IQD
+المبلغ المتبقي: ${plan?.remaining_amount?.toLocaleString()} IQD
+
+${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
+
+شكراً لثقتكم بنا
+مرساة
+`.trim();
     
     const encodedMessage = encodeURIComponent(message);
     const phoneNumber = plan?.customer_phone?.replace(/[^0-9]/g, '');

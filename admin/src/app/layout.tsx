@@ -14,8 +14,8 @@ const tajawal = Tajawal({
 });
 
 export const metadata: Metadata = {
-  title: "تقسيط برو - لوحة التحكم",
-  description: "نظام إدارة الأقساط والديون للمحلات التجارية",
+  title: "مرساة | نظام إدارة الأقساط",
+  description: "نظام متكامل لإدارة الأقساط والديون للمحلات التجارية في العراق",
 };
 
 export default function RootLayout({

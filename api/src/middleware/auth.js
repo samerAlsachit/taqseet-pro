@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
-const { supabase } = require('../config/supabase');
 
-const authenticateToken = async (req, res, next) => {
+const auth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1];
@@ -15,7 +14,17 @@ const authenticateToken = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+    
+    req.user = {
+      id: decoded.user_id,
+      user_id: decoded.user_id,
+      store_id: decoded.store_id,
+      role: decoded.role,
+      can_delete: decoded.can_delete,
+      can_edit: decoded.can_edit,
+      can_view_reports: decoded.can_view_reports
+    };
+    
     next();
   } catch (error) {
     console.error('خطأ في المصادقة:', error);
@@ -27,33 +36,4 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
-const requirePermission = (permission) => {
-  return (req, res, next) => {
-    if (!req.user || !req.user[permission]) {
-      return res.status(403).json({
-        success: false,
-        error: 'غير مصرح بهذه العملية',
-        code: 'FORBIDDEN'
-      });
-    }
-    next();
-  };
-};
-
-const requireSuperAdmin = (req, res, next) => {
-  if (!req.user || req.user.role !== 'super_admin') {
-    return res.status(403).json({
-      success: false,
-      error: 'غير مصرح، هذه الصلاحية للمشرفين فقط',
-      code: 'FORBIDDEN'
-    });
-  }
-  next();
-};
-
-module.exports = {
-  auth: authenticateToken,      // <-- إضافة هذا السطر
-  authenticateToken,
-  requirePermission,
-  requireSuperAdmin
-};
+module.exports = { auth };

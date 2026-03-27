@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import AdminLayout from '@/components/layout/AdminLayout';
 
 interface Stats {
@@ -15,15 +17,19 @@ interface Store {
   name: string;
   owner_name: string;
   phone: string;
+  email?: string;
   city: string;
   plan_name: string;
   subscription_end: string;
   is_active: boolean;
+  days_left?: number;
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
   const [stores, setStores] = useState<Store[]>([]);
+  const [expiringStores, setExpiringStores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -38,6 +44,15 @@ export default function DashboardPage() {
         });
         const statsData = await statsRes.json();
         if (statsData.success) setStats(statsData.data);
+
+        // جلب المحلات المنتهية خلال 7 أيام
+        const expiringRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/stores/expiring`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const expiringData = await expiringRes.json();
+        if (expiringData.success) {
+          setExpiringStores(expiringData.data);
+        }
 
         // جلب آخر 5 محلات
         const storesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/stores?limit=5`, {
@@ -75,6 +90,46 @@ export default function DashboardPage() {
     return 'نشط';
   };
 
+  const handleSendWhatsApp = (store: any) => {
+    const message = `*تقسيط برو - تنبيه انتهاء اشتراك*\n\nالسلام عليكم،\n\nنود إعلامكم بأن اشتراك محل "${store.name}" على وشك الانتهاء خلال ${store.days_left} يوم.\n\nيرجى التواصل مع الدعم لتجديد الاشتراك.\n\nشكراً لثقتكم بنا.`;
+    const encodedMessage = encodeURIComponent(message);
+    const phoneNumber = store.phone?.replace(/[^0-9]/g, '');
+    if (phoneNumber) {
+      window.open(`https://wa.me/${phoneNumber}?text=${encodedMessage}`, '_blank');
+    } else {
+      alert('رقم الهاتف غير متوفر');
+    }
+  };
+
+  const handleSendEmail = async (store: any) => {
+    if (!store.email) {
+      alert('البريد الإلكتروني غير متوفر لهذا المحل');
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/notify-expiring`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}` 
+        },
+        body: JSON.stringify({
+          store_id: store.id,
+          days_left: store.days_left
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert('تم إرسال الإشعار بنجاح');
+      } else {
+        alert(data.error || 'فشل في إرسال الإشعار');
+      }
+    } catch {
+      alert('حدث خطأ في الاتصال بالخادم');
+    }
+  };
+
   if (loading) {
     return (
       <AdminLayout>
@@ -100,7 +155,7 @@ export default function DashboardPage() {
 
   return (
     <AdminLayout>
-      <h1 className="text-2xl font-bold text-navy mb-6">لوحة التحكم</h1>
+      <h1 className="text-2xl font-bold text-navy mb-6">مرساة - لوحة التحكم</h1>
 
       {/* بطاقات الإحصائيات */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -121,6 +176,49 @@ export default function DashboardPage() {
           <p className="text-3xl font-bold text-navy">{stats?.new_stores_this_month || 0}</p>
         </div>
       </div>
+
+      {/* المحلات المنتهية قريباً */}
+      {expiringStores.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-warning">⚠️ محلات على وشك انتهاء الاشتراك</h2>
+            <Link href="/stores?status=expiring" className="text-electric hover:underline text-sm">
+              عرض الكل
+            </Link>
+          </div>
+          <div className="space-y-3">
+            {expiringStores.map((store) => (
+              <div key={store.id} className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                <div>
+                  <p className="font-medium text-navy">{store.name}</p>
+                  <p className="text-sm text-text-primary">المالك: {store.owner_name} | الهاتف: {store.phone}</p>
+                  <p className="text-sm text-warning">ينتهي خلال {store.days_left} أيام</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleSendWhatsApp(store)}
+                    className="bg-success text-white px-3 py-1 rounded-lg text-sm"
+                  >
+                    📱 واتساب
+                  </button>
+                  <button
+                    onClick={() => handleSendEmail(store)}
+                    className="bg-electric text-white px-3 py-1 rounded-lg text-sm"
+                  >
+                    📧 إيميل
+                  </button>
+                  <button
+                    onClick={() => router.push(`/stores?extend=${store.id}`)}
+                    className="bg-warning text-white px-3 py-1 rounded-lg text-sm"
+                  >
+                    تمديد
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* أحدث المحلات */}
       <div className="bg-white rounded-xl shadow-sm p-6">

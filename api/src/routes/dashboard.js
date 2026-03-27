@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken } = require('../middleware/auth');
-const checkSubscription = require('../middleware/checkSubscription');
+const { auth } = require('../middleware/auth');
+const { checkSubscription } = require('../middleware/checkSubscription');
 const { supabase } = require('../config/supabase');
 
 // GET /api/dashboard/stats
-router.get('/stats', [authenticateToken, checkSubscription], async (req, res) => {
+router.get('/stats', [auth, checkSubscription], async (req, res) => {
   try {
     const storeId = req.user.store_id;
 
