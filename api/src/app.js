@@ -5,38 +5,34 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
-// إنشاء تطبيق Express
 const app = express();
 
 // إعدادات الأمان
 app.use(helmet());
 
-// تفعيل CORS لجميع الـ origins مبدئياً
+// CORS
 app.use(cors({
-  origin: true, // السماح بجميع الـ origins
+  origin: true,
   credentials: true
 }));
 
-// تحديد حد للطلبات (100 طلب كل 15 دقيقة)
+// Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 دقيقة
-  max: 100, // حد أقصى 100 طلب
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: {
     success: false,
     error: 'تجاوزت الحد الأقصى للطلبات، يرجى المحاولة لاحقاً',
     code: 'RATE_LIMIT_EXCEEDED'
-  },
-  standardHeaders: true,
-  legacyHeaders: false
+  }
 });
-
 app.use(limiter);
 
-// تحليل JSON body
+// Body parser
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// مسار الصحة للتحقق من عمل الخادم
+// Health check
 app.get('/health', (req, res) => {
   res.json({
     success: true,
@@ -49,7 +45,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// المسارات الرئيسية
+// Routes (جميع الاستيرادات في مكان واحد)
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/customers', require('./routes/customers'));
 app.use('/api/guarantors', require('./routes/guarantors'));
@@ -60,13 +56,10 @@ app.use('/api/sync', require('./routes/sync'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/reports', require('./routes/reports'));
-const storeRoutes = require('./routes/store');
-app.use('/api/store', storeRoutes);
+app.use('/api/store', require('./routes/store'));
 
-// معالجة المسارات غير الموجودة
+// Error handlers
 app.use(notFoundHandler);
-
-// معالجة الأخطاء المركزية
 app.use(errorHandler);
 
 // تشغيل الخادم

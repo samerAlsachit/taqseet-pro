@@ -48,6 +48,25 @@ export default function InstallmentDetailPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  
+  // أضف state لجلب إعدادات المحل
+  const [storeSettings, setStoreSettings] = useState<any>(null);
+
+  // في useEffect، جلب الإعدادات
+  const fetchStoreSettings = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/store/settings`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setStoreSettings(data.data);
+      }
+    } catch (error) {
+      console.error('خطأ في جلب إعدادات المحل', error);
+    }
+  };
 
   const handlePrintReceipt = (payment: Payment) => {
     // إنشاء محتوى الوصل للطباعة
@@ -136,8 +155,8 @@ export default function InstallmentDetailPage() {
       <body>
         <div class="receipt">
           <div class="header">
-            <h1 style="color: #0A192F; font-size: 20px;">مرساة</h1>
-            <p style="color: #666; font-size: 12px;">نظام إدارة الأقساط والديون</p>
+            <h1 style="color: #0A192F; font-size: 20px;">${storeSettings?.name || 'مرساة'}</h1>
+            <p style="color: #666; font-size: 12px;">${storeSettings?.receipt_header || 'شكراً لثقتكم بنا'}</p>
           </div>
           
           <div class="info">
@@ -158,7 +177,7 @@ export default function InstallmentDetailPage() {
           <div class="divider"></div>
           
           <div class="amount">
-            المبلغ: ${payment.amount_paid.toLocaleString()} IQD
+            المبلغ: ${payment?.amount_paid ? payment.amount_paid.toLocaleString() : '0'} IQD
           </div>
           
           <div class="divider"></div>
@@ -177,8 +196,7 @@ export default function InstallmentDetailPage() {
           </div>
           
           <div class="footer">
-            <p>شكراً لثقتكم بنا</p>
-            <p>مرساة - نظام إدارة الأقساط</p>
+            <p>${storeSettings?.receipt_footer || 'مرساة - نظام إدارة الأقساط'}</p>
           </div>
         </div>
         
@@ -212,8 +230,8 @@ export default function InstallmentDetailPage() {
 العميل: ${plan?.customer_name}
 المنتج: ${plan?.product_name}
 
-المبلغ المدفوع: ${payment.amount_paid.toLocaleString()} IQD
-المبلغ المتبقي: ${plan?.remaining_amount?.toLocaleString()} IQD
+المبلغ المدفوع: ${payment?.amount_paid ? payment.amount_paid.toLocaleString() : '0'} IQD
+المبلغ المتبقي: ${plan?.remaining_amount ? plan.remaining_amount.toLocaleString() : '0'} IQD
 
 ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
 
@@ -238,7 +256,7 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
   const [paymentNotes, setPaymentNotes] = useState('');
   const [paymentLoading, setPaymentLoading] = useState(false);
 
-  const fetchData = async () => {
+  const fetchInstallmentData = async () => {
     const token = localStorage.getItem('token');
     if (!token) {
       router.push('/login');
@@ -247,19 +265,36 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
 
     setLoading(true);
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/installments/${installmentId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/installments/${installmentId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       const data = await res.json();
       if (data.success) {
-        setPlan(data.data.plan);
-        setSchedule(data.data.installments);
-        setPayments(data.data.payments);
+        console.log('Plan data:', data.data.plan);
+        const planData = data.data;
+        setPlan(planData);
+
+        // جلب جدول الأقساط
+        const scheduleRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payment-schedule?plan_id=${installmentId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const scheduleData = await scheduleRes.json();
+        if (scheduleData.success) {
+          setSchedule(scheduleData.data);
+        }
+
+        // جلب الدفعات
+        const paymentsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments?plan_id=${installmentId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const paymentsData = await paymentsRes.json();
+        if (paymentsData.success) {
+          setPayments(paymentsData.data);
+        }
       } else {
-        setError(data.error || 'القسط غير موجود');
+        setError(data.error || 'فشل في جلب البيانات');
       }
-    } catch {
+    } catch (error) {
       setError('حدث خطأ في جلب البيانات');
     } finally {
       setLoading(false);
@@ -267,10 +302,26 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
   };
 
   useEffect(() => {
+    const fetchStoreSettings = async () => {
+      const token = localStorage.getItem('token');
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/store/settings`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          setStoreSettings(data.data);
+        }
+      } catch (error) {
+        console.error('خطأ في جلب إعدادات المحل', error);
+      }
+    };
+
     if (installmentId) {
-      fetchData();
+      fetchStoreSettings();
+      fetchInstallmentData();
     }
-  }, [installmentId]);
+  }, [router, installmentId]);
 
   const handlePayment = async () => {
     if (!selectedSchedule) return;
@@ -295,7 +346,7 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
       const data = await res.json();
       if (data.success) {
         setShowPaymentModal(false);
-        fetchData();
+        fetchInstallmentData();
       } else {
         alert(data.error || 'فشل في تسجيل الدفعة');
       }
@@ -392,19 +443,19 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
           </div>
           <div>
             <p className="text-text-primary text-sm">المبلغ الكلي</p>
-            <p className="font-medium">{plan.total_price.toLocaleString()} IQD</p>
+            <p className="font-medium">{plan?.total_price ? plan.total_price.toLocaleString() : '0'} IQD</p>
           </div>
           <div>
             <p className="text-text-primary text-sm">المبلغ المتبقي</p>
-            <p className="font-medium text-danger">{plan.remaining_amount.toLocaleString()} IQD</p>
+            <p className="font-medium text-danger">{plan?.remaining_amount ? plan.remaining_amount.toLocaleString() : '0'} IQD</p>
           </div>
           <div>
             <p className="text-text-primary text-sm">الدفعة المقدمة</p>
-            <p className="font-medium">{plan.down_payment.toLocaleString()} IQD</p>
+            <p className="font-medium">{plan?.down_payment ? plan.down_payment.toLocaleString() : '0'} IQD</p>
           </div>
           <div>
             <p className="text-text-primary text-sm">قيمة القسط</p>
-            <p className="font-medium">{plan.installment_amount.toLocaleString()} IQD</p>
+            <p className="font-medium">{plan?.installment_amount ? plan.installment_amount.toLocaleString() : '0'} IQD</p>
           </div>
           <div>
             <p className="text-text-primary text-sm">نظام الدفع</p>
@@ -456,7 +507,7 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
                 <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 px-4">{item.installment_no}</td>
                   <td className="py-3 px-4">{new Date(item.due_date).toLocaleDateString('ar-IQ')}</td>
-                  <td className="py-3 px-4">{item.amount.toLocaleString()} IQD</td>
+                  <td className="py-3 px-4">{item?.amount ? item.amount.toLocaleString() : '0'} IQD</td>
                   <td className="py-3 px-4">{getStatusBadge(item.status)}</td>
                   <td className="py-3 px-4">
                     {item.status === 'pending' && plan.status === 'active' && (
@@ -495,7 +546,7 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
                   <tr key={payment.id} className="border-b border-gray-100">
                     <td className="py-3 px-4 font-mono text-sm">{payment.receipt_number}</td>
                     <td className="py-3 px-4">{new Date(payment.payment_date).toLocaleDateString('ar-IQ')}</td>
-                    <td className="py-3 px-4">{payment.amount_paid.toLocaleString()} IQD</td>
+                    <td className="py-3 px-4">{payment?.amount_paid ? payment.amount_paid.toLocaleString() : '0'} IQD</td>
                     <td className="py-3 px-4">{payment.notes || '-'}</td>
                     <td className="py-3 px-4">
                       <div className="flex gap-2">
@@ -529,7 +580,7 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
             <div className="mb-4">
               <p className="text-text-primary">القسط رقم {selectedSchedule.installment_no}</p>
               <p className="text-text-primary">تاريخ الاستحقاق: {new Date(selectedSchedule.due_date).toLocaleDateString('ar-IQ')}</p>
-              <p className="text-text-primary font-bold mt-2">المبلغ المستحق: {selectedSchedule.amount.toLocaleString()} IQD</p>
+              <p className="text-text-primary font-bold mt-2">المبلغ المستحق: {selectedSchedule?.amount ? selectedSchedule.amount.toLocaleString() : '0'} IQD</p>
             </div>
             <div className="mb-4">
               <label className="block text-text-primary mb-2">المبلغ المدفوع</label>

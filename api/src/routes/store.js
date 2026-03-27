@@ -69,7 +69,7 @@ router.put('/settings', auth, async (req, res) => {
         city: city || '',
         receipt_header: receipt_header || '',
         receipt_footer: receipt_footer || '',
-        default_currency: default_currency || 'IQD',
+        default_currency: req.body.default_currency || 'IQD',
         updated_at: new Date().toISOString()
       })
       .eq('id', storeId)
