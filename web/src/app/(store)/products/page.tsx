@@ -36,9 +36,9 @@ export default function ProductsPage() {
     setLoading(true);
     try {
       let url = `${process.env.NEXT_PUBLIC_API_URL}/products?search=${search}&page=${page}&limit=${limit}`;
-      if (showLowStock) {
-        url += '&low_stock=true';
-      }
+    if (showLowStock) {
+      url += `&low_stock=true`;
+    }
       
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
@@ -171,7 +171,7 @@ export default function ProductsPage() {
                       <td className="py-3 px-4">
                         <div className="flex gap-2">
                           <Link
-                            href={`/products/${product.id}`}
+                            href={`/products/${product.id}/edit`}
                             className="text-electric hover:underline"
                           >
                             تعديل

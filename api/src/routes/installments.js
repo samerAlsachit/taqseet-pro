@@ -53,53 +53,63 @@ const calculateInstallments = (params) => {
 router.get('/', auth, checkSubscription, async (req, res) => {
   try {
     const storeId = req.user.store_id;
-    
-    // إذا كان المستخدم super_admin (لا يوجد store_id)
-    if (!storeId) {
-      return res.json({
-        success: true,
-        data: {
-          installments: [],
-          pagination: { page: 1, limit: 20, total: 0, totalPages: 0 }
-        },
-        message: 'لا توجد أقساط للمشرف العام'
-      });
-    }
-
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
+    const search = req.query.search || '';
+    const status = req.query.status;
 
-    const { data: plans, error, count } = await supabase
+    let query = supabase
       .from('installment_plans')
       .select(`
         *,
         customers:customer_id (full_name, phone)
       `, { count: 'exact' })
-      .eq('store_id', storeId)
+      .eq('store_id', storeId);
+
+    if (status && status !== 'all') {
+      query = query.eq('status', status);
+    }
+
+    if (search) {
+      query = query.or(`product_name.ilike.%${search}%,customers.full_name.ilike.%${search}%`);
+    }
+
+    const { data: plans, error, count } = await query
       .range(offset, offset + limit - 1)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
-    const formattedPlans = (plans || []).map(plan => ({
-      id: plan.id,
-      customer_name: plan.customers?.full_name || 'غير محدد',
-      customer_phone: plan.customers?.phone || '',
-      product_name: plan.product_name,
-      total_price: plan.total_price,
-      remaining_amount: plan.remaining_amount,
-      status: plan.status,
-      start_date: plan.start_date,
-      end_date: plan.end_date,
-      paid_count: 0,
-      total_count: plan.installments_count
+    // جلب عدد الأقساط المدفوعة لكل خطة
+    const plansWithDetails = await Promise.all((plans || []).map(async (plan) => {
+      const { data: schedule } = await supabase
+        .from('payment_schedule')
+        .select('status')
+        .eq('plan_id', plan.id);
+
+      const paidCount = schedule?.filter(s => s.status === 'paid').length || 0;
+      const totalCount = schedule?.length || plan.installments_count;
+
+      return {
+        id: plan.id,
+        customer_name: plan.customers?.full_name || 'غير محدد',
+        customer_phone: plan.customers?.phone || '',
+        product_name: plan.product_name,
+        total_price: plan.total_price,
+        remaining_amount: plan.remaining_amount,
+        status: plan.status,
+        start_date: plan.start_date,
+        end_date: plan.end_date,
+        paid_count: paidCount,
+        total_count: totalCount
+      };
     }));
 
     res.json({
       success: true,
       data: {
-        installments: formattedPlans,
+        installments: plansWithDetails,
         pagination: {
           page,
           limit,

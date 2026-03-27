@@ -55,6 +55,36 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/(store)/installments/[id]/page.js"
+    ],
+    "/(store)/customers/new/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(store)/customers/new/page.js"
+    ],
+    "/(store)/customers/[id]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(store)/customers/[id]/page.js"
+    ],
+    "/(store)/products/new/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(store)/products/new/page.js"
+    ],
+    "/(store)/customers/[id]/edit/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(store)/customers/[id]/edit/page.js"
+    ],
+    "/(store)/products/[id]/edit/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(store)/products/[id]/edit/page.js"
+    ],
+    "/(store)/installments/new/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(store)/installments/new/page.js"
     ]
   }
 }

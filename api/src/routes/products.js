@@ -37,25 +37,30 @@ router.get('/', auth, checkSubscription, async (req, res) => {
       query = query.ilike('name', `%${search}%`);
     }
 
-    if (lowStock) {
-      query = query.lt('quantity', supabase.raw('low_stock_alert'));
-    }
-
-    const { data: products, error, count } = await query
-      .range(offset, offset + limit - 1)
-      .order('created_at', { ascending: false });
+    const { data: allProducts, error, count } = await query;
 
     if (error) throw error;
+
+    // فلترة المخزون المنخفض في JavaScript (لأن supabase.raw لا يعمل)
+    let products = allProducts || [];
+    
+    if (lowStock) {
+      products = products.filter(p => p.quantity < p.low_stock_alert);
+    }
+
+    // Pagination بعد الفلترة
+    const paginatedProducts = products.slice(offset, offset + limit);
+    const totalCount = products.length;
 
     res.json({
       success: true,
       data: {
-        products: products || [],
+        products: paginatedProducts,
         pagination: {
           page,
           limit,
-          total: count || 0,
-          totalPages: Math.ceil((count || 0) / limit)
+          total: totalCount,
+          totalPages: Math.ceil(totalCount / limit)
         }
       },
       message: 'تم جلب المنتجات بنجاح'
