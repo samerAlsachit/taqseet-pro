@@ -95,7 +95,7 @@ export default function CustomersPage() {
             setSearch(e.target.value);
             setPage(1);
           }}
-          className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+          className="w-full max-w-md px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
         />
       </div>
 
@@ -105,8 +105,8 @@ export default function CustomersPage() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric"></div>
         </div>
       ) : customers.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-          <p className="text-text-primary mb-4">لا يوجد عملاء</p>
+        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-12 text-center">
+          <p className="text-[var(--text-primary)] mb-4">لا يوجد عملاء</p>
           <Link
             href="/customers/new"
             className="bg-electric text-white px-4 py-2 rounded-lg inline-block"
@@ -116,26 +116,26 @@ export default function CustomersPage() {
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">الاسم</th>
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">رقم الهاتف</th>
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">العنوان</th>
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">الرقم الوطني</th>
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">أقساط نشطة</th>
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">إجراءات</th>
+                  <tr className="border-b border-[var(--border-color)] bg-[var(--bg-primary)]">
+                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">الاسم</th>
+                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">رقم الهاتف</th>
+                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">العنوان</th>
+                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">الرقم الوطني</th>
+                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">أقساط نشطة</th>
+                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">إجراءات</th>
                    </tr>
                 </thead>
                 <tbody>
                   {customers.map((customer) => (
-                    <tr key={customer.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 text-text-primary">{customer.full_name}</td>
-                      <td className="py-3 px-4 text-text-primary">{customer.phone}</td>
-                      <td className="py-3 px-4 text-text-primary">{customer.address || '-'}</td>
-                      <td className="py-3 px-4 text-text-primary">{customer.national_id || '-'}</td>
+                    <tr key={customer.id} className="border-b border-[var(--border-color)] hover:bg-[var(--hover-bg)]">
+                      <td className="py-3 px-4 text-[var(--text-primary)]">{customer.full_name}</td>
+                      <td className="py-3 px-4 text-[var(--text-primary)]">{customer.phone}</td>
+                      <td className="py-3 px-4 text-[var(--text-primary)]">{customer.address || '-'}</td>
+                      <td className="py-3 px-4 text-[var(--text-primary)]">{customer.national_id || '-'}</td>
                       <td className="py-3 px-4">
                         <span className="px-2 py-1 rounded-full text-sm bg-electric/10 text-electric">
                           {customer.active_installments_count || 0}
@@ -170,17 +170,17 @@ export default function CustomersPage() {
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-4 py-2 rounded-lg border border-gray-300 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50"
               >
                 السابق
               </button>
-              <span className="px-4 py-2 text-text-primary">
+              <span className="px-4 py-2 text-[var(--text-primary)]">
                 صفحة {page} من {totalPages}
               </span>
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="px-4 py-2 rounded-lg border border-gray-300 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50"
               >
                 التالي
               </button>

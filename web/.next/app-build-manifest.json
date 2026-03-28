@@ -1,9 +1,9 @@
 {
   "pages": {
-    "/(store)/installments/[id]/page": [
+    "/(store)/installments/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(store)/installments/[id]/page.js"
+      "static/chunks/app/(store)/installments/page.js"
     ],
     "/(store)/layout": [
       "static/chunks/webpack.js",
@@ -16,6 +16,11 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
+    "/(store)/reports/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(store)/reports/page.js"
+    ],
     "/login/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -26,15 +31,15 @@
       "static/chunks/main-app.js",
       "static/chunks/app/(store)/dashboard/page.js"
     ],
-    "/(store)/installments/page": [
+    "/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(store)/installments/page.js"
+      "static/chunks/app/page.js"
     ],
-    "/(store)/settings/page": [
+    "/register/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(store)/settings/page.js"
+      "static/chunks/app/register/page.js"
     ]
   }
 }

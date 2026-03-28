@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { auth } = require('../middleware/auth');
-const { checkSubscription } = require('../middleware/checkSubscription');
+const { checkSubscription, checkCustomerLimit } = require('../middleware/checkSubscription');
+const { logAudit } = require('../middleware/audit');
 const { supabase } = require('../config/supabase');
 const { v4: uuidv4 } = require('uuid');
 
@@ -95,6 +96,15 @@ router.post('/', auth, checkSubscription, async (req, res) => {
       });
     }
 
+    // التحقق من حد العملاء
+    if (!await checkCustomerLimit(storeId)) {
+      return res.status(403).json({
+        success: false,
+        error: 'لقد تجاوزت الحد المسموح به من العملاء حسب خطتك',
+        code: 'LIMIT_EXCEEDED'
+      });
+    }
+
     const { data: customer, error } = await supabase
       .from('customers')
       .insert({
@@ -121,6 +131,9 @@ router.post('/', auth, checkSubscription, async (req, res) => {
       data: customer,
       message: 'تم إنشاء العميل بنجاح'
     });
+
+    // تسجيل العملية
+    await logAudit(req, 'INSERT', 'customers', customer.id, null, customer);
   } catch (error) {
     console.error('خطأ في إنشاء العميل:', error);
     res.status(500).json({
@@ -190,6 +203,15 @@ router.put('/:id', auth, checkSubscription, async (req, res) => {
     const storeId = req.user.store_id;
     const { full_name, phone, phone_alt, address, national_id, notes } = req.body;
 
+    // التحقق من صلاحية التعديل
+    if (!req.user.can_edit) {
+      return res.status(403).json({
+        success: false,
+        error: 'غير مصرح، ليس لديك صلاحية التعديل',
+        code: 'FORBIDDEN'
+      });
+    }
+
     if (!full_name || !phone) {
       return res.status(400).json({
         success: false,
@@ -197,6 +219,14 @@ router.put('/:id', auth, checkSubscription, async (req, res) => {
         code: 'VALIDATION_ERROR'
       });
     }
+
+    // جلب البيانات القديمة قبل التحديث
+    const { data: oldCustomer } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('id', id)
+      .eq('store_id', storeId)
+      .single();
 
     const { data: customer, error } = await supabase
       .from('customers')
@@ -228,6 +258,9 @@ router.put('/:id', auth, checkSubscription, async (req, res) => {
       data: customer,
       message: 'تم تحديث العميل بنجاح'
     });
+
+    // تسجيل العملية
+    await logAudit(req, 'UPDATE', 'customers', id, oldCustomer, customer);
   } catch (error) {
     console.error('خطأ في تحديث العميل:', error);
     res.status(500).json({
@@ -243,6 +276,15 @@ router.delete('/:id', auth, checkSubscription, async (req, res) => {
   try {
     const { id } = req.params;
     const storeId = req.user.store_id;
+
+    // التحقق من صلاحية الحذف
+    if (!req.user.can_delete) {
+      return res.status(403).json({
+        success: false,
+        error: 'غير مصرح، ليس لديك صلاحية الحذف',
+        code: 'FORBIDDEN'
+      });
+    }
 
     // التحقق من وجود أقساط نشطة
     const { data: activeInstallments, error: checkError } = await supabase
@@ -263,6 +305,14 @@ router.delete('/:id', auth, checkSubscription, async (req, res) => {
       });
     }
 
+    // جلب بيانات العميل قبل الحذف
+    const { data: deletedCustomer } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('id', id)
+      .eq('store_id', storeId)
+      .single();
+
     const { error } = await supabase
       .from('customers')
       .delete()
@@ -275,6 +325,9 @@ router.delete('/:id', auth, checkSubscription, async (req, res) => {
       success: true,
       message: 'تم حذف العميل بنجاح'
     });
+
+    // تسجيل العملية
+    await logAudit(req, 'DELETE', 'customers', id, deletedCustomer, null);
   } catch (error) {
     console.error('خطأ في حذف العميل:', error);
     res.status(500).json({

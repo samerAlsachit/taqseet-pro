@@ -58,7 +58,7 @@ export default function NewCustomerPage() {
         <Link href="/customers" className="text-electric hover:underline">
           ← العودة إلى العملاء
         </Link>
-        <h1 className="text-2xl font-bold text-navy">إضافة عميل جديد</h1>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]/70">إضافة عميل جديد</h1>
       </div>
 
       {error && (
@@ -67,10 +67,10 @@ export default function NewCustomerPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm p-6">
+      <form onSubmit={handleSubmit} className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-text-primary mb-2">
+            <label className="block text-[var(--text-primary)] mb-2">
               اسم العميل <span className="text-danger">*</span>
             </label>
             <input
@@ -78,12 +78,12 @@ export default function NewCustomerPage() {
               required
               value={formData.full_name}
               onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
             />
           </div>
 
           <div>
-            <label className="block text-text-primary mb-2">
+            <label className="block text-[var(--text-primary)] mb-2">
               رقم الهاتف <span className="text-danger">*</span>
             </label>
             <input
@@ -91,47 +91,47 @@ export default function NewCustomerPage() {
               required
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
             />
           </div>
 
           <div>
-            <label className="block text-text-primary mb-2">هاتف إضافي</label>
+            <label className="block text-[var(--text-primary)] mb-2">هاتف إضافي</label>
             <input
               type="tel"
               value={formData.phone_alt}
               onChange={(e) => setFormData({ ...formData, phone_alt: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
             />
           </div>
 
           <div>
-            <label className="block text-text-primary mb-2">الرقم الوطني</label>
+            <label className="block text-[var(--text-primary)] mb-2">الرقم الوطني</label>
             <input
               type="text"
               value={formData.national_id}
               onChange={(e) => setFormData({ ...formData, national_id: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
             />
           </div>
 
           <div className="md:col-span-2">
-            <label className="block text-text-primary mb-2">العنوان</label>
+            <label className="block text-[var(--text-primary)] mb-2">العنوان</label>
             <input
               type="text"
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
             />
           </div>
 
           <div className="md:col-span-2">
-            <label className="block text-text-primary mb-2">ملاحظات</label>
+            <label className="block text-[var(--text-primary)] mb-2">ملاحظات</label>
             <textarea
               rows={3}
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
             />
           </div>
         </div>
@@ -146,7 +146,7 @@ export default function NewCustomerPage() {
           </button>
           <Link
             href="/customers"
-            className="border border-gray-300 text-text-primary hover:bg-gray-50 px-6 py-2 rounded-lg transition"
+            className="border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-primary)] px-6 py-2 rounded-lg transition"
           >
             إلغاء
           </Link>

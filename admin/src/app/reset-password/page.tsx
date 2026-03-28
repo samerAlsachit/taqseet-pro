@@ -63,10 +63,10 @@ export default function ResetPasswordPage() {
 
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-bg p-4">
-        <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md text-center">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)] p-4">
+        <div className="bg-[var(--card-bg)] rounded-xl shadow-lg p-8 w-full max-w-md text-center">
           <h1 className="text-2xl font-bold text-danger mb-4">رابط غير صالح</h1>
-          <p className="text-text-primary mb-6">الرابط الذي استخدمته غير صالح أو منتهي الصلاحية</p>
+          <p className="text-[var(--text-primary)] mb-6">الرابط الذي استخدمته غير صالح أو منتهي الصلاحية</p>
           <Link href="/login" className="text-electric hover:underline">
             العودة إلى تسجيل الدخول
           </Link>
@@ -77,10 +77,10 @@ export default function ResetPasswordPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-bg p-4">
-        <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md text-center">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)] p-4">
+        <div className="bg-[var(--card-bg)] rounded-xl shadow-lg p-8 w-full max-w-md text-center">
           <h1 className="text-2xl font-bold text-success mb-4">تم تغيير كلمة المرور بنجاح</h1>
-          <p className="text-text-primary mb-6">سيتم توجيهك إلى صفحة تسجيل الدخول...</p>
+          <p className="text-[var(--text-primary)] mb-6">سيتم توجيهك إلى صفحة تسجيل الدخول...</p>
           <Link href="/login" className="text-electric hover:underline">
             تسجيل الدخول الآن
           </Link>
@@ -90,11 +90,11 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-bg p-4">
-      <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)] p-4">
+      <div className="bg-[var(--card-bg)] rounded-xl shadow-lg p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-navy">تقسيط برو</h1>
-          <p className="text-text-primary mt-2">إعادة تعيين كلمة المرور</p>
+          <h1 className="text-3xl font-bold text-[var(--navy-color)]">تقسيط برو</h1>
+          <p className="text-[var(--text-primary)] mt-2">إعادة تعيين كلمة المرور</p>
         </div>
 
         {error && (
@@ -105,24 +105,24 @@ export default function ResetPasswordPage() {
 
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label className="block text-text-primary mb-2">كلمة المرور الجديدة</label>
+            <label className="block text-[var(--text-primary)] mb-2">كلمة المرور الجديدة</label>
             <input
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric focus:border-transparent"
+              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric focus:border-transparent bg-[var(--input-bg)]"
               required
               minLength={6}
             />
           </div>
 
           <div className="mb-6">
-            <label className="block text-text-primary mb-2">تأكيد كلمة المرور</label>
+            <label className="block text-[var(--text-primary)] mb-2">تأكيد كلمة المرور</label>
             <input
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric focus:border-transparent"
+              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric focus:border-transparent bg-[var(--input-bg)]"
               required
             />
           </div>

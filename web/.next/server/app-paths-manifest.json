@@ -1,7 +1,7 @@
 {
+  "/page": "app/page.js",
   "/login/page": "app/login/page.js",
-  "/(store)/settings/page": "app/(store)/settings/page.js",
-  "/(store)/installments/[id]/page": "app/(store)/installments/[id]/page.js",
-  "/(store)/dashboard/page": "app/(store)/dashboard/page.js",
-  "/(store)/installments/page": "app/(store)/installments/page.js"
+  "/register/page": "app/register/page.js",
+  "/(store)/reports/page": "app/(store)/reports/page.js",
+  "/(store)/dashboard/page": "app/(store)/dashboard/page.js"
 }

@@ -70,14 +70,14 @@ export default function InstallmentsPage() {
       case 'overdue':
         return <span className="px-2 py-1 rounded-full text-sm bg-danger/10 text-danger">متأخر</span>;
       default:
-        return <span className="px-2 py-1 rounded-full text-sm bg-gray-100 text-text-primary">{status}</span>;
+        return <span className="px-2 py-1 rounded-full text-sm bg-gray-100 text-[var(--text-primary)]">{status}</span>;
     }
   };
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className="text-2xl font-bold text-navy">الأقساط</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">الأقساط</h1>
         <Link
           href="/installments/new"
           className="bg-electric hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition text-center"
@@ -95,7 +95,7 @@ export default function InstallmentsPage() {
             setSearch(e.target.value);
             setPage(1);
           }}
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+          className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
         />
         <select
           value={statusFilter}
@@ -103,7 +103,7 @@ export default function InstallmentsPage() {
             setStatusFilter(e.target.value);
             setPage(1);
           }}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-white"
+          className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-[var(--card-bg)]"
         >
           <option value="all">جميع الأقساط</option>
           <option value="active">نشطة</option>
@@ -117,8 +117,8 @@ export default function InstallmentsPage() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric"></div>
         </div>
       ) : !plans || plans.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-          <p className="text-text-primary mb-4">لا توجد أقساط</p>
+        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-12 text-center">
+          <p className="text-[var(--text-primary)] mb-4">لا توجد أقساط</p>
           <Link
             href="/installments/new"
             className="bg-electric text-white px-4 py-2 rounded-lg inline-block"
@@ -128,32 +128,32 @@ export default function InstallmentsPage() {
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">العميل</th>
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">المنتج</th>
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">المبلغ الكلي</th>
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">المتبقي</th>
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">التقدم</th>
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">الحالة</th>
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold"></th>
+                  <tr className="border-b border-[var(--border-color)] bg-[var(--bg-primary)]">
+                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">العميل</th>
+                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">المنتج</th>
+                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">المبلغ الكلي</th>
+                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">المتبقي</th>
+                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">التقدم</th>
+                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">الحالة</th>
+                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {plans.map((plan) => {
                     const progress = ((plan.paid_count || 0) / (plan.total_count || 1)) * 100;
                     return (
-                      <tr key={plan.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <tr key={plan.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
                         <td className="py-3 px-4">
-                          <div className="font-medium text-text-primary">{plan.customer_name}</div>
-                          <div className="text-sm text-text-primary/70">{plan.customer_phone}</div>
+                          <div className="font-medium text-[var(--text-primary)]">{plan.customer_name}</div>
+                          <div className="text-sm text-[var(--text-primary)]/70">{plan.customer_phone}</div>
                         </td>
-                        <td className="py-3 px-4 text-text-primary">{plan.product_name}</td>
-                        <td className="py-3 px-4 text-text-primary">{plan.total_price.toLocaleString()} IQD</td>
-                        <td className="py-3 px-4 text-text-primary">{plan.remaining_amount.toLocaleString()} IQD</td>
+                        <td className="py-3 px-4 text-[var(--text-primary)]">{plan.product_name}</td>
+                        <td className="py-3 px-4 text-[var(--text-primary)]">{plan.total_price.toLocaleString()} IQD</td>
+                        <td className="py-3 px-4 text-[var(--text-primary)]">{plan.remaining_amount.toLocaleString()} IQD</td>
                         <td className="py-3 px-4">
                           <div className="w-24 bg-gray-200 rounded-full h-2">
                             <div
@@ -161,7 +161,7 @@ export default function InstallmentsPage() {
                               style={{ width: `${progress}%` }}
                             />
                           </div>
-                          <span className="text-xs text-text-primary mt-1">
+                          <span className="text-xs text-[var(--text-primary)] mt-1">
                             {plan.paid_count || 0}/{plan.total_count}
                           </span>
                         </td>
@@ -187,15 +187,15 @@ export default function InstallmentsPage() {
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-4 py-2 rounded-lg border border-gray-300 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50"
               >
                 السابق
               </button>
-              <span className="px-4 py-2 text-text-primary">صفحة {page} من {totalPages}</span>
+              <span className="px-4 py-2 text-[var(--text-primary)]">صفحة {page} من {totalPages}</span>
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="px-4 py-2 rounded-lg border border-gray-300 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50"
               >
                 التالي
               </button>

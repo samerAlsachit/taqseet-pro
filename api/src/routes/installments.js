@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { auth } = require('../middleware/auth');
 const { checkSubscription } = require('../middleware/checkSubscription');
+const { logAudit } = require('../middleware/audit');
 const { supabase } = require('../config/supabase');
 const { v4: uuidv4 } = require('uuid');
 
@@ -180,6 +181,9 @@ router.post('/', auth, checkSubscription, async (req, res) => {
       });
     }
 
+    // جلب سعر الصرف (يمكن جعله من إعدادات المحل أو يدوياً)
+    const exchangeRate = currency === 'USD' ? (req.body.exchange_rate || 1300) : 1;
+
     // التحقق من العميل
     const { data: customer } = await supabase
       .from('customers')
@@ -240,6 +244,7 @@ router.post('/', auth, checkSubscription, async (req, res) => {
         remaining_amount: financedAmount,
         total_paid: 0,
         currency: currency,
+        exchange_rate: exchangeRate,
         frequency: frequency,
         start_date: start_date,
         end_date: schedule.endDate,
@@ -284,6 +289,9 @@ router.post('/', auth, checkSubscription, async (req, res) => {
       data: plan,
       message: 'تم إنشاء خطة الأقساط بنجاح'
     });
+
+    // تسجيل العملية
+    await logAudit(req, 'INSERT', 'installment_plans', plan.id, null, plan);
   } catch (error) {
     console.error('خطأ في إنشاء القسط:', error);
     res.status(500).json({

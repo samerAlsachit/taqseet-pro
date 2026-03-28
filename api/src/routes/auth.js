@@ -137,20 +137,17 @@ router.post('/activate', async (req, res) => {
       });
     }
 
-    // بعد إنشاء المحل، جلب تفاصيل الخطة
-    const { data: plan } = await supabase
-      .from('subscription_plans')
-      .select('duration_days')
-      .eq('id', activationCode.plan_id)
-      .single();
-
-    // حساب تاريخ الانتهاء
+    // حساب تواريخ الاشتراك
     const startDate = new Date();
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + plan.duration_days);
-
-    // إنشاء محل جديد
-    const { data: store, error: storeError } = await supabaseAdmin
+    const trialEndDate = new Date();
+    trialEndDate.setDate(trialEndDate.getDate() + 14); // 14 يوم تجريبي
+    
+    // فترة تجريبية مجانية
+    const isTrial = true;
+    const trialEnd = trialEndDate.toISOString().split('T')[0];
+    
+    // إنشاء المحل مع فترة تجريبية
+    const { data: newStore, error: storeError } = await supabaseAdmin
       .from('stores')
       .insert({
         name: store_name,
@@ -158,10 +155,13 @@ router.post('/activate', async (req, res) => {
         phone: phone,
         address: address || '',
         city: city || '',
-        plan_id: activationCode.plan_id,
+        plan_id: null, // لا يوجد خطة مدفوعة بعد
         subscription_start: startDate.toISOString().split('T')[0],
-        subscription_end: endDate.toISOString().split('T')[0],
+        subscription_end: trialEnd, // الفترة التجريبية
+        trial_end: trialEnd,
+        trial_used: true,
         is_active: true,
+        default_currency: 'IQD',
         created_at: new Date().toISOString()
       })
       .select()
@@ -183,7 +183,7 @@ router.post('/activate', async (req, res) => {
     const { data: existingUser, error: existingError } = await supabaseAdmin
       .from('users')
       .select('*')
-      .eq('store_id', store.id)
+      .eq('store_id', newStore.id)
       .eq('role', 'store_owner')
       .single();
 
@@ -216,7 +216,7 @@ router.post('/activate', async (req, res) => {
       const { data: newUser, error: userError } = await supabaseAdmin
         .from('users')
         .insert({
-          store_id: store.id,
+          store_id: newStore.id,
           full_name: owner_name,
           username: username,
           password_hash: hashedPassword,
@@ -246,7 +246,7 @@ router.post('/activate', async (req, res) => {
       .update({
         is_used: true,
         used_at: new Date().toISOString(),
-        store_id: store.id
+        store_id: newStore.id
       })
       .eq('id', activationCode.id);
 
@@ -268,6 +268,7 @@ router.post('/activate', async (req, res) => {
       success: true,
       data: {
         token,
+        store: newStore,
         user: {
           id: user.id,
           username: user.username,
@@ -278,13 +279,10 @@ router.post('/activate', async (req, res) => {
           can_edit: user.can_edit,
           can_view_reports: user.can_view_reports
         },
-        store: {
-          id: store.id,
-          name: store.name,
-          subscription_end: store.subscription_end
-        }
+        is_trial: true,
+        trial_days: 14
       },
-      message: 'تم تفعيل الحساب بنجاح'
+      message: 'تم تفعيل المحل بنجاح مع فترة تجريبية لمدة 14 يوم'
     });
 
   } catch (error) {
@@ -329,10 +327,21 @@ router.get('/me', auth, async (req, res) => {
     if (storeId) {
       const { data: storeData } = await supabase
         .from('stores')
-        .select('id, name, owner_name, phone, address, city, logo_url, receipt_header, receipt_footer, default_currency, subscription_start, subscription_end, is_active')
+        .select('id, name, owner_name, phone, address, city, logo_url, receipt_header, receipt_footer, default_currency, subscription_start, subscription_end, is_active, trial_end, plan_id')
         .eq('id', storeId)
         .single();
       store = storeData;
+    }
+
+    // حساب أيام الفترة التجريبية المتبقية
+    let trialDaysRemaining = null;
+    let isTrial = false;
+    
+    if (store && !store.plan_id && store.trial_end) {
+      isTrial = true;
+      const trialEnd = new Date(store.trial_end);
+      const today = new Date();
+      trialDaysRemaining = Math.ceil((trialEnd.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     }
 
     res.json({
@@ -343,7 +352,9 @@ router.get('/me', auth, async (req, res) => {
         subscription: {
           days_remaining: store?.subscription_end ? Math.ceil((new Date(store.subscription_end).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
           expires_at: store?.subscription_end,
-          is_active: store?.is_active
+          is_active: store?.is_active,
+          is_trial: isTrial,
+          trial_days_remaining: trialDaysRemaining
         }
       },
       message: 'تم جلب البيانات بنجاح'
@@ -631,6 +642,264 @@ router.post('/register-super-admin', async (req, res) => {
     });
   } catch (error) {
     console.error('خطأ في تسجيل السوبر أدمن:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+// POST /api/auth/register-trial
+router.post('/register-trial', async (req, res) => {
+  try {
+    const { store_name, owner_name, phone, address, city, username, password } = req.body;
+
+    if (!store_name || !owner_name || !phone || !username || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'جميع الحقول المطلوبة يجب أن توفر',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    // التحقق من عدم وجود اسم مستخدم مكرر
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('username', username)
+      .single();
+
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        error: 'اسم المستخدم موجود بالفعل',
+        code: 'USERNAME_EXISTS'
+      });
+    }
+
+    // حساب تواريخ الفترة التجريبية (14 يوم)
+    const startDate = new Date();
+    const trialEndDate = new Date();
+    trialEndDate.setDate(trialEndDate.getDate() + 14);
+    const trialEnd = trialEndDate.toISOString().split('T')[0];
+
+    // إنشاء المحل مع فترة تجريبية
+    const { data: newStore, error: storeError } = await supabase
+      .from('stores')
+      .insert({
+        name: store_name,
+        owner_name: owner_name,
+        phone: phone,
+        address: address || '',
+        city: city || '',
+        plan_id: null,
+        subscription_start: startDate.toISOString().split('T')[0],
+        subscription_end: trialEnd,
+        trial_end: trialEnd,
+        trial_used: true,
+        is_active: true,
+        default_currency: 'IQD'
+      })
+      .select()
+      .single();
+
+    if (storeError) {
+      console.error('خطأ في إنشاء المحل:', storeError);
+      return res.status(500).json({
+        success: false,
+        error: 'فشل في إنشاء المحل',
+        code: 'INTERNAL_ERROR'
+      });
+    }
+
+    // تشفير كلمة المرور
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // إنشاء المستخدم
+    const { data: newUser, error: userError } = await supabase
+      .from('users')
+      .insert({
+        store_id: newStore.id,
+        full_name: owner_name,
+        username: username,
+        password_hash: hashedPassword,
+        phone: phone,
+        role: 'store_owner',
+        can_delete: true,
+        can_edit: true,
+        can_view_reports: true,
+        is_active: true
+      })
+      .select()
+      .single();
+
+    if (userError) {
+      console.error('خطأ في إنشاء المستخدم:', userError);
+      return res.status(500).json({
+        success: false,
+        error: 'فشل في إنشاء المستخدم',
+        code: 'INTERNAL_ERROR'
+      });
+    }
+
+    // إنشاء token
+    const token = jwt.sign(
+      {
+        user_id: newUser.id,
+        store_id: newStore.id,
+        role: newUser.role,
+        can_delete: newUser.can_delete,
+        can_edit: newUser.can_edit,
+        can_view_reports: newUser.can_view_reports
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    res.json({
+      success: true,
+      data: {
+        token,
+        store: newStore,
+        user: newUser,
+        is_trial: true,
+        trial_days: 14
+      },
+      message: 'تم إنشاء حساب تجريبي لمدة 14 يوم'
+    });
+  } catch (error) {
+    console.error('خطأ في التسجيل التجريبي:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+// POST /api/auth/register-trial
+router.post('/register-trial', async (req, res) => {
+  try {
+    const { store_name, owner_name, phone, address, city, username, password } = req.body;
+
+    if (!store_name || !owner_name || !phone || !username || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'جميع الحقول المطلوبة يجب أن توفر',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    // التحقق من عدم وجود اسم مستخدم مكرر
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('username', username)
+      .single();
+
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        error: 'اسم المستخدم موجود بالفعل',
+        code: 'USERNAME_EXISTS'
+      });
+    }
+
+    // حساب تواريخ الفترة التجريبية (14 يوم)
+    const startDate = new Date();
+    const trialEndDate = new Date();
+    trialEndDate.setDate(trialEndDate.getDate() + 14);
+    const trialEnd = trialEndDate.toISOString().split('T')[0];
+
+    // إنشاء المحل مع فترة تجريبية
+    const { data: newStore, error: storeError } = await supabase
+      .from('stores')
+      .insert({
+        name: store_name,
+        owner_name: owner_name,
+        phone: phone,
+        address: address || '',
+        city: city || '',
+        plan_id: null,
+        subscription_start: startDate.toISOString().split('T')[0],
+        subscription_end: trialEnd,
+        trial_end: trialEnd,
+        trial_used: true,
+        is_active: true,
+        default_currency: 'IQD'
+      })
+      .select()
+      .single();
+
+    if (storeError) {
+      console.error('خطأ في إنشاء المحل:', storeError);
+      return res.status(500).json({
+        success: false,
+        error: 'فشل في إنشاء المحل',
+        code: 'INTERNAL_ERROR'
+      });
+    }
+
+    // تشفير كلمة المرور
+    const bcrypt = require('bcrypt');
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // إنشاء المستخدم
+    const { data: newUser, error: userError } = await supabase
+      .from('users')
+      .insert({
+        store_id: newStore.id,
+        full_name: owner_name,
+        username: username,
+        password_hash: hashedPassword,
+        phone: phone,
+        role: 'store_owner',
+        can_delete: true,
+        can_edit: true,
+        can_view_reports: true,
+        is_active: true
+      })
+      .select()
+      .single();
+
+    if (userError) {
+      console.error('خطأ في إنشاء المستخدم:', userError);
+      return res.status(500).json({
+        success: false,
+        error: 'فشل في إنشاء المستخدم',
+        code: 'INTERNAL_ERROR'
+      });
+    }
+
+    // إنشاء token
+    const jwt = require('jsonwebtoken');
+    const token = jwt.sign(
+      {
+        user_id: newUser.id,
+        store_id: newStore.id,
+        role: newUser.role,
+        can_delete: newUser.can_delete,
+        can_edit: newUser.can_edit,
+        can_view_reports: newUser.can_view_reports
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    res.json({
+      success: true,
+      data: {
+        token,
+        store: newStore,
+        user: newUser,
+        is_trial: true,
+        trial_days: 14
+      },
+      message: 'تم إنشاء حساب تجريبي لمدة 14 يوم'
+    });
+  } catch (error) {
+    console.error('خطأ في التسجيل التجريبي:', error);
     res.status(500).json({
       success: false,
       error: 'حدث خطأ في الخادم',

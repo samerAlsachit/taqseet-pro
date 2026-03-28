@@ -12,8 +12,11 @@ interface Product {
   low_stock_alert: number;
   sell_price_cash_iqd: number;
   sell_price_install_iqd: number;
+  sell_price_cash_usd: number;
+  sell_price_install_usd: number;
   cost_price_iqd: number;
   is_active: boolean;
+  currency: string;
 }
 
 export default function ProductsPage() {
@@ -114,7 +117,7 @@ export default function ProductsPage() {
           }}
           className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
         />
-        <label className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-gray-300">
+        <label className="flex items-center gap-2 px-4 py-2 bg-[var(--card-bg)] rounded-lg border border-gray-300 dark:border-gray-700">
           <input
             type="checkbox"
             checked={showLowStock}
@@ -124,7 +127,7 @@ export default function ProductsPage() {
             }}
             className="w-4 h-4 text-electric"
           />
-          <span className="text-text-primary">منتجات المخزون المنخفض فقط</span>
+          <span className="text-[var(--text-primary)]">منتجات المخزون المنخفض فقط</span>
         </label>
       </div>
 
@@ -134,8 +137,8 @@ export default function ProductsPage() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric"></div>
         </div>
       ) : products.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-          <p className="text-text-primary mb-4">لا توجد منتجات</p>
+        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-12 text-center">
+          <p className="text-[var(--text-primary)] mb-4">لا توجد منتجات</p>
           <Link
             href="/products/new"
             className="bg-electric text-white px-4 py-2 rounded-lg inline-block"
@@ -145,28 +148,42 @@ export default function ProductsPage() {
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">المنتج</th>
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">الفئة</th>
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">الكمية</th>
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">سعر البيع نقداً</th>
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">سعر البيع بالقسط</th>
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">الحالة</th>
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">إجراءات</th>
+                  <tr className="border-b border-[var(--border-color)] bg-[var(--bg-primary)]">
+                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">المنتج</th>
+                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">الفئة</th>
+                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">الكمية</th>
+                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">العملة</th>
+                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">سعر البيع نقداً</th>
+                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">سعر البيع بالقسط</th>
+                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">الحالة</th>
+                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">إجراءات</th>
                   </tr>
                 </thead>
                 <tbody>
                   {products.map((product) => (
-                    <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 text-text-primary font-medium">{product.name}</td>
-                      <td className="py-3 px-4 text-text-primary">{product.category || '-'}</td>
-                      <td className="py-3 px-4 text-text-primary">{product.quantity}</td>
-                      <td className="py-3 px-4 text-text-primary">{product.sell_price_cash_iqd?.toLocaleString()} IQD</td>
-                      <td className="py-3 px-4 text-text-primary">{product.sell_price_install_iqd?.toLocaleString()} IQD</td>
+                    <tr key={product.id} className="border-b border-[var(--border-color)] hover:bg-gray-50">
+                      <td className="py-3 px-4 text-[var(--text-primary)] font-medium">{product.name}</td>
+                      <td className="py-3 px-4 text-[var(--text-primary)]">{product.category || '-'}</td>
+                      <td className="py-3 px-4 text-[var(--text-primary)]">{product.quantity}</td>
+                      <td className="py-3 px-4">
+                        <span className="px-2 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700">
+                          {product.currency === 'USD' ? 'دولار' : 'دينار'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        {product.currency === 'IQD' 
+                          ? `${product.sell_price_cash_iqd?.toLocaleString()} IQD` 
+                          : `${product.sell_price_cash_usd?.toLocaleString()} USD`}
+                      </td>
+                      <td className="py-3 px-4">
+                        {product.currency === 'IQD' 
+                          ? `${product.sell_price_install_iqd?.toLocaleString()} IQD` 
+                          : `${product.sell_price_install_usd?.toLocaleString()} USD`}
+                      </td>
                       <td className="py-3 px-4">{getStockStatus(product)}</td>
                       <td className="py-3 px-4">
                         <div className="flex gap-2">
@@ -201,7 +218,7 @@ export default function ProductsPage() {
               >
                 السابق
               </button>
-              <span className="px-4 py-2 text-text-primary">
+              <span className="px-4 py-2 text-[var(--text-primary)]">
                 صفحة {page} من {totalPages}
               </span>
               <button

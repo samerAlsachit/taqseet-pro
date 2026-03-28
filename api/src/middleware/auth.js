@@ -36,4 +36,15 @@ const auth = async (req, res, next) => {
   }
 };
 
-module.exports = { auth };
+const requireSuperAdmin = (req, res, next) => {
+  if (!req.user || req.user.role !== 'super_admin') {
+    return res.status(403).json({
+      success: false,
+      error: 'غير مصرح، هذه الصلاحية للمشرفين فقط',
+      code: 'FORBIDDEN'
+    });
+  }
+  next();
+};
+
+module.exports = { auth, requireSuperAdmin };

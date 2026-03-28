@@ -176,7 +176,7 @@ export default function ReportsPage() {
   return (
     <>
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 print-area">
-      <h1 className="text-2xl font-bold text-navy mb-6">التقارير</h1>
+      <h1 className="text-2xl font-bold text-[var(--text-primary)]/70white mb-6">التقارير</h1>
 
       {/* اختيار نوع التقرير */}
       <div className="flex gap-4 mb-8">
@@ -185,7 +185,7 @@ export default function ReportsPage() {
           className={`px-6 py-2 rounded-lg transition ${
             reportType === 'daily'
               ? 'bg-electric text-white'
-              : 'bg-white text-text-primary border border-gray-300 hover:bg-gray-50'
+              : 'bg-[var(--card-bg)] text-[var(--text-primary)] border border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
           }`}
         >
           يومي
@@ -195,7 +195,7 @@ export default function ReportsPage() {
           className={`px-6 py-2 rounded-lg transition ${
             reportType === 'monthly'
               ? 'bg-electric text-white'
-              : 'bg-white text-text-primary border border-gray-300 hover:bg-gray-50'
+              : 'bg-[var(--card-bg)] text-[var(--text-primary)] border border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
           }`}
         >
           شهري
@@ -205,7 +205,7 @@ export default function ReportsPage() {
           className={`px-6 py-2 rounded-lg transition ${
             reportType === 'total'
               ? 'bg-electric text-white'
-              : 'bg-white text-text-primary border border-gray-300 hover:bg-gray-50'
+              : 'bg-[var(--card-bg)] text-[var(--text-primary)] border border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
           }`}
         >
           إجمالي
@@ -214,9 +214,9 @@ export default function ReportsPage() {
 
       {/* بطاقات الإحصائيات */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow-sm p-6 border-r-4 border-success">
-          <p className="text-text-primary text-sm mb-1">إجمالي التحصيلات</p>
-          <p className="text-2xl font-bold text-navy">
+        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-success">
+          <p className="text-[var(--text-primary)] text-sm mb-1">إجمالي التحصيلات</p>
+          <p className="text-2xl font-bold text-[var(--text-primary)]/70white">
             {reportType === 'daily' 
               ? `${(data?.daily?.total_collection || 0).toLocaleString()} IQD` 
               : reportType === 'monthly'
@@ -225,9 +225,9 @@ export default function ReportsPage() {
             }
           </p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-6 border-r-4 border-electric">
-          <p className="text-text-primary text-sm mb-1">عدد الدفعات</p>
-          <p className="text-2xl font-bold text-navy">
+        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-electric">
+          <p className="text-[var(--text-primary)] text-sm mb-1">عدد الدفعات</p>
+          <p className="text-2xl font-bold text-[var(--text-primary)]/70white">
             {reportType === 'daily' 
               ? data?.daily?.paid_count || 0
               : reportType === 'monthly'
@@ -236,9 +236,9 @@ export default function ReportsPage() {
             }
           </p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm p-6 border-r-4 border-warning">
-          <p className="text-text-primary text-sm mb-1">أقساط جديدة</p>
-          <p className="text-2xl font-bold text-navy">
+        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-warning">
+          <p className="text-[var(--text-primary)] text-sm mb-1">أقساط جديدة</p>
+          <p className="text-2xl font-bold text-[var(--text-primary)]/70white">
             {reportType === 'daily' 
               ? data?.daily?.new_installments || 0
               : reportType === 'monthly'
@@ -252,23 +252,23 @@ export default function ReportsPage() {
       {/* إحصائيات إضافية للتقرير الإجمالي */}
       {reportType === 'total' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <p className="text-text-primary text-sm mb-1">إجمالي المبالغ المتبقية</p>
-            <p className="text-2xl font-bold text-danger">
+          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
+            <p className="text-[var(--text-primary)] text-sm mb-1">إجمالي المبالغ المتبقية</p>
+            <p className="text-2xl font-bold text-[var(--text-danger)]">
               {data?.total?.total_remaining?.toLocaleString() || 0} IQD
             </p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <p className="text-text-primary text-sm mb-1">الأقساط النشطة</p>
-            <p className="text-2xl font-bold text-navy">{data?.total?.active_installments || 0}</p>
+          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
+            <p className="text-[var(--text-primary)] text-sm mb-1">الأقساط النشطة</p>
+            <p className="text-2xl font-bold text-[var(--text-primary)]/70white">{data?.total?.active_installments || 0}</p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <p className="text-text-primary text-sm mb-1">إجمالي العملاء</p>
-            <p className="text-2xl font-bold text-navy">{data?.total?.total_customers || 0}</p>
+          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
+            <p className="text-[var(--text-primary)] text-sm mb-1">إجمالي العملاء</p>
+            <p className="text-2xl font-bold text-[var(--text-primary)]/70white">{data?.total?.total_customers || 0}</p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <p className="text-text-primary text-sm mb-1">إجمالي الأقساط</p>
-            <p className="text-2xl font-bold text-navy">{data?.total?.total_installments || 0}</p>
+          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
+            <p className="text-[var(--text-primary)] text-sm mb-1">إجمالي الأقساط</p>
+            <p className="text-2xl font-bold text-[var(--text-primary)]/70white">{data?.total?.total_installments || 0}</p>
           </div>
         </div>
       )}

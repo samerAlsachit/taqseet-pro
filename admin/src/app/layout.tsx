@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Tajawal } from "next/font/google";
+import { ThemeProvider } from '../context/ThemeContext';
 import "./globals.css";
 
 const inter = Inter({ 
@@ -25,8 +26,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl">
-      <body className={`${inter.variable} ${tajawal.variable} antialiased`}>
-        {children}
+      <body className={`${inter.variable} ${tajawal.variable} antialiased bg-[var(--bg-primary)] text-[var(--text-primary)]`}>
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

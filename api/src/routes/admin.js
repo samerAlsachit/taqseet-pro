@@ -3,7 +3,9 @@ const { supabase, supabaseAdmin } = require('../config/supabase');
 const { ERROR_CODES, ERROR_MESSAGES } = require('../config/constants');
 const moment = require('moment');
 const { v4: uuidv4 } = require('uuid');
-const { auth } = require('../middleware/auth');
+const { auth, requireSuperAdmin } = require('../middleware/auth');
+const { checkEmployeeLimit } = require('../middleware/checkSubscription');
+const { logAudit } = require('../middleware/audit');
 
 const router = express.Router();
 
@@ -648,6 +650,319 @@ router.post('/test-notifications', auth, async (req, res) => {
     res.json({ success: true, message: 'تم إرسال التنبيهات بنجاح' });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/admin/plans
+router.get('/plans', auth, requireSuperAdmin, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('subscription_plans')
+      .select('*')
+      .order('duration_days');
+    
+    if (error) throw error;
+    
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('خطأ في جلب الخطط:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+// POST /api/admin/plans
+router.post('/plans', auth, requireSuperAdmin, async (req, res) => {
+  const { name, duration_days, price_iqd, max_customers, max_employees, features, is_active } = req.body;
+  
+  const { data, error } = await supabase
+    .from('subscription_plans')
+    .insert({
+      id: uuidv4(),
+      name,
+      duration_days,
+      price_iqd,
+      max_customers: max_customers || 0,
+      max_employees: max_employees || 0,
+      features: features || [],
+      is_active: is_active !== false
+    })
+    .select()
+    .single();
+  
+  if (error) throw error;
+  
+  // تسجيل العملية
+  await logAudit(req, 'INSERT', 'subscription_plans', data.id, null, data);
+  
+  res.json({ success: true, data });
+});
+
+// PUT /api/admin/plans/:id
+router.put('/plans/:id', auth, requireSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, duration_days, price_iqd, max_customers, max_employees, features, is_active } = req.body;
+
+    const { data, error } = await supabase
+      .from('subscription_plans')
+      .update({
+        name,
+        duration_days,
+        price_iqd,
+        max_customers: max_customers || 0,
+        max_employees: max_employees || 0,
+        features: features || [],
+        is_active: is_active !== undefined ? is_active : true
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('خطأ في تحديث الخطة:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'فشل في تحديث الخطة',
+        code: 'INTERNAL_ERROR'
+      });
+    }
+
+    res.json({
+      success: true,
+      data,
+      message: 'تم تحديث الخطة بنجاح'
+    });
+  } catch (error) {
+    console.error('خطأ في تحديث الخطة:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+// DELETE /api/admin/plans/:id
+router.delete('/plans/:id', auth, requireSuperAdmin, async (req, res) => {
+  const { id } = req.params;
+  
+  const { error } = await supabase
+    .from('subscription_plans')
+    .delete()
+    .eq('id', id);
+  
+  if (error) throw error;
+  res.json({ success: true, message: 'تم حذف الخطة بنجاح' });
+});
+
+// POST /api/admin/stores/:id/users - إضافة موظف جديد للمحل
+router.post('/stores/:id/users', auth, requireSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { username, full_name, password, role, can_delete, can_edit, can_view_reports } = req.body;
+
+    if (!username || !full_name || !password || !role) {
+      return res.status(400).json({
+        success: false,
+        error: 'جميع الحقول المطلوبة يجب أن توفر',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    // التحقق من حد الموظفين
+    if (!await checkEmployeeLimit(id)) {
+      return res.status(403).json({
+        success: false,
+        error: 'لقد تجاوزت الحد المسموح به من الموظفين حسب خطتك',
+        code: 'LIMIT_EXCEEDED'
+      });
+    }
+
+    // التحقق من عدم وجود اسم مستخدم مكرر
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('username', username)
+      .single();
+
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        error: 'اسم المستخدم موجود بالفعل',
+        code: 'USERNAME_EXISTS'
+      });
+    }
+
+    // تشفير كلمة المرور
+    const bcrypt = require('bcrypt');
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // إنشاء الموظف
+    const { data: newUser, error } = await supabase
+      .from('users')
+      .insert({
+        store_id: id,
+        username,
+        full_name,
+        password_hash: hashedPassword,
+        role: role || 'employee',
+        can_delete: can_delete !== false,
+        can_edit: can_edit !== false,
+        can_view_reports: can_view_reports !== false,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // تسجيل العملية
+    await supabaseAdmin
+      .from('audit_logs')
+      .insert({
+        id: uuidv4(),
+        user_id: req.user.id,
+        action: 'create_user',
+        entity_type: 'user',
+        entity_id: newUser.id,
+        new_data: {
+          username,
+          full_name,
+          role,
+          store_id: id
+        },
+        ip_address: req.ip,
+        user_agent: req.get('User-Agent'),
+        created_at: new Date().toISOString()
+      });
+
+    res.json({
+      success: true,
+      data: newUser,
+      message: 'تم إضافة الموظف بنجاح'
+    });
+  } catch (error) {
+    console.error('خطأ في إضافة الموظف:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+// GET /api/admin/audit
+router.get('/audit', auth, requireSuperAdmin, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = (page - 1) * limit;
+    const action = req.query.action;
+
+    let query = supabase
+      .from('audit_logs')
+      .select(`
+        *,
+        users:user_id (username, full_name),
+        stores:store_id (name)
+      `, { count: 'exact' })
+      .order('created_at', { ascending: false });
+
+    if (action) {
+      query = query.eq('action', action);
+    }
+
+    const { data: logs, error, count } = await query
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+
+    const formattedLogs = logs.map(log => ({
+      id: log.id,
+      user_name: log.users?.full_name || log.users?.username || 'غير معروف',
+      store_name: log.stores?.name || 'غير معروف',
+      action: log.action,
+      table_name: log.table_name,
+      record_id: log.record_id,
+      created_at: log.created_at,
+      ip_address: log.ip_address
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        logs: formattedLogs,
+        pagination: {
+          page,
+          limit,
+          total: count || 0,
+          totalPages: Math.ceil((count || 0) / limit)
+        }
+      },
+      message: 'تم جلب سجل العمليات بنجاح'
+    });
+  } catch (error) {
+    console.error('خطأ في جلب سجل العمليات:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
+// GET /api/admin/audit/:id
+router.get('/audit/:id', auth, requireSuperAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data: log, error } = await supabase
+      .from('audit_logs')
+      .select(`
+        *,
+        users:user_id (username, full_name),
+        stores:store_id (name)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error || !log) {
+      return res.status(404).json({
+        success: false,
+        error: 'السجل غير موجود',
+        code: 'NOT_FOUND'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        id: log.id,
+        user_name: log.users?.full_name || log.users?.username || 'غير معروف',
+        store_name: log.stores?.name || 'غير معروف',
+        action: log.action,
+        table_name: log.table_name,
+        record_id: log.record_id,
+        created_at: log.created_at,
+        ip_address: log.ip_address,
+        old_data: log.old_data,
+        new_data: log.new_data
+      },
+      message: 'تم جلب تفاصيل السجل بنجاح'
+    });
+  } catch (error) {
+    console.error('خطأ في جلب تفاصيل السجل:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
   }
 });
 

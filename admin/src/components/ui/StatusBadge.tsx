@@ -27,7 +27,7 @@ export default function StatusBadge({ status, children, className = '' }: Status
       border: 'border-blue-600'
     },
     inactive: {
-      bg: 'bg-gray-200',
+      bg: 'bg-[var(--bg-primary)]',
       text: 'text-gray-700',
       border: 'border-gray-300'
     },

@@ -18,6 +18,8 @@ export default function DashboardPage() {
   const [storeName, setStoreName] = useState('');
   const [expiringWarning, setExpiringWarning] = useState(false);
   const [daysRemaining, setDaysRemaining] = useState(0);
+  const [isTrial, setIsTrial] = useState(false);
+  const [trialDaysLeft, setTrialDaysLeft] = useState(0);
   const [stats, setStats] = useState<DashboardStats>({
     total_customers: 0,
     active_installments: 0,
@@ -43,6 +45,12 @@ export default function DashboardPage() {
         const meData = await meRes.json();
         if (meData.success) {
           setStoreName(meData.data.store?.name || 'المحل');
+          
+          // التحقق من الفترة التجريبية
+          if (meData.data.subscription?.is_trial) {
+            setIsTrial(true);
+            setTrialDaysLeft(meData.data.subscription.trial_days_remaining);
+          }
           
           // التحقق من انتهاء الاشتراك
           const daysRemaining = meData.data.subscription?.days_remaining;
@@ -90,23 +98,48 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-bg">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      <div className="bg-[var(--card-bg)] border-b border-[var(--border-color)] sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-navy">لوحة التحكم</h1>
-            <div className="text-text-primary">
+            <h1 className="text-2xl font-bold text-navy dark:text-white">لوحة التحكم</h1>
+            <div className="text-[var(--text-primary)]">
               مرحباً بك في {storeName}
             </div>
           </div>
         </div>
       </div>
 
+      {/* تحذير الفترة التجريبية */}
+      {isTrial && (
+        <div className={`rounded-lg p-4 mb-6 ${trialDaysLeft <= 3 ? 'bg-red-50 border border-danger' : 'bg-yellow-50 border border-warning'}`}>
+          <div className="flex justify-between items-center flex-wrap gap-4">
+            <div>
+              <p className="font-bold text-warning">⚠️ فترة تجريبية</p>
+              <p className="text-[var(--text-primary)]">
+                أنت حالياً في الفترة التجريبية. متبقي <span className="font-bold">{trialDaysLeft}</span> يوم.
+                {trialDaysLeft <= 3 && (
+                  <span className="block text-danger font-medium mt-1">
+                    يرجى الاشتراك لتجنب انقطاع الخدمة!
+                  </span>
+                )}
+              </p>
+            </div>
+            <Link
+              href="/settings"
+              className="bg-electric text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
+            >
+              اشتراك
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* تنبيه انتهاء الاشتراك */}
       {expiringWarning && (
         <div className="bg-warning/20 border border-warning rounded-lg p-4 mb-6 flex justify-between items-center">
           <div>
             <p className="font-bold text-warning">⚠️ تنبيه هام</p>
-            <p className="text-text-primary">
+            <p className="text-[var(--text-primary)]">
               اشتراكك على وشك الانتهاء خلال {daysRemaining} أيام. يرجى التواصل مع الدعم لتجديد الاشتراك.
             </p>
           </div>
@@ -122,78 +155,78 @@ export default function DashboardPage() {
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {/* بطاقات الإحصائيات */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm p-6 border-r-4 border-electric">
-            <p className="text-text-primary text-sm mb-1">إجمالي العملاء</p>
-            <p className="text-3xl font-bold text-navy">{stats.total_customers}</p>
+          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-electric">
+            <p className="text-[var(--text-primary)]/70 text-sm mb-1">إجمالي العملاء</p>
+            <p className="text-3xl font-bold text-[var(--text-navy)]">{stats.total_customers}</p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border-r-4 border-success">
-            <p className="text-text-primary text-sm mb-1">الأقساط النشطة</p>
-            <p className="text-3xl font-bold text-navy">{stats.active_installments}</p>
+          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-success">
+            <p className="text-[var(--text-primary)]/70 text-sm mb-1">الأقساط النشطة</p>
+            <p className="text-3xl font-bold text-[var(--text-navy)]">{stats.active_installments}</p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border-r-4 border-warning">
-            <p className="text-text-primary text-sm mb-1">مستحقة اليوم</p>
-            <p className="text-3xl font-bold text-navy">{stats.due_today}</p>
+          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-warning">
+            <p className="text-[var(--text-primary)]/70 text-sm mb-1">مستحقة اليوم</p>
+            <p className="text-3xl font-bold text-[var(--text-navy)]">{stats.due_today}</p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border-r-4 border-danger">
-            <p className="text-text-primary text-sm mb-1">متأخرات</p>
-            <p className="text-3xl font-bold text-navy">{stats.overdue}</p>
+          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-danger">
+            <p className="text-[var(--text-primary)]/70 text-sm mb-1">متأخرات</p>
+            <p className="text-3xl font-bold text-[var(--text-navy)]">{stats.overdue}</p>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 border-r-4 border-electric">
-            <p className="text-text-primary text-sm mb-1">تحصيلات اليوم</p>
-            <p className="text-3xl font-bold text-navy">{stats.today_collection.toLocaleString()} IQD</p>
+          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-electric">
+            <p className="text-[var(--text-primary)]/70 text-sm mb-1">تحصيلات اليوم</p>
+            <p className="text-3xl font-bold text-[var(--text-navy)]">{stats.today_collection.toLocaleString()} IQD</p>
           </div>
         </div>
 
         {/* قائمة سريعة */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <Link href="/customers/new" className="bg-white hover:bg-gray-50 p-4 rounded-xl shadow-sm text-center transition">
+          <Link href="/customers/new" className="bg-[var(--card-bg)] hover:bg-gray-50 dark:hover:bg-gray-800 p-4 rounded-xl shadow-sm text-center transition">
             <div className="text-2xl mb-2">👤+</div>
-            <span className="text-text-primary">إضافة عميل</span>
+            <span className="text-[var(--text-primary)]">إضافة عميل</span>
           </Link>
-          <Link href="/installments/new" className="bg-white hover:bg-gray-50 p-4 rounded-xl shadow-sm text-center transition">
+          <Link href="/installments/new" className="bg-[var(--card-bg)] hover:bg-gray-50 dark:hover:bg-gray-800 p-4 rounded-xl shadow-sm text-center transition">
             <div className="text-2xl mb-2">💰+</div>
-            <span className="text-text-primary">قسط جديد</span>
+            <span className="text-[var(--text-primary)]">قسط جديد</span>
           </Link>
-          <Link href="/products/new" className="bg-white hover:bg-gray-50 p-4 rounded-xl shadow-sm text-center transition">
+          <Link href="/products/new" className="bg-[var(--card-bg)] hover:bg-gray-50 dark:hover:bg-gray-800 p-4 rounded-xl shadow-sm text-center transition">
             <div className="text-2xl mb-2">📦+</div>
-            <span className="text-text-primary">منتج جديد</span>
+            <span className="text-[var(--text-primary)]">منتج جديد</span>
           </Link>
-          <Link href="/payments/new" className="bg-white hover:bg-gray-50 p-4 rounded-xl shadow-sm text-center transition">
+          <Link href="/payments/new" className="bg-[var(--card-bg)] hover:bg-gray-50 dark:hover:bg-gray-800 p-4 rounded-xl shadow-sm text-center transition">
             <div className="text-2xl mb-2">💵+</div>
-            <span className="text-text-primary">تسديد دفعة</span>
+            <span className="text-[var(--text-primary)]">تسديد دفعة</span>
           </Link>
         </div>
 
         {/* آخر الأقساط */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-navy">آخر الأقساط</h2>
+            <h2 className="text-xl font-bold text-navy dark:text-white">آخر الأقساط</h2>
             <Link href="/installments" className="text-electric hover:underline text-sm">
               عرض الكل
             </Link>
           </div>
           {recentInstallments.length === 0 ? (
-            <p className="text-text-primary text-center py-8">لا توجد أقساط مسجلة</p>
+            <p className="text-[var(--text-primary)] text-center py-8">لا توجد أقساط مسجلة</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">العميل</th>
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">المنتج</th>
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">المبلغ</th>
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">المتبقي</th>
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold">الحالة</th>
-                    <th className="text-right py-3 px-4 text-text-primary font-semibold"></th>
+                  <tr className="border-b border-[var(--border-color)] bg-[var(--bg-primary)]">
+                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">العميل</th>
+                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">المنتج</th>
+                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">المبلغ</th>
+                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">المتبقي</th>
+                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">الحالة</th>
+                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {recentInstallments.map((item: any) => (
-                    <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 text-text-primary">{item.customer_name}</td>
-                      <td className="py-3 px-4 text-text-primary">{item.product_name}</td>
-                      <td className="py-3 px-4 text-text-primary">{item.total_price?.toLocaleString()} IQD</td>
-                      <td className="py-3 px-4 text-text-primary">{item.remaining_amount?.toLocaleString()} IQD</td>
+                    <tr key={item.id} className="border-b border-[var(--border-color)] hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <td className="py-3 px-4 text-[var(--text-primary)]">{item.customer_name}</td>
+                      <td className="py-3 px-4 text-[var(--text-primary)]">{item.product_name}</td>
+                      <td className="py-3 px-4 text-[var(--text-primary)]">{item.total_price?.toLocaleString()} IQD</td>
+                      <td className="py-3 px-4 text-[var(--text-primary)]">{item.remaining_amount?.toLocaleString()} IQD</td>
                       <td className="py-3 px-4">
                         <span className={`px-3 py-1 rounded-full text-sm ${
                           item.status === 'active' ? 'bg-success/10 text-success' :

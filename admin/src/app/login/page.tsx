@@ -99,8 +99,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-bg p-4">
-      <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)] p-4">
+      <div className="bg-[var(--card-bg)] rounded-xl shadow-lg p-8 w-full max-w-md">
         <div className="text-center mb-8">
   <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-navy to-electric mb-4">
     <span className="text-3xl">⚓</span>
@@ -108,7 +108,7 @@ export default function LoginPage() {
   <h1 className="text-4xl font-bold bg-gradient-to-r from-navy to-electric bg-clip-text text-transparent">
     مرساة
   </h1>
-  <p className="text-text-primary mt-2">لوحة التحكم</p>
+  <p className="text-[var(--text-primary)] mt-2">لوحة التحكم</p>
 </div>
 
         {error && (
@@ -119,24 +119,24 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label className="block text-text-primary mb-2">اسم المستخدم</label>
+            <label className="block text-[var(--text-primary)] mb-2">اسم المستخدم</label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric focus:border-transparent"
+              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric focus:border-transparent"
               placeholder="أدخل اسم المستخدم"
               required
             />
           </div>
 
           <div className="mb-6">
-            <label className="block text-text-primary mb-2">كلمة المرور</label>
+            <label className="block text-[var(--text-primary)] mb-2">كلمة المرور</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric focus:border-transparent"
+              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric focus:border-transparent"
               placeholder="أدخل كلمة المرور"
               required
             />
@@ -150,7 +150,7 @@ export default function LoginPage() {
             {loading ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'}
           </button>
 
-          <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200">
+          <div className="flex justify-between items-center mt-6 pt-4 border-t border-[var(--border-color)]">
             <button
               type="button"
               onClick={() => setShowForgotUsername(true)}
@@ -171,15 +171,15 @@ export default function LoginPage() {
         {/* Modal استعادة اسم المستخدم */}
         {showForgotUsername && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 w-full max-w-md">
-              <h2 className="text-xl font-bold text-navy mb-4">استعادة اسم المستخدم</h2>
-              <p className="text-text-primary text-sm mb-4">أدخل بريدك الإلكتروني أو رقم هاتفك</p>
+            <div className="bg-[var(--card-bg)] rounded-xl p-6 w-full max-w-md border border-[var(--border-color)]">
+              <h2 className="text-xl font-bold text-[var(--navy-color)] mb-4">استعادة اسم المستخدم</h2>
+              <p className="text-[var(--text-primary)] text-sm mb-4">أدخل بريدك الإلكتروني أو رقم هاتفك</p>
               <input
                 type="text"
                 placeholder="البريد الإلكتروني أو رقم الهاتف"
                 value={forgotEmail}
                 onChange={(e) => setForgotEmail(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-electric"
+                className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-electric bg-[var(--card-bg)] text-[var(--text-primary)]"
               />
               {forgotMessage && (
                 <div className="mb-4 text-center text-sm text-success">{forgotMessage}</div>
@@ -194,7 +194,7 @@ export default function LoginPage() {
                 </button>
                 <button
                   onClick={() => { setShowForgotUsername(false); setForgotMessage(''); setForgotEmail(''); }}
-                  className="flex-1 border border-gray-300 text-text-primary py-2 rounded-lg"
+                  className="flex-1 border border-[var(--border-color)] text-[var(--text-primary)] py-2 rounded-lg"
                 >
                   إلغاء
                 </button>
@@ -206,15 +206,15 @@ export default function LoginPage() {
         {/* Modal استعادة كلمة المرور */}
         {showForgotPassword && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 w-full max-w-md">
-              <h2 className="text-xl font-bold text-navy mb-4">استعادة كلمة المرور</h2>
-              <p className="text-text-primary text-sm mb-4">أدخل اسم المستخدم الخاص بك</p>
+            <div className="bg-[var(--card-bg)] rounded-xl p-6 w-full max-w-md border border-[var(--border-color)]">
+              <h2 className="text-xl font-bold text-[var(--navy-color)] mb-4">استعادة كلمة المرور</h2>
+              <p className="text-[var(--text-primary)] text-sm mb-4">أدخل اسم المستخدم الخاص بك</p>
               <input
                 type="text"
                 placeholder="اسم المستخدم *"
                 value={forgotUsername}
                 onChange={(e) => setForgotUsername(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-electric"
+                className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-electric bg-[var(--card-bg)] text-[var(--text-primary)]"
               />
               {forgotMessage && (
                 <div className="mb-4 text-center text-sm text-success">{forgotMessage}</div>
@@ -229,7 +229,7 @@ export default function LoginPage() {
                 </button>
                 <button
                   onClick={() => { setShowForgotPassword(false); setForgotMessage(''); setForgotUsername(''); }}
-                  className="flex-1 border border-gray-300 text-text-primary py-2 rounded-lg"
+                  className="flex-1 border border-[var(--border-color)] text-[var(--text-primary)] py-2 rounded-lg"
                 >
                   إلغاء
                 </button>

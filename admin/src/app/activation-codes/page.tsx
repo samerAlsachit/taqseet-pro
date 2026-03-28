@@ -137,7 +137,7 @@ export default function ActivationCodesPage() {
   return (
     <AdminLayout>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-navy">مرساة - كودات التفعيل</h1>
+        <h1 className="text-2xl font-bold text-[var(--navy-color)]">مرساة - كودات التفعيل</h1>
         <button
           onClick={() => setShowModal(true)}
           className="bg-electric hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition"
@@ -147,23 +147,23 @@ export default function ActivationCodesPage() {
       </div>
 
       {/* فلتر */}
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
+      <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-4 mb-6">
         <div className="flex gap-4">
           <button
             onClick={() => { setFilter('all'); setPage(1); }}
-            className={`px-4 py-2 rounded-lg transition ${filter === 'all' ? 'bg-electric text-white' : 'bg-gray-100 text-text-primary hover:bg-gray-200'}`}
+            className={`px-4 py-2 rounded-lg transition ${filter === 'all' ? 'bg-electric text-white' : 'bg-[var(--bg-primary)] text-[var(--text-primary)] hover:bg-gray-200'}`}
           >
             الكل
           </button>
           <button
             onClick={() => { setFilter('unused'); setPage(1); }}
-            className={`px-4 py-2 rounded-lg transition ${filter === 'unused' ? 'bg-electric text-white' : 'bg-gray-100 text-text-primary hover:bg-gray-200'}`}
+            className={`px-4 py-2 rounded-lg transition ${filter === 'unused' ? 'bg-electric text-white' : 'bg-[var(--bg-primary)] text-[var(--text-primary)] hover:bg-gray-200'}`}
           >
             غير مستخدم
           </button>
           <button
             onClick={() => { setFilter('used'); setPage(1); }}
-            className={`px-4 py-2 rounded-lg transition ${filter === 'used' ? 'bg-electric text-white' : 'bg-gray-100 text-text-primary hover:bg-gray-200'}`}
+            className={`px-4 py-2 rounded-lg transition ${filter === 'used' ? 'bg-electric text-white' : 'bg-[var(--bg-primary)] text-[var(--text-primary)] hover:bg-gray-200'}`}
           >
             مستخدم
           </button>
@@ -182,8 +182,8 @@ export default function ActivationCodesPage() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric"></div>
         </div>
       ) : codes.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-          <p className="text-text-primary">لا توجد كودات تفعيل</p>
+        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-12 text-center">
+          <p className="text-[var(--text-primary)]">لا توجد كودات تفعيل</p>
           <button
             onClick={() => setShowModal(true)}
             className="mt-4 bg-electric text-white px-4 py-2 rounded-lg"
@@ -192,23 +192,23 @@ export default function ActivationCodesPage() {
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-right py-3 px-4 text-text-primary font-semibold">الكود</th>
-                  <th className="text-right py-3 px-4 text-text-primary font-semibold">الخطة</th>
-                  <th className="text-right py-3 px-4 text-text-primary font-semibold">المدة</th>
-                  <th className="text-right py-3 px-4 text-text-primary font-semibold">الحالة</th>
-                  <th className="text-right py-3 px-4 text-text-primary font-semibold">تاريخ الاستخدام</th>
-                  <th className="text-right py-3 px-4 text-text-primary font-semibold">المحل المستخدم</th>
-                  <th className="text-right py-3 px-4 text-text-primary font-semibold">نسخ</th>
+                <tr className="border-b border-[var(--border-color)]">
+                  <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">الكود</th>
+                  <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">الخطة</th>
+                  <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">المدة</th>
+                  <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">الحالة</th>
+                  <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">تاريخ الاستخدام</th>
+                  <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">المحل المستخدم</th>
+                  <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">نسخ</th>
                 </tr>
               </thead>
               <tbody>
                 {codes.map((code) => (
-                  <tr key={code.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <tr key={code.id} className="border-b border-[var(--border-color)] hover:bg-[var(--bg-primary)]">
                     <td className="py-3 px-4 font-mono text-sm">{code.code}</td>
                     <td className="py-3 px-4">{code.plan_name || '-'}</td>
                     <td className="py-3 px-4">{code.duration_days} يوم</td>
@@ -257,58 +257,60 @@ export default function ActivationCodesPage() {
       {/* Modal إنشاء كود */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-            <h2 className="text-xl font-bold text-navy mb-4">إنشاء كود تفعيل جديد</h2>
+          <div className="bg-[var(--card-bg)] rounded-xl shadow-xl w-full max-w-md p-6 border border-[var(--border-color)]">
+            <h2 className="text-xl font-bold text-[var(--navy-color)] mb-4">إنشاء كود تفعيل جديد</h2>
             
-            <div className="mb-4">
-              <label className="block text-text-primary mb-2">الخطة</label>
-              <select
-                value={selectedPlan}
-                onChange={(e) => setSelectedPlan(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
-              >
-                {plans.map((plan) => (
-                  <option key={plan.id} value={plan.id}>
-                    {plan.name} - {plan.price_iqd} دينار
-                  </option>
-                ))}
-              </select>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[var(--text-primary)] mb-2">الخطة</label>
+                <select
+                  value={selectedPlan}
+                  onChange={(e) => setSelectedPlan(e.target.value)}
+                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-[var(--card-bg)] text-[var(--text-primary)]"
+                >
+                  {plans.map((plan) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.name} - {plan.price_iqd} دينار
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[var(--text-primary)] mb-2">عدد الكودات</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={quantity}
+                  onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-[var(--card-bg)] text-[var(--text-primary)]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[var(--text-primary)] mb-2">ملاحظات (اختياري)</label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={3}
+                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-[var(--card-bg)] text-[var(--text-primary)]"
+                  placeholder="رقم الإيصال، اسم المشتري..."
+                />
+              </div>
             </div>
 
-            <div className="mb-4">
-              <label className="block text-text-primary mb-2">عدد الكودات</label>
-              <input
-                type="number"
-                min="1"
-                max="100"
-                value={quantity}
-                onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
-              />
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-text-primary mb-2">ملاحظات (اختياري)</label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={3}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
-                placeholder="رقم الإيصال، اسم المشتري..."
-              />
-            </div>
-
-            <div className="flex gap-3">
+            <div className="flex gap-3 mt-6">
               <button
                 onClick={generateCodes}
                 disabled={generating}
-                className="flex-1 bg-electric hover:bg-blue-600 text-white py-2 rounded-lg transition disabled:opacity-50"
+                className="flex-1 bg-electric text-white py-2 rounded-lg disabled:opacity-50"
               >
                 {generating ? 'جاري الإنشاء...' : 'إنشاء'}
               </button>
               <button
                 onClick={() => setShowModal(false)}
-                className="flex-1 bg-gray-200 hover:bg-gray-300 text-text-primary py-2 rounded-lg transition"
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-[var(--text-primary)] py-2 rounded-lg transition"
               >
                 إلغاء
               </button>

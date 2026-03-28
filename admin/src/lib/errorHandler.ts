@@ -271,12 +271,12 @@ export const getStatusColor = (status: string): string => {
     'pending': 'text-yellow-600 bg-yellow-100',
     'completed': 'text-green-600 bg-green-100',
     'cancelled': 'text-red-600 bg-red-100',
-    'expired': 'text-gray-600 bg-gray-100',
+    'expired': 'text-gray-600 bg-[var(--bg-primary)]',
     'used': 'text-blue-600 bg-blue-100',
-    'unused': 'text-gray-600 bg-gray-100'
+    'unused': 'text-gray-600 bg-[var(--bg-primary)]'
   };
   
-  return colors[status] || 'text-gray-600 bg-gray-100';
+  return colors[status] || 'text-gray-600 bg-[var(--bg-primary)]';
 };
 
 /**

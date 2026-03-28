@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { auth } = require('../middleware/auth');
 const { checkSubscription } = require('../middleware/checkSubscription');
+const { logAudit } = require('../middleware/audit');
 const { supabase } = require('../config/supabase');
 const { v4: uuidv4 } = require('uuid');
 
@@ -79,14 +80,39 @@ router.get('/', auth, checkSubscription, async (req, res) => {
 router.post('/', auth, checkSubscription, async (req, res) => {
   try {
     const storeId = req.user.store_id;
-    const { name, category, quantity, low_stock_alert, cost_price_iqd, sell_price_cash_iqd, sell_price_install_iqd, description } = req.body;
+    const {
+      name, category, quantity, low_stock_alert,
+      cost_price_iqd, cost_price_usd,
+      sell_price_cash_iqd, sell_price_cash_usd,
+      sell_price_install_iqd, sell_price_install_usd,
+      description, currency
+    } = req.body;
 
-    if (!name || quantity === undefined || !sell_price_cash_iqd || !sell_price_install_iqd) {
+    if (!name || quantity === undefined) {
       return res.status(400).json({
         success: false,
-        error: 'اسم المنتج، الكمية، وسعر البيع مطلوبة',
+        error: 'اسم المنتج والكمية مطلوبة',
         code: 'VALIDATION_ERROR'
       });
+    }
+
+    // التحقق من سعر البيع حسب العملة
+    if (currency === 'IQD') {
+      if (!sell_price_cash_iqd || !sell_price_install_iqd) {
+        return res.status(400).json({
+          success: false,
+          error: 'سعر البيع نقداً وبالقسط مطلوبة',
+          code: 'VALIDATION_ERROR'
+        });
+      }
+    } else if (currency === 'USD') {
+      if (!sell_price_cash_usd || !sell_price_install_usd) {
+        return res.status(400).json({
+          success: false,
+          error: 'سعر البيع نقداً وبالقسط (دولار) مطلوبة',
+          code: 'VALIDATION_ERROR'
+        });
+      }
     }
 
     const { data: product, error } = await supabase
@@ -98,9 +124,13 @@ router.post('/', auth, checkSubscription, async (req, res) => {
         category: category || '',
         quantity: parseInt(quantity),
         low_stock_alert: low_stock_alert || 5,
+        currency: currency || 'IQD',
         cost_price_iqd: cost_price_iqd || 0,
-        sell_price_cash_iqd: parseInt(sell_price_cash_iqd),
-        sell_price_install_iqd: parseInt(sell_price_install_iqd),
+        cost_price_usd: cost_price_usd || 0,
+        sell_price_cash_iqd: sell_price_cash_iqd || 0,
+        sell_price_cash_usd: sell_price_cash_usd || 0,
+        sell_price_install_iqd: sell_price_install_iqd || 0,
+        sell_price_install_usd: sell_price_install_usd || 0,
         description: description || '',
         created_by: req.user.id,
         created_at: new Date().toISOString(),
@@ -109,13 +139,23 @@ router.post('/', auth, checkSubscription, async (req, res) => {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('خطأ في إنشاء المنتج:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'فشل في إنشاء المنتج',
+        code: 'INTERNAL_ERROR'
+      });
+    }
 
     res.status(201).json({
       success: true,
       data: product,
       message: 'تم إنشاء المنتج بنجاح'
     });
+
+    // تسجيل العملية
+    await logAudit(req, 'INSERT', 'products', product.id, null, product);
   } catch (error) {
     console.error('خطأ في إنشاء المنتج:', error);
     res.status(500).json({
@@ -167,7 +207,20 @@ router.put('/:id', auth, checkSubscription, async (req, res) => {
   try {
     const { id } = req.params;
     const storeId = req.user.store_id;
-    const { name, category, quantity, low_stock_alert, cost_price_iqd, sell_price_cash_iqd, sell_price_install_iqd, description } = req.body;
+    const {
+      name, category, quantity, low_stock_alert,
+      cost_price_iqd, sell_price_cash_iqd, sell_price_install_iqd,
+      cost_price_usd, sell_price_cash_usd, sell_price_install_usd,
+      description
+    } = req.body;
+
+    // جلب البيانات القديمة قبل التحديث
+    const { data: oldProduct } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', id)
+      .eq('store_id', storeId)
+      .single();
 
     const { data: product, error } = await supabase
       .from('products')
@@ -179,6 +232,9 @@ router.put('/:id', auth, checkSubscription, async (req, res) => {
         cost_price_iqd: cost_price_iqd || 0,
         sell_price_cash_iqd: parseInt(sell_price_cash_iqd),
         sell_price_install_iqd: parseInt(sell_price_install_iqd),
+        cost_price_usd: cost_price_usd || 0,
+        sell_price_cash_usd: sell_price_cash_usd || 0,
+        sell_price_install_usd: sell_price_install_usd || 0,
         description: description || '',
         updated_at: new Date().toISOString()
       })
@@ -200,6 +256,9 @@ router.put('/:id', auth, checkSubscription, async (req, res) => {
       data: product,
       message: 'تم تحديث المنتج بنجاح'
     });
+
+    // تسجيل العملية
+    await logAudit(req, 'UPDATE', 'products', id, oldProduct, product);
   } catch (error) {
     console.error('خطأ في تحديث المنتج:', error);
     res.status(500).json({
@@ -215,6 +274,15 @@ router.delete('/:id', auth, checkSubscription, async (req, res) => {
   try {
     const { id } = req.params;
     const storeId = req.user.store_id;
+    
+    // التحقق من صلاحية الحذف
+    if (!req.user.can_delete) {
+      return res.status(403).json({
+        success: false,
+        error: 'غير مصرح، ليس لديك صلاحية الحذف',
+        code: 'FORBIDDEN'
+      });
+    }
 
     // التحقق من وجود المنتج في أقساط نشطة
     const { data: usedInInstallments } = await supabase
@@ -233,6 +301,14 @@ router.delete('/:id', auth, checkSubscription, async (req, res) => {
       });
     }
 
+    // جلب بيانات المنتج قبل الحذف
+    const { data: deletedProduct } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', id)
+      .eq('store_id', storeId)
+      .single();
+
     const { error } = await supabase
       .from('products')
       .delete()
@@ -245,6 +321,9 @@ router.delete('/:id', auth, checkSubscription, async (req, res) => {
       success: true,
       message: 'تم حذف المنتج بنجاح'
     });
+
+    // تسجيل العملية
+    await logAudit(req, 'DELETE', 'products', id, deletedProduct, null);
   } catch (error) {
     console.error('خطأ في حذف المنتج:', error);
     res.status(500).json({

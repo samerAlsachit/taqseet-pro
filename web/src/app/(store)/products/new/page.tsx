@@ -8,14 +8,15 @@ export default function NewProductPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [currency, setCurrency] = useState('IQD');
   const [formData, setFormData] = useState({
     name: '',
     category: '',
     quantity: 0,
     low_stock_alert: 5,
-    cost_price_iqd: 0,
-    sell_price_cash_iqd: 0,
-    sell_price_install_iqd: 0,
+    cost_price: 0,
+    sell_price_cash: 0,
+    sell_price_install: 0,
     description: ''
   });
 
@@ -24,8 +25,7 @@ export default function NewProductPage() {
     setLoading(true);
     setError('');
 
-    // التحقق من صحة البيانات
-    if (formData.sell_price_install_iqd < formData.sell_price_cash_iqd) {
+    if (formData.sell_price_install < formData.sell_price_cash) {
       setError('سعر البيع بالقسط يجب أن يكون أكبر من أو يساوي سعر البيع النقدي');
       setLoading(false);
       return;
@@ -44,7 +44,16 @@ export default function NewProductPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}` 
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          currency,
+          cost_price_iqd: currency === 'IQD' ? formData.cost_price : 0,
+          cost_price_usd: currency === 'USD' ? formData.cost_price : 0,
+          sell_price_cash_iqd: currency === 'IQD' ? formData.sell_price_cash : 0,
+          sell_price_cash_usd: currency === 'USD' ? formData.sell_price_cash : 0,
+          sell_price_install_iqd: currency === 'IQD' ? formData.sell_price_install : 0,
+          sell_price_install_usd: currency === 'USD' ? formData.sell_price_install : 0
+        })
       });
 
       const data = await response.json();
@@ -80,21 +89,45 @@ export default function NewProductPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm p-6">
+      <form onSubmit={handleSubmit} className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* اسم المنتج */}
           <div className="md:col-span-2">
-            <label className="block text-text-primary mb-2">
-              اسم المنتج <span className="text-danger">*</span>
-            </label>
+            <label className="block text-text-primary mb-2">اسم المنتج *</label>
             <input
               type="text"
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
-              placeholder="مثال: تلفزيون سامسونج 55 بوصة"
+              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
             />
+          </div>
+
+          {/* اختيار العملة */}
+          <div className="md:col-span-2">
+            <label className="block text-text-primary mb-2">عملة المنتج *</label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  value="IQD"
+                  checked={currency === 'IQD'}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="w-4 h-4 text-electric"
+                />
+                <span>دينار عراقي (IQD)</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  value="USD"
+                  checked={currency === 'USD'}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="w-4 h-4 text-electric"
+                />
+                <span>دولار أمريكي (USD)</span>
+              </label>
+            </div>
           </div>
 
           {/* الفئة */}
@@ -104,27 +137,24 @@ export default function NewProductPage() {
               type="text"
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
-              placeholder="مثال: إلكترونيات"
+              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
             />
           </div>
 
           {/* الكمية */}
           <div>
-            <label className="block text-text-primary mb-2">
-              الكمية المتوفرة <span className="text-danger">*</span>
-            </label>
+            <label className="block text-text-primary mb-2">الكمية المتوفرة *</label>
             <input
               type="number"
               required
               min="0"
               value={formData.quantity}
               onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
             />
           </div>
 
-          {/* حد التنبيه للمخزون */}
+          {/* حد التنبيه */}
           <div>
             <label className="block text-text-primary mb-2">حد التنبيه للمخزون المنخفض</label>
             <input
@@ -132,55 +162,82 @@ export default function NewProductPage() {
               min="0"
               value={formData.low_stock_alert}
               onChange={(e) => setFormData({ ...formData, low_stock_alert: parseInt(e.target.value) || 0 })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
-            />
-            <p className="text-xs text-text-primary mt-1">عند وصول المخزون لهذا العدد يظهر تنبيه</p>
-          </div>
-
-          {/* سعر الشراء */}
-          <div>
-            <label className="block text-text-primary mb-2">سعر الشراء (دينار)</label>
-            <input
-              type="number"
-              min="0"
-              value={formData.cost_price_iqd || ''}
-              onChange={(e) => setFormData({ ...formData, cost_price_iqd: parseInt(e.target.value) || 0 })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
-              placeholder="0"
+              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
             />
           </div>
 
-          {/* سعر البيع نقداً */}
-          <div>
-            <label className="block text-text-primary mb-2">
-              سعر البيع نقداً (دينار) <span className="text-danger">*</span>
-            </label>
-            <input
-              type="number"
-              required
-              min="0"
-              value={formData.sell_price_cash_iqd || ''}
-              onChange={(e) => setFormData({ ...formData, sell_price_cash_iqd: parseInt(e.target.value) || 0 })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
-              placeholder="0"
-            />
-          </div>
-
-          {/* سعر البيع بالقسط */}
-          <div>
-            <label className="block text-text-primary mb-2">
-              سعر البيع بالقسط (دينار) <span className="text-danger">*</span>
-            </label>
-            <input
-              type="number"
-              required
-              min="0"
-              value={formData.sell_price_install_iqd || ''}
-              onChange={(e) => setFormData({ ...formData, sell_price_install_iqd: parseInt(e.target.value) || 0 })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
-              placeholder="0"
-            />
-          </div>
+          {/* الأسعار حسب العملة */}
+          {currency === 'IQD' ? (
+            <>
+              <div>
+                <label className="block text-text-primary mb-2">سعر الشراء (دينار)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.cost_price}
+                  onChange={(e) => setFormData({ ...formData, cost_price: parseInt(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-text-primary mb-2">سعر البيع نقداً (دينار) *</label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  value={formData.sell_price_cash}
+                  onChange={(e) => setFormData({ ...formData, sell_price_cash: parseInt(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-text-primary mb-2">سعر البيع بالقسط (دينار) *</label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  value={formData.sell_price_install}
+                  onChange={(e) => setFormData({ ...formData, sell_price_install: parseInt(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg"
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <label className="block text-text-primary mb-2">سعر الشراء (دولار)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.cost_price}
+                  onChange={(e) => setFormData({ ...formData, cost_price: parseInt(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-text-primary mb-2">سعر البيع نقداً (دولار) *</label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  value={formData.sell_price_cash}
+                  onChange={(e) => setFormData({ ...formData, sell_price_cash: parseInt(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-text-primary mb-2">سعر البيع بالقسط (دولار) *</label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  value={formData.sell_price_install}
+                  onChange={(e) => setFormData({ ...formData, sell_price_install: parseInt(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg"
+                />
+              </div>
+            </>
+          )}
 
           {/* وصف المنتج */}
           <div className="md:col-span-2">
@@ -189,36 +246,8 @@ export default function NewProductPage() {
               rows={3}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
-              placeholder="مواصفات المنتج، اللون، الحجم..."
+              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg"
             />
-          </div>
-        </div>
-
-        {/* ملخص الأسعار */}
-        <div className="mt-6 p-4 bg-gray-bg rounded-lg">
-          <h3 className="font-semibold text-navy mb-2">ملخص الأسعار</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-            <div>
-              <span className="text-text-primary">سعر الشراء:</span>
-              <span className="block font-medium">{formatNumber(formData.cost_price_iqd)} IQD</span>
-            </div>
-            <div>
-              <span className="text-text-primary">سعر البيع نقداً:</span>
-              <span className="block font-medium text-success">{formatNumber(formData.sell_price_cash_iqd)} IQD</span>
-            </div>
-            <div>
-              <span className="text-text-primary">سعر البيع بالقسط:</span>
-              <span className="block font-medium text-electric">{formatNumber(formData.sell_price_install_iqd)} IQD</span>
-            </div>
-            {formData.sell_price_install_iqd > formData.sell_price_cash_iqd && (
-              <div className="col-span-2 md:col-span-3 mt-2">
-                <span className="text-text-primary">الفرق (ربح القسط):</span>
-                <span className="block font-medium text-warning">
-                  {formatNumber(formData.sell_price_install_iqd - formData.sell_price_cash_iqd)} IQD
-                </span>
-              </div>
-            )}
           </div>
         </div>
 
@@ -232,7 +261,7 @@ export default function NewProductPage() {
           </button>
           <Link
             href="/products"
-            className="border border-gray-300 text-text-primary hover:bg-gray-50 px-6 py-2 rounded-lg transition"
+            className="border border-[var(--border-color)] text-text-primary hover:bg-[var(--bg-primary)] px-6 py-2 rounded-lg transition"
           >
             إلغاء
           </Link>

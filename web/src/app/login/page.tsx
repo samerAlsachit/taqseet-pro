@@ -39,43 +39,41 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-bg">
-      <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)] p-4">
+      <div className="bg-[var(--card-bg)] rounded-xl shadow-lg p-8 w-full max-w-md border border-[var(--border-color)]">
         <div className="text-center mb-8">
-  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-navy to-electric mb-4">
-    <span className="text-3xl">⚓</span>
-  </div>
-  <h1 className="text-4xl font-bold bg-gradient-to-r from-navy to-electric bg-clip-text text-transparent">
-    مرساة
-  </h1>
-  <p className="text-text-primary mt-2">نظام إدارة الأقساط والديون</p>
-</div>
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-navy mb-4">
+            <span className="text-3xl">⚓</span>
+          </div>
+          <h1 className="text-3xl font-bold text-navy dark:text-white">مرساة</h1>
+          <p className="text-[var(--text-primary)]/70 mt-2">تسجيل الدخول</p>
+        </div>
 
         {error && (
-          <div className="bg-red-50 text-danger border border-danger/20 rounded-lg p-3 mb-4 text-center">
+          <div className="bg-red-50 dark:bg-red-900/30 text-danger border border-danger/20 rounded-lg p-3 mb-4 text-center">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label className="block text-text-primary mb-2">اسم المستخدم</label>
+            <label className="block text-[var(--text-primary)] mb-2">اسم المستخدم</label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-[var(--card-bg)] text-[var(--text-primary)]"
               required
             />
           </div>
 
           <div className="mb-6">
-            <label className="block text-text-primary mb-2">كلمة المرور</label>
+            <label className="block text-[var(--text-primary)] mb-2">كلمة المرور</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-[var(--card-bg)] text-[var(--text-primary)]"
               required
             />
           </div>
@@ -89,12 +87,11 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-text-primary text-sm mt-6">
-          ليس لديك حساب؟{' '}
-          <Link href="/activate" className="text-electric hover:underline">
-            تفعيل حساب جديد
+        <div className="mt-6 text-center">
+          <Link href="/register" className="text-electric hover:underline text-sm">
+            ليس لديك حساب؟ سجل الآن
           </Link>
-        </p>
+        </div>
       </div>
     </div>
   );

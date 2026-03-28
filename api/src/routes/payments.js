@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { auth } = require('../middleware/auth');
 const { checkSubscription } = require('../middleware/checkSubscription');
+const { logAudit } = require('../middleware/audit');
 const { supabase } = require('../config/supabase');
 const { v4: uuidv4 } = require('uuid');
 
@@ -155,6 +156,9 @@ router.post('/', auth, checkSubscription, async (req, res) => {
       },
       message: 'تم تسجيل الدفعة بنجاح'
     });
+
+    // تسجيل العملية
+    await logAudit(req, 'INSERT', 'payments', payment.id, null, payment);
   } catch (error) {
     console.error('خطأ في إنشاء الدفعة:', error);
     res.status(500).json({

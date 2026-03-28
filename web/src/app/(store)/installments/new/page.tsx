@@ -44,8 +44,11 @@ export default function NewInstallmentPage() {
     installment_amount: 0,
     frequency: 'monthly',
     start_date: new Date().toISOString().split('T')[0],
-    currency: 'IQD'
+    currency: 'IQD',
+    total_price: 0
   });
+  
+  const [exchangeRate, setExchangeRate] = useState(1300);
   
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
   const [calculated, setCalculated] = useState(false);
@@ -96,6 +99,19 @@ export default function NewInstallmentPage() {
     fetchProducts();
   }, []);
 
+  const handleProductSelect = (product: any) => {
+    setSelectedProduct(product);
+    const totalPrice = product.currency === 'IQD' 
+      ? product.sell_price_install_iqd 
+      : product.sell_price_install_usd;
+    
+    setFormData({
+      ...formData,
+      currency: product.currency,
+      total_price: totalPrice
+    });
+  };
+
   // حساب جدول الأقساط
   const calculateSchedule = async () => {
     if (!selectedProduct) return;
@@ -103,7 +119,7 @@ export default function NewInstallmentPage() {
     setLoading(true);
     setError('');
     
-    const totalPrice = selectedProduct.sell_price_install_iqd;
+    const totalPrice = formData.total_price;
     const financedAmount = totalPrice - formData.down_payment;
     
     if (formData.installment_amount <= 0) {
@@ -161,12 +177,13 @@ export default function NewInstallmentPage() {
         body: JSON.stringify({
           customer_id: selectedCustomer.id,
           product_id: selectedProduct.id,
-          total_price: selectedProduct.sell_price_install_iqd,
+          total_price: formData.total_price,
           down_payment: formData.down_payment,
           installment_amount: formData.installment_amount,
           frequency: formData.frequency,
           start_date: formData.start_date,
           currency: formData.currency,
+          exchange_rate: formData.currency === 'USD' ? exchangeRate : 1,
           notes: `قسط ${selectedProduct.name}` 
         })
       });
@@ -194,7 +211,7 @@ export default function NewInstallmentPage() {
       </div>
 
       {/* Steps Indicator */}
-      <div className="flex mb-8 border-b border-gray-200">
+      <div className="flex mb-8 border-b border-[var(--border-color)]">
         <button
           onClick={() => setStep('customer')}
           className={`pb-2 px-4 ${step === 'customer' ? 'border-b-2 border-electric text-electric' : 'text-text-primary'}`}
@@ -231,7 +248,7 @@ export default function NewInstallmentPage() {
 
       {/* Step 1: Customer Selection */}
       {step === 'customer' && (
-        <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
           <h2 className="text-xl font-bold text-navy mb-4">اختر العميل</h2>
           <div className="grid gap-3">
             {customers.map((customer) => (
@@ -241,8 +258,8 @@ export default function NewInstallmentPage() {
                   setSelectedCustomer(customer);
                   setStep('product');
                 }}
-                className={`p-4 text-right border rounded-lg hover:bg-gray-50 transition ${
-                  selectedCustomer?.id === customer.id ? 'border-electric bg-electric/5' : 'border-gray-200'
+                className={`p-4 text-right border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition ${
+                  selectedCustomer?.id === customer.id ? 'border-electric bg-electric/5' : 'border-[var(--border-color)]'
                 }`}
               >
                 <div className="font-medium">{customer.full_name}</div>
@@ -263,18 +280,18 @@ export default function NewInstallmentPage() {
 
       {/* Step 2: Product Selection */}
       {step === 'product' && (
-        <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
           <h2 className="text-xl font-bold text-navy mb-4">اختر المنتج</h2>
           <div className="grid gap-3">
             {products.map((product) => (
               <button
                 key={product.id}
                 onClick={() => {
-                  setSelectedProduct(product);
+                  handleProductSelect(product);
                   setStep('details');
                 }}
-                className={`p-4 text-right border rounded-lg hover:bg-gray-50 transition ${
-                  selectedProduct?.id === product.id ? 'border-electric bg-electric/5' : 'border-gray-200'
+                className={`p-4 text-right border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition ${
+                  selectedProduct?.id === product.id ? 'border-electric bg-electric/5' : 'border-[var(--border-color)]'
                 }`}
               >
                 <div className="font-medium">{product.name}</div>
@@ -297,16 +314,16 @@ export default function NewInstallmentPage() {
 
       {/* Step 3: Installment Details */}
       {step === 'details' && selectedProduct && (
-        <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
           <h2 className="text-xl font-bold text-navy mb-4">تفاصيل القسط</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-text-primary mb-2">المبلغ الكلي</label>
               <input
                 type="text"
-                value={`${selectedProduct.sell_price_install_iqd.toLocaleString()} IQD`}
+                value={`${formData.total_price.toLocaleString()} ${formData.currency}`}
                 disabled
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50"
               />
             </div>
             <div>
@@ -315,7 +332,7 @@ export default function NewInstallmentPage() {
                 type="number"
                 value={formData.down_payment}
                 onChange={(e) => setFormData({ ...formData, down_payment: parseInt(e.target.value) || 0 })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
               />
             </div>
             <div>
@@ -325,7 +342,7 @@ export default function NewInstallmentPage() {
                 required
                 value={formData.installment_amount}
                 onChange={(e) => setFormData({ ...formData, installment_amount: parseInt(e.target.value) || 0 })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
               />
             </div>
             <div>
@@ -333,7 +350,7 @@ export default function NewInstallmentPage() {
               <select
                 value={formData.frequency}
                 onChange={(e) => setFormData({ ...formData, frequency: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
               >
                 <option value="monthly">شهري</option>
                 <option value="weekly">أسبوعي</option>
@@ -346,14 +363,40 @@ export default function NewInstallmentPage() {
                 type="date"
                 value={formData.start_date}
                 onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
               />
             </div>
+            
+            <div>
+              <label className="block text-text-primary mb-2">العملة</label>
+              <select
+                value={formData.currency}
+                onChange={(e) => setFormData({...formData, currency: e.target.value})}
+                className="w-full px-4 py-2 border rounded-lg"
+              >
+                <option value="IQD">دينار عراقي (IQD)</option>
+                <option value="USD">دولار أمريكي (USD)</option>
+              </select>
+            </div>
+            
+            {formData.currency === 'USD' && (
+              <div className="md:col-span-2">
+                <label className="block text-text-primary mb-2">سعر الصرف (دولار → دينار)</label>
+                <input
+                  type="number"
+                  value={exchangeRate}
+                  onChange={(e) => setExchangeRate(parseInt(e.target.value) || 1300)}
+                  className="w-full px-4 py-2 border rounded-lg"
+                  placeholder="مثال: 1300"
+                />
+                <p className="text-xs text-text-primary mt-1">سعر صرف الدولار مقابل الدينار وقت إنشاء القسط</p>
+              </div>
+            )}
           </div>
           
           <div className="mt-6 p-4 bg-gray-bg rounded-lg">
             <p className="text-text-primary">
-              المبلغ المتبقي بعد الدفعة المقدمة: <strong>{(selectedProduct.sell_price_install_iqd - formData.down_payment).toLocaleString()} IQD</strong>
+              المبلغ المتبقي بعد الدفعة المقدمة: <strong>{(formData.total_price - formData.down_payment).toLocaleString()} {formData.currency}</strong>
             </p>
           </div>
 
@@ -367,7 +410,7 @@ export default function NewInstallmentPage() {
             </button>
             <button
               onClick={() => setStep('product')}
-              className="border border-gray-300 text-text-primary hover:bg-gray-50 px-6 py-2 rounded-lg transition"
+              className="border border-gray-300 dark:border-gray-700 text-text-primary hover:bg-gray-50 dark:hover:bg-gray-900 px-6 py-2 rounded-lg transition"
             >
               رجوع
             </button>
@@ -377,7 +420,7 @@ export default function NewInstallmentPage() {
 
       {/* Step 4: Preview & Confirm */}
       {step === 'preview' && schedule.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
           <h2 className="text-xl font-bold text-navy mb-4">تأكيد معلومات القسط</h2>
           
           <div className="bg-gray-bg rounded-lg p-4 mb-6">
@@ -413,18 +456,18 @@ export default function NewInstallmentPage() {
           <div className="overflow-x-auto mb-6">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-right py-2 px-3">#</th>
-                  <th className="text-right py-2 px-3">تاريخ الاستحقاق</th>
-                  <th className="text-right py-2 px-3">المبلغ</th>
+                <tr className="border-b border-[var(--border-color)] bg-[var(--bg-primary)]">
+                  <th className="text-right py-2 px-3 text-[var(--text-primary)]/70 font-semibold">#</th>
+                  <th className="text-right py-2 px-3 text-[var(--text-primary)]/70 font-semibold">تاريخ الاستحقاق</th>
+                  <th className="text-right py-2 px-3 text-[var(--text-primary)]/70 font-semibold">المبلغ</th>
                  </tr>
               </thead>
               <tbody>
                 {schedule.map((item) => (
-                  <tr key={item.installment_no} className="border-b border-gray-100">
-                    <td className="py-2 px-3">{item.installment_no}</td>
-                    <td className="py-2 px-3">{new Date(item.due_date).toLocaleDateString('ar-IQ')}</td>
-                    <td className="py-2 px-3">{item.amount.toLocaleString()} IQD</td>
+                  <tr key={item.installment_no} className="border-b border-[var(--border-color)] hover:bg-gray-50 hover:bg-[var(--hover-bg)]">
+                    <td className="py-2 px-3 text-[var(--text-primary)]">{item.installment_no}</td>
+                    <td className="py-2 px-3 text-[var(--text-primary)]">{new Date(item.due_date).toLocaleDateString('ar-IQ')}</td>
+                    <td className="py-2 px-3 text-[var(--text-primary)]">{item.amount.toLocaleString()} IQD</td>
                   </tr>
                 ))}
               </tbody>
@@ -441,7 +484,7 @@ export default function NewInstallmentPage() {
             </button>
             <button
               onClick={() => setStep('details')}
-              className="border border-gray-300 text-text-primary hover:bg-gray-50 px-6 py-2 rounded-lg transition"
+              className="border border-gray-300 dark:border-gray-700 text-text-primary hover:bg-gray-50 dark:hover:bg-gray-900 px-6 py-2 rounded-lg transition"
             >
               رجوع
             </button>

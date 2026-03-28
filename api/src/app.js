@@ -57,6 +57,7 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/store', require('./routes/store'));
+app.use('/api/plans', require('./routes/plans'));
 
 // Error handlers
 app.use(notFoundHandler);
