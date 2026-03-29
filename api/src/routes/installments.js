@@ -59,6 +59,7 @@ router.get('/', auth, checkSubscription, async (req, res) => {
     const offset = (page - 1) * limit;
     const search = req.query.search || '';
     const status = req.query.status;
+    const customerId = req.query.customer_id; // إضافة هذا السطر
 
     let query = supabase
       .from('installment_plans')
@@ -67,6 +68,11 @@ router.get('/', auth, checkSubscription, async (req, res) => {
         customers:customer_id (full_name, phone)
       `, { count: 'exact' })
       .eq('store_id', storeId);
+
+    // فلترة حسب العميل
+    if (customerId) {
+      query = query.eq('customer_id', customerId);
+    }
 
     if (status && status !== 'all') {
       query = query.eq('status', status);
@@ -91,6 +97,15 @@ router.get('/', auth, checkSubscription, async (req, res) => {
 
       const paidCount = schedule?.filter(s => s.status === 'paid').length || 0;
       const totalCount = schedule?.length || plan.installments_count;
+      
+      // جلب تاريخ الاستحقاق التالي
+      const { data: nextSchedule } = await supabase
+        .from('payment_schedule')
+        .select('due_date, amount')
+        .eq('plan_id', plan.id)
+        .eq('status', 'pending')
+        .order('due_date', { ascending: true })
+        .limit(1);
 
       return {
         id: plan.id,
@@ -103,7 +118,11 @@ router.get('/', auth, checkSubscription, async (req, res) => {
         start_date: plan.start_date,
         end_date: plan.end_date,
         paid_count: paidCount,
-        total_count: totalCount
+        total_count: totalCount,
+        installment_amount: plan.installment_amount,
+        next_due_date: nextSchedule?.[0]?.due_date || plan.start_date,
+        next_due_amount: nextSchedule?.[0]?.amount || plan.installment_amount,
+        currency: plan.currency  // <-- أضف هذا السطر
       };
     }));
 
@@ -277,6 +296,23 @@ router.post('/', auth, checkSubscription, async (req, res) => {
     }));
 
     await supabase.from('payment_schedule').insert(scheduleInserts);
+
+    // إنشاء دفعة مقدمة إذا وجدت
+    if (down_payment > 0) {
+      const receiptNumber = `RCP-${storeId.slice(0, 8)}-${Date.now()}`;
+      await supabase.from('payments').insert({
+        id: uuidv4(),
+        plan_id: planId,
+        store_id: storeId,
+        received_by: req.user.id,
+        amount_paid: down_payment,
+        payment_date: new Date().toISOString().split('T')[0],
+        is_early: true,
+        receipt_number: receiptNumber,
+        notes: `دفعة مقدمة عن قسط ${product.name}`,
+        currency: currency
+      });
+    }
 
     // تنقيص المخزون
     await supabase

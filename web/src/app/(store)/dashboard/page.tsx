@@ -7,9 +7,9 @@ import Link from 'next/link';
 interface DashboardStats {
   total_customers: number;
   active_installments: number;
-  due_today: number;
-  overdue: number;
-  today_collection: number;
+  due_today: { IQD: number; USD: number };
+  overdue: { IQD: number; USD: number };
+  today_collection: { IQD: number; USD: number };
 }
 
 export default function DashboardPage() {
@@ -23,9 +23,9 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({
     total_customers: 0,
     active_installments: 0,
-    due_today: 0,
-    overdue: 0,
-    today_collection: 0
+    due_today: { IQD: 0, USD: 0 },
+    overdue: { IQD: 0, USD: 0 },
+    today_collection: { IQD: 0, USD: 0 }
   });
   const [recentInstallments, setRecentInstallments] = useState<any[]>([]);
 
@@ -163,17 +163,59 @@ export default function DashboardPage() {
             <p className="text-[var(--text-primary)]/70 text-sm mb-1">الأقساط النشطة</p>
             <p className="text-3xl font-bold text-[var(--text-navy)]">{stats.active_installments}</p>
           </div>
-          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-warning">
-            <p className="text-[var(--text-primary)]/70 text-sm mb-1">مستحقة اليوم</p>
-            <p className="text-3xl font-bold text-[var(--text-navy)]">{stats.due_today}</p>
+          
+          {/* تحصيلات اليوم */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border-r-4 border-electric">
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">تحصيلات اليوم</p>
+            {stats?.today_collection?.IQD > 0 && (
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {stats.today_collection.IQD.toLocaleString()} IQD
+              </p>
+            )}
+            {stats?.today_collection?.USD > 0 && (
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {stats.today_collection.USD.toLocaleString()} USD
+              </p>
+            )}
+            {(!stats?.today_collection?.IQD && !stats?.today_collection?.USD) && (
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+            )}
           </div>
-          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-danger">
-            <p className="text-[var(--text-primary)]/70 text-sm mb-1">متأخرات</p>
-            <p className="text-3xl font-bold text-[var(--text-navy)]">{stats.overdue}</p>
+
+          {/* المستحقة اليوم */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border-r-4 border-warning">
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">مستحقة اليوم</p>
+            {stats?.due_today?.IQD > 0 && (
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {stats.due_today.IQD.toLocaleString()} IQD
+              </p>
+            )}
+            {stats?.due_today?.USD > 0 && (
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {stats.due_today.USD.toLocaleString()} USD
+              </p>
+            )}
+            {(!stats?.due_today?.IQD && !stats?.due_today?.USD) && (
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+            )}
           </div>
-          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-electric">
-            <p className="text-[var(--text-primary)]/70 text-sm mb-1">تحصيلات اليوم</p>
-            <p className="text-3xl font-bold text-[var(--text-navy)]">{stats.today_collection.toLocaleString()} IQD</p>
+
+          {/* المتأخرات */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border-r-4 border-danger">
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">متأخرات</p>
+            {stats?.overdue?.IQD > 0 && (
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {stats.overdue.IQD.toLocaleString()} IQD
+              </p>
+            )}
+            {stats?.overdue?.USD > 0 && (
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {stats.overdue.USD.toLocaleString()} USD
+              </p>
+            )}
+            {(!stats?.overdue?.IQD && !stats?.overdue?.USD) && (
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+            )}
           </div>
         </div>
 

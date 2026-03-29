@@ -14,14 +14,15 @@ router.get('/summary', [auth, checkSubscription], async (req, res) => {
     firstDayOfMonth.setHours(0, 0, 0, 0);
     const monthStart = firstDayOfMonth.toISOString().split('T')[0];
 
-    // التحصيلات اليومية
+    // التحصيلات اليومية حسب العملة
     const { data: dailyPayments } = await supabase
       .from('payments')
-      .select('amount_paid')
+      .select('amount_paid, currency')
       .eq('store_id', storeId)
       .eq('payment_date', today);
 
-    const dailyCollection = dailyPayments?.reduce((sum, p) => sum + (p.amount_paid || 0), 0) || 0;
+    const dailyCollectionIQD = dailyPayments?.filter(p => p.currency === 'IQD').reduce((sum, p) => sum + (p.amount_paid || 0), 0) || 0;
+    const dailyCollectionUSD = dailyPayments?.filter(p => p.currency === 'USD').reduce((sum, p) => sum + (p.amount_paid || 0), 0) || 0;
     const dailyPaidCount = dailyPayments?.length || 0;
 
     // الأقساط الجديدة اليوم
@@ -31,14 +32,15 @@ router.get('/summary', [auth, checkSubscription], async (req, res) => {
       .eq('store_id', storeId)
       .gte('created_at', `${today}T00:00:00`);
 
-    // التحصيلات الشهرية
+    // التحصيلات الشهرية حسب العملة
     const { data: monthlyPayments } = await supabase
       .from('payments')
-      .select('amount_paid')
+      .select('amount_paid, currency')
       .eq('store_id', storeId)
       .gte('payment_date', monthStart);
 
-    const monthlyCollection = monthlyPayments?.reduce((sum, p) => sum + (p.amount_paid || 0), 0) || 0;
+    const monthlyCollectionIQD = monthlyPayments?.filter(p => p.currency === 'IQD').reduce((sum, p) => sum + (p.amount_paid || 0), 0) || 0;
+    const monthlyCollectionUSD = monthlyPayments?.filter(p => p.currency === 'USD').reduce((sum, p) => sum + (p.amount_paid || 0), 0) || 0;
     const monthlyPaidCount = monthlyPayments?.length || 0;
 
     const { count: monthlyNewInstallments } = await supabase
@@ -47,13 +49,14 @@ router.get('/summary', [auth, checkSubscription], async (req, res) => {
       .eq('store_id', storeId)
       .gte('created_at', `${monthStart}T00:00:00`);
 
-    // الإجمالي الكلي
+    // الإجمالي الكلي حسب العملة
     const { data: allPayments } = await supabase
       .from('payments')
-      .select('amount_paid')
+      .select('amount_paid, currency')
       .eq('store_id', storeId);
 
-    const totalCollection = allPayments?.reduce((sum, p) => sum + (p.amount_paid || 0), 0) || 0;
+    const totalCollectionIQD = allPayments?.filter(p => p.currency === 'IQD').reduce((sum, p) => sum + (p.amount_paid || 0), 0) || 0;
+    const totalCollectionUSD = allPayments?.filter(p => p.currency === 'USD').reduce((sum, p) => sum + (p.amount_paid || 0), 0) || 0;
     const allPaymentsCount = allPayments?.length || 0;
 
     // عدد الدفعات الكلي (من payments)
@@ -68,13 +71,15 @@ router.get('/summary', [auth, checkSubscription], async (req, res) => {
       .select('*', { count: 'exact', head: true })
       .eq('store_id', storeId);
 
+    // المتبقي حسب العملة
     const { data: totalRemaining } = await supabase
       .from('installment_plans')
-      .select('remaining_amount')
+      .select('remaining_amount, currency')
       .eq('store_id', storeId)
       .eq('status', 'active');
 
-    const totalRemainingAmount = totalRemaining?.reduce((sum, p) => sum + (p.remaining_amount || 0), 0) || 0;
+    const totalRemainingIQD = totalRemaining?.filter(p => p.currency === 'IQD').reduce((sum, p) => sum + (p.remaining_amount || 0), 0) || 0;
+    const totalRemainingUSD = totalRemaining?.filter(p => p.currency === 'USD').reduce((sum, p) => sum + (p.remaining_amount || 0), 0) || 0;
 
     const { count: activeInstallments } = await supabase
       .from('installment_plans')
@@ -108,18 +113,30 @@ router.get('/summary', [auth, checkSubscription], async (req, res) => {
       success: true,
       data: {
         daily: {
-          total_collection: dailyCollection,
+          total_collection: {
+            IQD: dailyCollectionIQD,
+            USD: dailyCollectionUSD
+          },
           paid_count: dailyPaidCount,
           new_installments: dailyNewInstallments || 0
         },
         monthly: {
-          total_collection: monthlyCollection,
+          total_collection: {
+            IQD: monthlyCollectionIQD,
+            USD: monthlyCollectionUSD
+          },
           paid_count: monthlyPaidCount,
           new_installments: monthlyNewInstallments || 0
         },
         total: {
-          total_collection: totalCollection,
-          total_remaining: totalRemainingAmount,
+          total_collection: {
+            IQD: totalCollectionIQD,
+            USD: totalCollectionUSD
+          },
+          total_remaining: {
+            IQD: totalRemainingIQD,
+            USD: totalRemainingUSD
+          },
           active_installments: activeInstallments || 0,
           total_customers: totalCustomers || 0,
           total_installments: totalInstallmentsCount || 0,

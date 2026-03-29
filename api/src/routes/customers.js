@@ -10,19 +10,6 @@ const { v4: uuidv4 } = require('uuid');
 router.get('/', auth, checkSubscription, async (req, res) => {
   try {
     const storeId = req.user.store_id;
-    
-    // إذا كان المستخدم super_admin (لا يوجد store_id)
-    if (!storeId) {
-      return res.json({
-        success: true,
-        data: {
-          customers: [],
-          pagination: { page: 1, limit: 20, total: 0, totalPages: 0 }
-        },
-        message: 'لا توجد عملاء للمشرف العام'
-      });
-    }
-
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
@@ -43,10 +30,25 @@ router.get('/', auth, checkSubscription, async (req, res) => {
 
     if (error) throw error;
 
+    // جلب عدد الأقساط النشطة لكل عميل
+    const customersWithCount = await Promise.all((customers || []).map(async (customer) => {
+      const { count: activeCount } = await supabase
+        .from('installment_plans')
+        .select('*', { count: 'exact', head: true })
+        .eq('customer_id', customer.id)
+        .eq('store_id', storeId)
+        .eq('status', 'active');
+
+      return {
+        ...customer,
+        active_installments_count: activeCount || 0
+      };
+    }));
+
     res.json({
       success: true,
       data: {
-        customers: customers || [],
+        customers: customersWithCount,
         pagination: {
           page,
           limit,
@@ -277,42 +279,53 @@ router.delete('/:id', auth, checkSubscription, async (req, res) => {
     const { id } = req.params;
     const storeId = req.user.store_id;
 
-    // التحقق من صلاحية الحذف
-    if (!req.user.can_delete) {
-      return res.status(403).json({
-        success: false,
-        error: 'غير مصرح، ليس لديك صلاحية الحذف',
-        code: 'FORBIDDEN'
-      });
-    }
-
-    // التحقق من وجود أقساط نشطة
-    const { data: activeInstallments, error: checkError } = await supabase
+    // 1. التحقق من وجود أقساط نشطة
+    const { data: activeInstallments } = await supabase
       .from('installment_plans')
       .select('id')
       .eq('customer_id', id)
       .eq('store_id', storeId)
-      .eq('status', 'active')
+      .in('status', ['active', 'overdue'])
       .limit(1);
-
-    if (checkError) throw checkError;
 
     if (activeInstallments && activeInstallments.length > 0) {
       return res.status(400).json({
         success: false,
-        error: 'لا يمكن حذف عميل لديه أقساط نشطة',
+        error: 'لا يمكن حذف هذا العميل لأنه لديه أقساط غير مكتملة.',
         code: 'HAS_ACTIVE_INSTALLMENTS'
       });
     }
 
-    // جلب بيانات العميل قبل الحذف
-    const { data: deletedCustomer } = await supabase
-      .from('customers')
-      .select('*')
-      .eq('id', id)
-      .eq('store_id', storeId)
-      .single();
+    // 2. جلب جميع أقساط العميل
+    const { data: allPlans } = await supabase
+      .from('installment_plans')
+      .select('id')
+      .eq('customer_id', id)
+      .eq('store_id', storeId);
 
+    if (allPlans && allPlans.length > 0) {
+      const planIds = allPlans.map(p => p.id);
+      
+      // 1. تحديث payments: تعيين plan_id و schedule_id إلى NULL
+      await supabase
+        .from('payments')
+        .update({ plan_id: null, schedule_id: null })
+        .in('plan_id', planIds);
+      
+      // 2. حذف payment_schedule
+      await supabase
+        .from('payment_schedule')
+        .delete()
+        .in('plan_id', planIds);
+      
+      // 3. حذف installment_plans
+      await supabase
+        .from('installment_plans')
+        .delete()
+        .in('id', planIds);
+    }
+
+    // 3. حذف العميل
     const { error } = await supabase
       .from('customers')
       .delete()
@@ -323,11 +336,8 @@ router.delete('/:id', auth, checkSubscription, async (req, res) => {
 
     res.json({
       success: true,
-      message: 'تم حذف العميل بنجاح'
+      message: 'تم حذف العميل بنجاح. تم الاحتفاظ بسجل الدفعات المالية.'
     });
-
-    // تسجيل العملية
-    await logAudit(req, 'DELETE', 'customers', id, deletedCustomer, null);
   } catch (error) {
     console.error('خطأ في حذف العميل:', error);
     res.status(500).json({

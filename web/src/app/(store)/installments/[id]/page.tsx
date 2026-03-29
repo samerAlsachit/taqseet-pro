@@ -493,19 +493,19 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
             </div>
             <div>
               <p className="text-gray-600 dark:text-gray-400 text-sm">المبلغ الكلي</p>
-              <p className="font-medium text-gray-900 dark:text-white">{plan.total_price?.toLocaleString() || 0} IQD</p>
+              <p className="font-medium text-gray-900 dark:text-white">{plan.total_price?.toLocaleString() || 0} {plan.currency === 'USD' ? 'USD' : 'IQD'}</p>
             </div>
             <div>
               <p className="text-gray-600 dark:text-gray-400 text-sm">المبلغ المتبقي</p>
-              <p className="font-medium text-gray-900 dark:text-white text-danger">{plan.remaining_amount?.toLocaleString() || 0} IQD</p>
+              <p className="font-medium text-gray-900 dark:text-white text-danger">{plan.remaining_amount?.toLocaleString() || 0} {plan.currency === 'USD' ? 'USD' : 'IQD'}</p>
             </div>
             <div>
               <p className="text-gray-600 dark:text-gray-400 text-sm">الدفعة المقدمة</p>
-              <p className="font-medium text-gray-900 dark:text-white">{plan.down_payment?.toLocaleString() || 0} IQD</p>
+              <p className="font-medium text-gray-900 dark:text-white">{plan.down_payment?.toLocaleString() || 0} {plan.currency === 'USD' ? 'USD' : 'IQD'}</p>
             </div>
             <div>
               <p className="text-gray-600 dark:text-gray-400 text-sm">قيمة القسط</p>
-              <p className="font-medium text-gray-900 dark:text-white">{plan.installment_amount?.toLocaleString() || 0} IQD</p>
+              <p className="font-medium text-gray-900 dark:text-white">{plan.installment_amount?.toLocaleString() || 0} {plan.currency === 'USD' ? 'USD' : 'IQD'}</p>
             </div>
             <div>
               <p className="text-gray-600 dark:text-gray-400 text-sm">نظام الدفع</p>
@@ -568,7 +568,7 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
                 <tr key={item.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
                   <td className="py-3 px-4 text-[var(--text-primary)]">{item.installment_no}</td>
                   <td className="py-3 px-4 text-[var(--text-primary)]">{new Date(item.due_date).toLocaleDateString('ar-IQ')}</td>
-                  <td className="py-3 px-4 text-[var(--text-primary)]">{item?.amount ? item.amount.toLocaleString() : '0'} IQD</td>
+                  <td className="py-3 px-4 text-[var(--text-primary)]">{item?.amount ? item.amount.toLocaleString() : '0'} {plan?.currency === 'USD' ? 'USD' : 'IQD'}</td>
                   <td className="py-3 px-4 text-[var(--text-primary)]">{getStatusBadge(item.status)}</td>
                   <td className="py-3 px-4 text-[var(--text-primary)]">
                     {item.status === 'pending' && plan?.status === 'active' && (
@@ -611,7 +611,7 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
                   <tr key={payment.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
                     <td className="py-3 px-4 text-[var(--text-primary)] font-mono text-sm">{payment.receipt_number}</td>
                     <td className="py-3 px-4 text-[var(--text-primary)]">{new Date(payment.payment_date).toLocaleDateString('ar-IQ')}</td>
-                    <td className="py-3 px-4 text-[var(--text-primary)]">{payment?.amount_paid ? payment.amount_paid.toLocaleString() : '0'} IQD</td>
+                    <td className="py-3 px-4 text-[var(--text-primary)]">{payment?.amount_paid ? payment.amount_paid.toLocaleString() : '0'} {plan?.currency === 'USD' ? 'USD' : 'IQD'}</td>
                     <td className="py-3 px-4 text-[var(--text-primary)]">{payment.notes || '-'}</td>
                     <td className="py-3 px-4 text-[var(--text-primary)]">
                       <div className="flex gap-2">

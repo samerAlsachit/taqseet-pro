@@ -8,86 +8,83 @@ const { supabase } = require('../config/supabase');
 router.get('/stats', [auth, checkSubscription], async (req, res) => {
   try {
     const storeId = req.user.store_id;
+    const today = new Date().toISOString().split('T')[0];
 
     // إجمالي العملاء
-    const { count: totalCustomers, error: customersError } = await supabase
+    const { count: totalCustomers } = await supabase
       .from('customers')
       .select('*', { count: 'exact', head: true })
       .eq('store_id', storeId);
 
-    if (customersError) {
-      console.error('خطأ في جلب العملاء:', customersError);
-    }
-
     // الأقساط النشطة
-    const { count: activeInstallments, error: installmentsError } = await supabase
+    const { count: activeInstallments } = await supabase
       .from('installment_plans')
       .select('*', { count: 'exact', head: true })
       .eq('store_id', storeId)
       .eq('status', 'active');
 
-    if (installmentsError) {
-      console.error('خطأ في جلب الأقساط:', installmentsError);
-    }
-
-    // المستحقة اليوم
-    const today = new Date().toISOString().split('T')[0];
-    const { count: dueToday, error: dueError } = await supabase
+    // المستحقة اليوم والمتأخرات حسب العملة
+    const { data: dueToday } = await supabase
       .from('payment_schedule')
-      .select('*', { count: 'exact', head: true })
+      .select(`
+        amount,
+        currency,
+        installment_plans!plan_id (currency)
+      `)
       .eq('store_id', storeId)
       .eq('due_date', today)
       .eq('status', 'pending');
 
-    if (dueError) {
-      console.error('خطأ في جلب المستحقات:', dueError);
-    }
-
-    // المتأخرات (تاريخ الاستحقاق أقل من اليوم والحالة pending)
-    const { count: overdue, error: overdueError } = await supabase
+    const { data: overdue } = await supabase
       .from('payment_schedule')
-      .select('*', { count: 'exact', head: true })
+      .select(`
+        amount,
+        currency,
+        installment_plans!plan_id (currency)
+      `)
       .eq('store_id', storeId)
       .lt('due_date', today)
       .eq('status', 'pending');
 
-    if (overdueError) {
-      console.error('خطأ في جلب المتأخرات:', overdueError);
-    }
-
-    // تحصيلات اليوم
-    const { data: todayPayments, error: paymentsError } = await supabase
+    // تحصيلات اليوم حسب العملة
+    const { data: todayPayments } = await supabase
       .from('payments')
-      .select('amount_paid')
+      .select('amount_paid, currency')
       .eq('store_id', storeId)
       .eq('payment_date', today);
 
-    if (paymentsError) {
-      console.error('خطأ في جلب التحصيلات:', paymentsError);
-    }
-
-    const todayCollection = todayPayments?.reduce((sum, p) => sum + (p.amount_paid || 0), 0) || 0;
-
-    console.log('Dashboard stats for store:', storeId);
-    console.log('Total customers:', totalCustomers);
-    console.log('Active installments:', activeInstallments);
-    console.log('Due today:', dueToday);
-    console.log('Overdue:', overdue);
-    console.log('Today collection:', todayCollection);
+    // تجميع حسب العملة
+    const dueTodayIQD = dueToday?.filter(p => p.installment_plans?.currency === 'IQD').reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
+    const dueTodayUSD = dueToday?.filter(p => p.installment_plans?.currency === 'USD').reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
+    
+    const overdueIQD = overdue?.filter(p => p.installment_plans?.currency === 'IQD').reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
+    const overdueUSD = overdue?.filter(p => p.installment_plans?.currency === 'USD').reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
+    
+    const todayCollectionIQD = todayPayments?.filter(p => p.currency === 'IQD').reduce((sum, p) => sum + (p.amount_paid || 0), 0) || 0;
+    const todayCollectionUSD = todayPayments?.filter(p => p.currency === 'USD').reduce((sum, p) => sum + (p.amount_paid || 0), 0) || 0;
 
     res.json({
       success: true,
       data: {
         total_customers: totalCustomers || 0,
         active_installments: activeInstallments || 0,
-        due_today: dueToday || 0,
-        overdue: overdue || 0,
-        today_collection: todayCollection
+        due_today: {
+          IQD: dueTodayIQD,
+          USD: dueTodayUSD
+        },
+        overdue: {
+          IQD: overdueIQD,
+          USD: overdueUSD
+        },
+        today_collection: {
+          IQD: todayCollectionIQD,
+          USD: todayCollectionUSD
+        }
       },
       message: 'تم جلب الإحصائيات بنجاح'
     });
   } catch (error) {
-    console.error('خطأ في جلب إحصائيات dashboard:', error);
+    console.error('خطأ في جلب الإحصائيات:', error);
     res.status(500).json({
       success: false,
       error: 'حدث خطأ في الخادم',

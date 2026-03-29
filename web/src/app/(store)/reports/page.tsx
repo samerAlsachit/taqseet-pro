@@ -6,18 +6,18 @@ import * as XLSX from 'xlsx';
 
 interface ReportData {
   daily: {
-    total_collection: number;
+    total_collection: { IQD: number; USD: number };
     paid_count: number;
     new_installments: number;
   };
   monthly: {
-    total_collection: number;
+    total_collection: { IQD: number; USD: number };
     paid_count: number;
     new_installments: number;
   };
   total: {
-    total_collection: number;
-    total_remaining: number;
+    total_collection: { IQD: number; USD: number };
+    total_remaining: { IQD: number; USD: number };
     active_installments: number;
     total_customers: number;
     total_installments: number;
@@ -82,29 +82,29 @@ export default function ReportsPage() {
 
     // استخدام currentReport الحالي
     if (currentReport === 'daily') {
-      headers = ['البيان', 'القيمة'];
+      headers = ['البيان', 'IQD', 'USD'];
       rows = [
-        ['إجمالي التحصيلات', `${data.daily.total_collection.toLocaleString()} IQD`],
-        ['عدد الدفعات', data.daily.paid_count],
-        ['أقساط جديدة', data.daily.new_installments],
+        ['إجمالي التحصيلات', data.daily.total_collection.IQD.toLocaleString(), data.daily.total_collection.USD.toLocaleString()],
+        ['عدد الدفعات', data.daily.paid_count, ''],
+        ['أقساط جديدة', data.daily.new_installments, ''],
       ];
     } else if (currentReport === 'monthly') {
-      headers = ['البيان', 'القيمة'];
+      headers = ['البيان', 'IQD', 'USD'];
       rows = [
-        ['إجمالي التحصيلات', `${data.monthly.total_collection.toLocaleString()} IQD`],
-        ['عدد الدفعات', data.monthly.paid_count],
-        ['أقساط جديدة', data.monthly.new_installments],
+        ['إجمالي التحصيلات', data.monthly.total_collection.IQD.toLocaleString(), data.monthly.total_collection.USD.toLocaleString()],
+        ['عدد الدفعات', data.monthly.paid_count, ''],
+        ['أقساط جديدة', data.monthly.new_installments, ''],
       ];
     } else {
-      headers = ['البيان', 'القيمة'];
+      headers = ['البيان', 'IQD', 'USD'];
       rows = [
-        ['إجمالي التحصيلات الكلي', `${data.total.total_collection.toLocaleString()} IQD`],
-        ['إجمالي المبالغ المتبقية', `${data.total.total_remaining.toLocaleString()} IQD`],
-        ['الأقساط النشطة', data.total.active_installments],
-        ['إجمالي العملاء', data.total.total_customers],
-        ['إجمالي الأقساط', data.total.total_installments],
-        ['عدد الدفعات', data.total.paid_count || 0],
-        ['أقساط جديدة', data.total.new_installments || 0],
+        ['إجمالي التحصيلات الكلي', data.total.total_collection.IQD.toLocaleString(), data.total.total_collection.USD.toLocaleString()],
+        ['إجمالي المبالغ المتبقية', data.total.total_remaining.IQD.toLocaleString(), data.total.total_remaining.USD.toLocaleString()],
+        ['الأقساط النشطة', data.total.active_installments, ''],
+        ['إجمالي العملاء', data.total.total_customers, ''],
+        ['إجمالي الأقساط', data.total.total_installments, ''],
+        ['عدد الدفعات', data.total.paid_count || 0, ''],
+        ['أقساط جديدة', data.total.new_installments || 0, ''],
       ];
     }
 
@@ -216,14 +216,45 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-success">
           <p className="text-[var(--text-primary)] text-sm mb-1">إجمالي التحصيلات</p>
-          <p className="text-2xl font-bold text-[var(--text-primary)]/70white">
-            {reportType === 'daily' 
-              ? `${(data?.daily?.total_collection || 0).toLocaleString()} IQD` 
-              : reportType === 'monthly'
-              ? `${(data?.monthly?.total_collection || 0).toLocaleString()} IQD` 
-              : `${(data?.total?.total_collection || 0).toLocaleString()} IQD` 
-            }
-          </p>
+          <div className="text-2xl font-bold text-[var(--text-primary)]/70white">
+            {reportType === 'daily' ? (
+              <>
+                {data?.daily?.total_collection?.IQD > 0 && (
+                  <div>{data.daily.total_collection.IQD.toLocaleString()} IQD</div>
+                )}
+                {data?.daily?.total_collection?.USD > 0 && (
+                  <div>{data.daily.total_collection.USD.toLocaleString()} USD</div>
+                )}
+                {(!data?.daily?.total_collection?.IQD && !data?.daily?.total_collection?.USD) && (
+                  <div>0</div>
+                )}
+              </>
+            ) : reportType === 'monthly' ? (
+              <>
+                {data?.monthly?.total_collection?.IQD > 0 && (
+                  <div>{data.monthly.total_collection.IQD.toLocaleString()} IQD</div>
+                )}
+                {data?.monthly?.total_collection?.USD > 0 && (
+                  <div>{data.monthly.total_collection.USD.toLocaleString()} USD</div>
+                )}
+                {(!data?.monthly?.total_collection?.IQD && !data?.monthly?.total_collection?.USD) && (
+                  <div>0</div>
+                )}
+              </>
+            ) : (
+              <>
+                {data?.total?.total_collection?.IQD > 0 && (
+                  <div>{data.total.total_collection.IQD.toLocaleString()} IQD</div>
+                )}
+                {data?.total?.total_collection?.USD > 0 && (
+                  <div>{data.total.total_collection.USD.toLocaleString()} USD</div>
+                )}
+                {(!data?.total?.total_collection?.IQD && !data?.total?.total_collection?.USD) && (
+                  <div>0</div>
+                )}
+              </>
+            )}
+          </div>
         </div>
         <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-electric">
           <p className="text-[var(--text-primary)] text-sm mb-1">عدد الدفعات</p>
@@ -254,9 +285,17 @@ export default function ReportsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
             <p className="text-[var(--text-primary)] text-sm mb-1">إجمالي المبالغ المتبقية</p>
-            <p className="text-2xl font-bold text-[var(--text-danger)]">
-              {data?.total?.total_remaining?.toLocaleString() || 0} IQD
-            </p>
+            <div className="text-2xl font-bold text-[var(--text-danger)]">
+              {data?.total?.total_remaining?.IQD > 0 && (
+                <div>{data.total.total_remaining.IQD.toLocaleString()} IQD</div>
+              )}
+              {data?.total?.total_remaining?.USD > 0 && (
+                <div>{data.total.total_remaining.USD.toLocaleString()} USD</div>
+              )}
+              {(!data?.total?.total_remaining?.IQD && !data?.total?.total_remaining?.USD) && (
+                <div>0</div>
+              )}
+            </div>
           </div>
           <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
             <p className="text-[var(--text-primary)] text-sm mb-1">الأقساط النشطة</p>

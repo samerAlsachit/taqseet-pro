@@ -225,4 +225,165 @@ router.get('/receipt/:receipt_number', auth, checkSubscription, async (req, res)
   }
 });
 
+// POST /api/payments/full-settlement
+router.post('/full-settlement', auth, checkSubscription, async (req, res) => {
+  try {
+    const storeId = req.user.store_id;
+    const { plan_id, amount_paid, payment_date, notes, discount_type, discount_value } = req.body;
+
+    if (!plan_id || !amount_paid) {
+      return res.status(400).json({
+        success: false,
+        error: 'معرف الخطة والمبلغ المدفوع مطلوبان',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    // 1. جلب خطة القسط
+    const { data: plan, error: planError } = await supabase
+      .from('installment_plans')
+      .select('*')
+      .eq('id', plan_id)
+      .eq('store_id', storeId)
+      .single();
+
+    if (planError || !plan) {
+      return res.status(404).json({
+        success: false,
+        error: 'خطة القسط غير موجودة',
+        code: 'NOT_FOUND'
+      });
+    }
+
+    if (plan.status !== 'active') {
+      return res.status(400).json({
+        success: false,
+        error: 'هذه الخطة غير نشطة',
+        code: 'INVALID_STATUS'
+      });
+    }
+
+    // 2. جلب جميع الأقساط المتبقية
+    const { data: pendingSchedules, error: scheduleError } = await supabase
+      .from('payment_schedule')
+      .select('*')
+      .eq('plan_id', plan_id)
+      .eq('status', 'pending')
+      .order('installment_no', { ascending: true });
+
+    if (scheduleError || !pendingSchedules || pendingSchedules.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'لا توجد أقساط متبقية للدفع',
+        code: 'NO_PENDING'
+      });
+    }
+
+    const totalPendingAmount = pendingSchedules.reduce((sum, s) => sum + s.amount, 0);
+
+// حساب المبلغ المطلوب بعد التخفيض
+let requiredAmount = totalPendingAmount;
+let discountAmount = 0;
+
+if (discount_type && discount_value > 0) {
+  if (discount_type === 'percentage') {
+    discountAmount = totalPendingAmount * discount_value / 100;
+    requiredAmount = totalPendingAmount - discountAmount;
+  } else if (discount_type === 'fixed') {
+    discountAmount = discount_value;
+    requiredAmount = totalPendingAmount - discount_value;
+  }
+}
+
+// التأكد من أن requiredAmount لا يقل عن 0
+requiredAmount = Math.max(0, requiredAmount);
+
+// التحقق من أن المبلغ المدفوع كافٍ
+if (amount_paid < requiredAmount) {
+  return res.status(400).json({
+    success: false,
+    error: `المبلغ المدفوع غير كافٍ. المطلوب بعد التخفيض: ${requiredAmount.toLocaleString()} ${plan.currency}`,
+    code: 'INSUFFICIENT_AMOUNT'
+  });
+}
+
+// المبلغ النهائي هو المبلغ المدفوع
+const finalAmount = amount_paid;
+
+    // 5. إنشاء دفعة واحدة لكل قسط
+    const paymentsToInsert = pendingSchedules.map(schedule => ({
+      id: uuidv4(),
+      schedule_id: schedule.id,
+      plan_id: plan_id,
+      store_id: storeId,
+      received_by: req.user.id,
+      amount_paid: schedule.amount, // كل قسط بمبلغه الأصلي
+      payment_date: payment_date || new Date().toISOString().split('T')[0],
+      is_early: true,
+      receipt_number: `RCP-${storeId.slice(0, 8)}-${Date.now()}-${schedule.installment_no}`,
+      notes: notes || (discountAmount > 0 ? `تسديد كامل مع تخفيض ${discountAmount.toLocaleString()} ${plan.currency}` : 'تسديد كامل المبلغ'),
+      currency: plan.currency,
+      created_at: new Date().toISOString()
+    }));
+
+    // إدراج جميع الدفعات دفعة واحدة
+    const { error: paymentsError } = await supabase
+      .from('payments')
+      .insert(paymentsToInsert);
+
+    if (paymentsError) {
+      console.error('خطأ في إدراج الدفعات:', paymentsError);
+      throw paymentsError;
+    }
+
+    // 6. تحديث حالة جميع الأقساط إلى paid
+    const { error: updateScheduleError } = await supabase
+      .from('payment_schedule')
+      .update({ status: 'paid' })
+      .eq('plan_id', plan_id)
+      .eq('status', 'pending');
+
+    if (updateScheduleError) throw updateScheduleError;
+
+    // 7. تحديث خطة الأقساط
+    const newTotalPaid = (plan.total_paid || 0) + totalPendingAmount;
+    const newRemainingAmount = plan.total_price - plan.down_payment - newTotalPaid;
+
+    const { error: updatePlanError } = await supabase
+      .from('installment_plans')
+      .update({
+        total_paid: newTotalPaid,
+        remaining_amount: Math.max(0, newRemainingAmount),
+        status: newRemainingAmount <= 0 ? 'completed' : 'active',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', plan_id);
+
+    if (updatePlanError) throw updatePlanError;
+
+    // تسجيل العملية
+    await logAudit(req, 'UPDATE', 'installment_plans', plan_id, plan, { status: 'completed', total_paid: newTotalPaid });
+
+    res.json({
+      success: true,
+      data: {
+        plan_id,
+        total_pending: pendingSchedules.length,
+        total_amount: totalPendingAmount,
+        discount_amount: discountAmount,
+        final_amount: finalAmount,
+        receipt_numbers: paymentsToInsert.map(p => p.receipt_number)
+      },
+      message: `تم تسديد ${pendingSchedules.length} قسط بنجاح${discountAmount > 0 ? ` مع تخفيض ${discountAmount.toLocaleString()} ${plan.currency}` : ''}` 
+    });
+  } catch (error) {
+    console.error('خطأ في التسديد الكامل:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
 module.exports = router;
