@@ -1,3 +1,5 @@
+
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -5,14 +7,13 @@ import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import { 
   FileText, 
-  TrendingUp, 
   DollarSign, 
   Calendar, 
   Download, 
   Printer,
   BarChart3,
   PieChart,
-  LineChart
+  Receipt
 } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
@@ -43,7 +44,6 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [reportType, setReportType] = useState<'daily' | 'monthly' | 'total'>('daily');
   const [data, setData] = useState<ReportData | null>(null);
-  const [currentReport, setCurrentReport] = useState(reportType);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -71,123 +71,61 @@ export default function ReportsPage() {
     fetchReports();
   }, [router]);
 
-  useEffect(() => {
-    setCurrentReport(reportType);
-  }, [reportType]);
-
-  if (loading) {
-    return <LoadingSpinner />;
-  }
-
-  const currentData = reportType === 'daily' ? data?.daily : reportType === 'monthly' ? data?.monthly : data?.total;
-
-  // تصدير إلى Excel
   const exportToExcel = () => {
     if (!data) return;
 
     let headers: string[] = [];
     let rows: any[][] = [];
 
-    // استخدام currentReport الحالي
-    if (currentReport === 'daily') {
+    if (reportType === 'daily') {
       headers = ['البيان', 'IQD', 'USD'];
       rows = [
-        ['إجمالي التحصيلات', data.daily.total_collection.IQD.toLocaleString(), data.daily.total_collection.USD.toLocaleString()],
+        ['إجمالي التحصيلات', data.daily.total_collection.IQD, data.daily.total_collection.USD],
         ['عدد الدفعات', data.daily.paid_count, ''],
         ['أقساط جديدة', data.daily.new_installments, ''],
       ];
-    } else if (currentReport === 'monthly') {
+    } else if (reportType === 'monthly') {
       headers = ['البيان', 'IQD', 'USD'];
       rows = [
-        ['إجمالي التحصيلات', data.monthly.total_collection.IQD.toLocaleString(), data.monthly.total_collection.USD.toLocaleString()],
+        ['إجمالي التحصيلات', data.monthly.total_collection.IQD, data.monthly.total_collection.USD],
         ['عدد الدفعات', data.monthly.paid_count, ''],
         ['أقساط جديدة', data.monthly.new_installments, ''],
       ];
     } else {
       headers = ['البيان', 'IQD', 'USD'];
       rows = [
-        ['إجمالي التحصيلات الكلي', data.total.total_collection.IQD.toLocaleString(), data.total.total_collection.USD.toLocaleString()],
-        ['إجمالي المبالغ المتبقية', data.total.total_remaining.IQD.toLocaleString(), data.total.total_remaining.USD.toLocaleString()],
+        ['إجمالي التحصيلات', data.total.total_collection.IQD, data.total.total_collection.USD],
+        ['إجمالي المبالغ المتبقية', data.total.total_remaining.IQD, data.total.total_remaining.USD],
         ['الأقساط النشطة', data.total.active_installments, ''],
         ['إجمالي العملاء', data.total.total_customers, ''],
         ['إجمالي الأقساط', data.total.total_installments, ''],
-        ['عدد الدفعات', data.total.paid_count || 0, ''],
-        ['أقساط جديدة', data.total.new_installments || 0, ''],
+        ['عدد الدفعات', data.total.paid_count, ''],
+        ['أقساط جديدة', data.total.new_installments, ''],
       ];
     }
 
     const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'التقرير');
-    XLSX.writeFile(workbook, `marsat_${currentReport}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(workbook, `marsat_${reportType}_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
-  // طباعة الصفحة
   const handlePrint = () => {
-    // إنشاء نسخة مؤقتة من المحتوى للطباعة
-    const printContent = document.querySelector('.print-area')?.cloneNode(true) as HTMLElement;
-    if (!printContent) return;
-
-    // إضافة عنوان التقرير حسب النوع
-    const title = document.createElement('div');
-    title.style.textAlign = 'center';
-    title.style.marginBottom = '20px';
-    title.style.fontSize = '20px';
-    title.style.fontWeight = 'bold';
-    title.style.color = '#0A192F';
-    
-    let reportTitle = '';
-    if (reportType === 'daily') reportTitle = 'التقرير اليومي';
-    else if (reportType === 'monthly') reportTitle = 'التقرير الشهري';
-    else reportTitle = 'التقرير الإجمالي';
-    
-    title.innerHTML = `مرساة - ${reportTitle}<br><span style="font-size: 12px; color: #666;">تاريخ: ${new Date().toLocaleDateString('ar-IQ')}</span>`;
-    
-    printContent.insertBefore(title, printContent.firstChild);
-
-    // فتح نافذة طباعة
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html dir="rtl">
-        <head>
-          <title>تقرير مرساة - ${reportTitle}</title>
-          <meta charset="UTF-8">
-          <style>
-            body {
-              font-family: 'Tajawal', 'Arial', sans-serif;
-              padding: 20px;
-              background: white;
-            }
-            @media print {
-              body {
-                padding: 0;
-              }
-              button, .no-print {
-                display: none;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          ${printContent.outerHTML}
-        </body>
-        </html>
-      `);
-      printWindow.document.close();
-      printWindow.print();
-      printWindow.close();
-    }
+    window.print();
   };
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
 
   return (
-    <>
-      <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 print-area">
-        <div className="flex items-center gap-2 mb-6">
-          <FileText className="text-electric" size={28} />
-          <h1 className="text-2xl font-bold text-navy dark:text-white">التقارير</h1>
-        </div>
+    <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+      <div className="flex items-center gap-2 mb-6">
+        <FileText className="text-electric" size={28} />
+        <h1 className="text-2xl font-bold text-navy dark:text-white">التقارير</h1>
+      </div>
+
+      <div className="flex flex-wrap gap-3 mb-8">
         <button
           onClick={() => setReportType('daily')}
           className={`flex items-center gap-2 px-6 py-2 rounded-lg transition ${
@@ -223,7 +161,6 @@ export default function ReportsPage() {
         </button>
       </div>
 
-      {/* بطاقات الإحصائيات */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border-r-4 border-green-600">
           <div className="flex items-center justify-between mb-2">
@@ -232,16 +169,20 @@ export default function ReportsPage() {
           </div>
           <div className="text-2xl font-bold text-gray-900 dark:text-white">
             {reportType === 'daily' 
-              ? `${(data?.daily?.total_collection?.IQD || 0).toLocaleString()} IQD${data?.daily?.total_collection?.USD > 0 ? ` / ${data.daily.total_collection.USD.toLocaleString()} USD` : ''}` 
+              ? `${(data?.daily?.total_collection?.IQD || 0).toLocaleString()} IQD`
               : reportType === 'monthly'
-              ? `${(data?.monthly?.total_collection?.IQD || 0).toLocaleString()} IQD${data?.monthly?.total_collection?.USD > 0 ? ` / ${data.monthly.total_collection.USD.toLocaleString()} USD` : ''}` 
-              : `${(data?.total?.total_collection?.IQD || 0).toLocaleString()} IQD${data?.total?.total_collection?.USD > 0 ? ` / ${data.total.total_collection.USD.toLocaleString()} USD` : ''}` 
+              ? `${(data?.monthly?.total_collection?.IQD || 0).toLocaleString()} IQD`
+              : `${(data?.total?.total_collection?.IQD || 0).toLocaleString()} IQD`
             }
           </div>
         </div>
+
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border-r-4 border-blue-600">
-          <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">عدد الدفعات</p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+          <div className="flex items-center justify-between mb-2">
+            <Receipt size={24} className="text-blue-600" />
+            <p className="text-gray-500 dark:text-gray-400 text-sm">عدد الدفعات</p>
+          </div>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">
             {reportType === 'daily' 
               ? data?.daily?.paid_count || 0
               : reportType === 'monthly'
@@ -250,9 +191,13 @@ export default function ReportsPage() {
             }
           </p>
         </div>
+
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border-r-4 border-yellow-600">
-          <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">أقساط جديدة</p>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+          <div className="flex items-center justify-between mb-2">
+            <Calendar size={24} className="text-yellow-600" />
+            <p className="text-gray-500 dark:text-gray-400 text-sm">أقساط جديدة</p>
+          </div>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">
             {reportType === 'daily' 
               ? data?.daily?.new_installments || 0
               : reportType === 'monthly'
@@ -263,39 +208,36 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* إحصائيات إضافية للتقرير الإجمالي */}
-      {reportType === 'total' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {reportType === 'total' && data && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
             <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">إجمالي المبالغ المتبقية</p>
             <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-              {data?.total?.total_remaining?.IQD > 0 && (
+              {data.total.total_remaining.IQD > 0 && (
                 <div>{data.total.total_remaining.IQD.toLocaleString()} IQD</div>
               )}
-              {data?.total?.total_remaining?.USD > 0 && (
+              {data.total.total_remaining.USD > 0 && (
                 <div>{data.total.total_remaining.USD.toLocaleString()} USD</div>
               )}
-              {(!data?.total?.total_remaining?.IQD && !data?.total?.total_remaining?.USD) && (
-                <div>0</div>
-              )}
+              {(!data.total.total_remaining.IQD && !data.total.total_remaining.USD) && <div>0</div>}
             </div>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
             <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">الأقساط النشطة</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{data?.total?.active_installments || 0}</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{data.total.active_installments || 0}</p>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
             <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">إجمالي العملاء</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{data?.total?.total_customers || 0}</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{data.total.total_customers || 0}</p>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
             <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">إجمالي الأقساط</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{data?.total?.total_installments || 0}</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{data.total.total_installments || 0}</p>
           </div>
         </div>
       )}
-      {/* زر تصدير */}
-      <div className="mt-8 flex justify-end gap-3">
+
+      <div className="flex justify-end gap-3 mt-8">
         <button
           onClick={exportToExcel}
           className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition"
@@ -311,6 +253,6 @@ export default function ReportsPage() {
           <span>طباعة</span>
         </button>
       </div>
-    </>
+    </div>
   );
 }

@@ -146,6 +146,10 @@ ${storeSettings?.receipt_footer || 'شكراً لثقتكم'}
     // استخدم القيم الافتراضية
   }
 
+  const productsText = plan?.products && plan.products.length > 0
+    ? plan.products.map((p: any) => `${p.product_name} (${p.quantity})`).join(', ')
+    : plan?.product_name;
+
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;  
   const html = `
@@ -243,12 +247,9 @@ ${storeSettings?.receipt_footer || 'شكراً لثقتكم'}
             <span class="info-label">التاريخ:</span>
             <span class="info-value">${new Date(payment.payment_date).toLocaleDateString('ar-IQ')}</span>
           </div>
-          <div class="info">
           <div class="info-row">
             <span class="info-label">المنتجات:</span>
-            <span class="info-value">
-              ${plan.products && plan.products.length > 0 ? plan.products.map((p: any) => p.product_name + ' (' + p.quantity + ')').join(', ') : plan.product_name}
-            </span>
+            <span class="info-value">${productsText}</span>
           </div>
         </div>
         
@@ -495,17 +496,17 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
               <p className="text-sm text-[var(--text-secondary)]">{plan.customer_phone || ''}</p>
             </div>
             <div>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">المنتجات</p>
-              {plan.products && plan.products.length > 0 ? (
-                <div className="mt-1">
+              <p className="text-text-primary text-sm">المنتجات</p>
+              {plan?.products && plan.products.length > 0 ? (
+                <div className="mt-1 space-y-1">
                   {plan.products.map((p: any, idx: number) => (
-                    <div key={idx} className="text-sm text-gray-900 dark:text-white">
+                    <div key={idx} className="text-sm">
                       • {p.product_name} ({p.quantity} × {p.price?.toLocaleString()} {plan.currency})
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="font-medium text-gray-900 dark:text-white">{plan.product_name || 'غير محدد'}</p>
+                <p className="font-medium">{plan?.product_name || 'غير محدد'}</p>
               )}
             </div>
             <div>

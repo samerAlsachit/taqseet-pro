@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Edit, Trash2, Save, X, UserPlus } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface Employee {
@@ -205,9 +206,10 @@ export default function EmployeesPage() {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">إدارة الموظفين</h1>
         <button
           onClick={() => setShowModal(true)}
-          className="btn-primary"
+          className="flex items-center gap-2 bg-electric hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition"
         >
-          + إضافة موظف جديد
+          <UserPlus size={18} />
+          <span>إضافة موظف جديد</span>
         </button>
       </div>
 
@@ -229,9 +231,10 @@ export default function EmployeesPage() {
           <p className="text-gray-900 dark:text-gray-200">لا يوجد موظفين</p>
           <button
             onClick={() => setShowModal(true)}
-            className="btn-primary"
+            className="flex items-center gap-2 bg-electric hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition"
           >
-            إضافة أول موظف
+            <UserPlus size={18} />
+            <span>إضافة أول موظف</span>
           </button>
         </div>
       ) : (
@@ -251,12 +254,12 @@ export default function EmployeesPage() {
               <tbody>
                 {employees.map((emp) => (
                   <tr key={emp.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="py-3 px-4 text-gray-900 dark:text-gray-200">{emp.full_name}</td>
-                    <td className="py-3 px-4 text-gray-900 dark:text-gray-200">{emp.username}</td>
-                    <td className="py-3 px-4 text-gray-900 dark:text-gray-200">{emp.phone}</td>
-                    <td className="py-3 px-4 text-gray-900 dark:text-gray-200">{getRoleName(emp.role)}</td>
-                    <td className="py-3 px-4">
-                      <div className="flex gap-3">
+                    <td className="py-3 px-4 align-middle text-gray-900 dark:text-gray-200">{emp.full_name}</td>
+                    <td className="py-3 px-4 align-middle text-gray-900 dark:text-gray-200">{emp.username}</td>
+                    <td className="py-3 px-4 align-middle text-gray-900 dark:text-gray-200">{emp.phone}</td>
+                    <td className="py-3 px-4 align-middle text-gray-900 dark:text-gray-200">{getRoleName(emp.role)}</td>
+                    <td className="py-3 px-4 align-middle">
+                      <div className="flex flex-wrap gap-3">
                         <label className="flex items-center gap-1 text-sm">
                           <input
                             type="checkbox"
@@ -264,7 +267,7 @@ export default function EmployeesPage() {
                             onChange={(e) => updatePermissions(emp.id, { can_edit: e.target.checked })}
                             className="w-4 h-4"
                           />
-                          تعديل
+                          <span>تعديل</span>
                         </label>
                         <label className="flex items-center gap-1 text-sm">
                           <input
@@ -273,7 +276,7 @@ export default function EmployeesPage() {
                             onChange={(e) => updatePermissions(emp.id, { can_delete: e.target.checked })}
                             className="w-4 h-4"
                           />
-                          حذف
+                          <span>حذف</span>
                         </label>
                         <label className="flex items-center gap-1 text-sm">
                           <input
@@ -282,23 +285,29 @@ export default function EmployeesPage() {
                             onChange={(e) => updatePermissions(emp.id, { can_view_reports: e.target.checked })}
                             className="w-4 h-4"
                           />
-                          تقارير
+                          <span>تقارير</span>
                         </label>
                       </div>
                     </td>
-                    <td className="py-3 px-4">
-                      <button
-                        onClick={() => openEditModal(emp)}
-                        className="btn-outline"
-                      >
-                        تعديل
-                      </button>
-                      <button
-                        onClick={() => handleDelete(emp.id)}
-                        className="btn-danger"
-                      >
-                        حذف
-                      </button>
+                    <td className="py-3 px-4 align-middle">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => openEditModal(emp)}
+                          className="flex items-center gap-1 text-electric hover:text-blue-700 transition p-1"
+                          title="تعديل الصلاحيات"
+                        >
+                          <Edit size={18} />
+                          <span className="text-sm">تعديل</span>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(emp.id)}
+                          className="flex items-center gap-1 text-danger hover:text-red-700 transition p-1"
+                          title="حذف الموظف"
+                        >
+                          <Trash2 size={18} />
+                          <span className="text-sm">حذف</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -400,16 +409,18 @@ export default function EmployeesPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="btn-primary"
+                  className="flex items-center gap-2 bg-electric text-white py-2 rounded-lg"
                 >
-                  {submitting ? 'جاري الإضافة...' : 'إضافة الموظف'}
+                  <Save size={18} />
+                  <span>{submitting ? 'جاري الإضافة...' : 'إضافة الموظف'}</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="btn-outline"
+                  className="flex items-center gap-2 border border-gray-300 text-text-primary py-2 rounded-lg"
                 >
-                  إلغاء
+                  <X size={18} />
+                  <span>إلغاء</span>
                 </button>
               </div>
             </form>
@@ -456,15 +467,17 @@ export default function EmployeesPage() {
             <div className="flex gap-3 pt-4">
               <button
                 onClick={savePermissions}
-                className="btn-primary"
+                className="flex items-center gap-2 bg-electric text-white py-2 rounded-lg"
               >
-                حفظ التغييرات
+                <Save size={18} />
+                <span>حفظ التغييرات</span>
               </button>
               <button
                 onClick={() => setEditModalOpen(false)}
-                className="btn-outline"
+                className="flex items-center gap-2 border border-gray-300 text-text-primary py-2 rounded-lg"
               >
-                إلغاء
+                <X size={18} />
+                <span>إلغاء</span>
               </button>
             </div>
           </div>

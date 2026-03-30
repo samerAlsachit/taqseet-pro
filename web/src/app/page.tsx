@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import { Anchor, Calendar, Star, Rocket, CheckCircle, BarChart3, Users, Package, Smartphone, FileText, TrendingUp, Gift } from 'lucide-react';
+import { Key, Gift, Anchor, Calendar, Star, Rocket, CheckCircle, BarChart3, Users, Package, Smartphone, FileText, TrendingUp } from 'lucide-react';
 
 export default function HomePage() {
   const [plans, setPlans] = useState([]);
@@ -52,11 +52,18 @@ export default function HomePage() {
                 تسجيل الدخول
               </Link>
               <Link 
-                href="/register"
-                className="border-2 border-white text-white hover:bg-white hover:text-navy px-8 py-3 rounded-lg font-medium transition"
+                href="/activate"
+                className="border-2 border-white text-white hover:bg-white hover:text-navy px-8 py-3 rounded-lg font-medium transition flex items-center gap-2"
               >
-                <Gift className="inline ml-1" size={18} />
-                تجربة مجانية 14 يوم
+                <Key size={18} />
+                <span>تفعيل كود</span>
+              </Link>
+              <Link 
+                href="/register"
+                className="border-2 border-white text-white hover:bg-white hover:text-navy px-8 py-3 rounded-lg font-medium transition flex items-center gap-2"
+              >
+                <Gift size={18} />
+                <span>تجربة مجانية 14 يوم</span>
               </Link>
             </div>
           </div>

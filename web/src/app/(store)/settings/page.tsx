@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { connectToBluetoothPrinter } from '@/lib/bluetoothPrint';
-import { Settings, User, Store, CreditCard, FileText, Save, X, Users, CheckCircle, Star, Rocket, Calendar, Headset, Zap } from 'lucide-react';
+import { Settings, User, Store, CreditCard, FileText, Save, X, Users, CheckCircle, Star, Rocket, Calendar, Zap, Phone, Mail, MessageCircle } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface StoreSettings {
@@ -39,7 +39,7 @@ export default function SettingsPage() {
   const [store, setStore] = useState<StoreSettings | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
   const [plans, setPlans] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'info' | 'subscription' | 'employees'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'subscription'>('info');
   const [bluetoothPrinter, setBluetoothPrinter] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -110,8 +110,6 @@ export default function SettingsPage() {
     const tab = searchParams.get('tab');
     if (tab === 'subscription') {
       setActiveTab('subscription');
-    } else if (tab === 'employees') {
-      setActiveTab('employees');
     }
   }, [searchParams]);
 
@@ -200,17 +198,6 @@ export default function SettingsPage() {
             >
               <CreditCard size={18} />
               <span>الاشتراك</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('employees')}
-              className={`flex items-center gap-2 pb-2 px-4 ${
-                activeTab === 'employees'
-                  ? 'border-b-2 border-electric text-electric'
-                  : 'text-text-primary'
-              }`}
-            >
-              <Users size={18} />
-              <span>الموظفين</span>
             </button>
           </nav>
         </div>
@@ -429,49 +416,57 @@ export default function SettingsPage() {
                 );
               })}
             </div>
-
-            <div className="mt-8 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg text-center border border-gray-200 dark:border-gray-600">
-              <p className="text-gray-900 dark:text-gray-200 text-sm">
-                للاستفسار عن الاشتراك، يرجى التواصل مع الدعم:
-                <br />
-                077XXXXXXXX | support@marsat.com
-                📞 077XXXXXXXX | 📧 support@marsat.com
-              </p>
+            <div className="mt-8 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg text-center">
+              <p className="text-gray-700 dark:text-gray-300 text-sm mb-3">للاستفسار عن الاشتراك، يرجى التواصل مع الدعم:</p>
+              <div className="flex flex-col sm:flex-row justify-center gap-4 text-sm">
+                <div className="flex items-center justify-center gap-2 text-gray-600 dark:text-gray-400">
+                  <Phone size={16} className="text-electric" />
+                  <span>077XXXXXXXX</span>
+                </div>
+                <div className="flex items-center justify-center gap-2 text-gray-600 dark:text-gray-400">
+                  <Mail size={16} className="text-electric" />
+                  <span>support@marsat.com</span>
+                </div>
+                <div className="flex items-center justify-center gap-2 text-gray-600 dark:text-gray-400">
+                  <MessageCircle size={16} className="text-success" />
+                  <span>واتساب</span>
+                </div>
+              </div>
             </div>
           </div>
         )}
-      </div>
 
-      {/* إعدادات الطباعة */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">إعدادات الطباعة</h2>
-        <p className="text-gray-900 dark:text-gray-200 mb-4">طابعة بلوتوث</p>
-        {bluetoothPrinter ? (
-          <div className="flex justify-between items-center">
-            <span className="text-gray-900 dark:text-gray-200">
-              الطابعة المتصلة: {bluetoothPrinter.name}
-            </span>
+        {/* إعدادات الطباعة */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">إعدادات الطباعة</h2>
+          <p className="text-gray-900 dark:text-gray-200 mb-4">طابعة بلوتوث</p>
+          {bluetoothPrinter ? (
+            <div className="flex justify-between items-center">
+              <span className="text-gray-900 dark:text-gray-200">
+                الطابعة المتصلة: {bluetoothPrinter.name}
+              </span>
+              <button
+                onClick={() => setBluetoothPrinter(null)}
+                className="btn-outline"
+              >
+                قطع الاتصال
+              </button>
+            </div>
+          ) : (
             <button
-              onClick={() => setBluetoothPrinter(null)}
-              className="btn-outline"
+              onClick={async () => {
+                const printer = await connectToBluetoothPrinter();
+                if (printer) setBluetoothPrinter(printer);
+              }}
+              className="btn-primary"
             >
-              قطع الاتصال
+              توصيل طابعة بلوتوث
             </button>
-          </div>
-        ) : (
-          <button
-            onClick={async () => {
-              const printer = await connectToBluetoothPrinter();
-              if (printer) setBluetoothPrinter(printer);
-            }}
-            className="btn-primary"
-          >
-            توصيل طابعة بلوتوث
-          </button>
-        )}
-        <p className="text-gray-500 dark:text-gray-400 text-sm mt-4">
-          ملاحظة: هذه الميزة تعمل على المتصفحات التي تدعم Web Bluetooth (Chrome, Edge)
-        </p>
+          )}
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-4">
+            ملاحظة: هذه الميزة تعمل على المتصفحات التي تدعم Web Bluetooth (Chrome, Edge)
+          </p>
+        </div>
       </div>
     </div>
   );

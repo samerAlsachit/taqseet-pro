@@ -1,3 +1,8 @@
 {
+  "/login/page": "app/login/page.js",
+  "/page": "app/page.js",
+  "/activate/page": "app/activate/page.js",
+  "/(store)/employees/page": "app/(store)/employees/page.js",
+  "/(store)/settings/page": "app/(store)/settings/page.js",
   "/(store)/dashboard/page": "app/(store)/dashboard/page.js"
 }
