@@ -431,6 +431,52 @@ router.post('/verify-code', async (req, res) => {
   }
 });
 
+// POST /api/auth/forgot-username
+router.post('/forgot-username', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'البريد الإلكتروني مطلوب',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('id, username, email')
+      .eq('email', email);
+
+    if (error || !users || users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'لا يوجد حساب مرتبط بهذا البريد الإلكتروني',
+        code: 'NOT_FOUND'
+      });
+    }
+
+    const { sendUsernameReminder } = require('../services/emailService');
+    
+    for (const user of users) {
+      await sendUsernameReminder(user.email, user.username, null);
+    }
+
+    res.json({
+      success: true,
+      message: 'تم إرسال اسم المستخدم إلى بريدك الإلكتروني'
+    });
+  } catch (error) {
+    console.error('خطأ في استعادة اسم المستخدم:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
 // POST /api/auth/forgot-password
 router.post('/forgot-password', async (req, res) => {
   try {
@@ -653,9 +699,9 @@ router.post('/register-super-admin', async (req, res) => {
 // POST /api/auth/register-trial
 router.post('/register-trial', async (req, res) => {
   try {
-    const { store_name, owner_name, phone, address, city, username, password } = req.body;
+    const { store_name, owner_name, phone, email, address, city, username, password } = req.body;
 
-    if (!store_name || !owner_name || !phone || !username || !password) {
+    if (!store_name || !owner_name || !phone || !email || !username || !password) {
       return res.status(400).json({
         success: false,
         error: 'جميع الحقول المطلوبة يجب أن توفر',
@@ -724,6 +770,7 @@ router.post('/register-trial', async (req, res) => {
         full_name: owner_name,
         username: username,
         password_hash: hashedPassword,
+        email: email,
         phone: phone,
         role: 'store_owner',
         can_delete: true,
@@ -781,9 +828,9 @@ router.post('/register-trial', async (req, res) => {
 // POST /api/auth/register-trial
 router.post('/register-trial', async (req, res) => {
   try {
-    const { store_name, owner_name, phone, address, city, username, password } = req.body;
+    const { store_name, owner_name, phone, email, address, city, username, password } = req.body;
 
-    if (!store_name || !owner_name || !phone || !username || !password) {
+    if (!store_name || !owner_name || !phone || !email || !username || !password) {
       return res.status(400).json({
         success: false,
         error: 'جميع الحقول المطلوبة يجب أن توفر',
@@ -853,6 +900,7 @@ router.post('/register-trial', async (req, res) => {
         full_name: owner_name,
         username: username,
         password_hash: hashedPassword,
+        email: email,
         phone: phone,
         role: 'store_owner',
         can_delete: true,

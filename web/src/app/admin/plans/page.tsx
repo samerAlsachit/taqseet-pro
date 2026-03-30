@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface Plan {
   id: string;
@@ -131,9 +132,7 @@ export default function PlansPage() {
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric"></div>
-          </div>
+          <LoadingSpinner />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {plans.map((plan) => (

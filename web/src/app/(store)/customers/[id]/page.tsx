@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface Customer {
   id: string;
@@ -86,16 +87,12 @@ export default function CustomerDetailPage() {
       case 'overdue':
         return <span className="px-2 py-1 rounded-full text-sm bg-danger/10 text-danger">متأخر</span>;
       default:
-        return <span className="px-2 py-1 rounded-full text-sm bg-gray-100 text-text-primary">{status}</span>;
+        return <span className="px-2 py-1 rounded-full text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-200">{status}</span>;
     }
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric"></div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (error || !customer) {
@@ -105,7 +102,7 @@ export default function CustomerDetailPage() {
           {error || 'العميل غير موجود'}
         </div>
         <div className="text-center mt-4">
-          <Link href="/customers" className="text-electric hover:underline">
+          <Link href="/customers" className="text-blue-600 dark:text-blue-400 hover:underline">
             ← العودة إلى العملاء
           </Link>
         </div>
@@ -116,106 +113,106 @@ export default function CustomerDetailPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex items-center gap-4 mb-6">
-        <Link href="/customers" className="text-electric hover:underline">
+        <Link href="/customers" className="text-blue-600 dark:text-blue-400 hover:underline">
           ← العودة إلى العملاء
         </Link>
-        <h1 className="text-2xl font-bold text-navy">ملف العميل</h1>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]">ملف العميل</h1>
       </div>
 
       {/* معلومات العميل */}
-      <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
+      <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 mb-8">
         <div className="flex justify-between items-start mb-4">
-          <h2 className="text-xl font-bold text-navy">معلومات العميل</h2>
+          <h2 className="text-xl font-bold text-[var(--text-primary)]">معلومات العميل</h2>
           <Link
             href={`/customers/${customerId}/edit`}
-            className="bg-electric hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm transition"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition"
           >
             ✏️ تعديل
           </Link>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <p className="text-text-primary text-sm">الاسم الكامل</p>
-            <p className="font-medium">{customer.full_name}</p>
+            <p className="text-[var(--text-secondary)] text-sm">الاسم الكامل</p>
+            <p className="font-medium text-[var(--text-primary)]">{customer.full_name}</p>
           </div>
           <div>
-            <p className="text-text-primary text-sm">رقم الهاتف</p>
-            <p className="font-medium">{customer.phone}</p>
+            <p className="text-[var(--text-secondary)] text-sm">رقم الهاتف</p>
+            <p className="font-medium text-[var(--text-primary)]">{customer.phone}</p>
           </div>
           {customer.phone_alt && (
             <div>
-              <p className="text-text-primary text-sm">هاتف إضافي</p>
-              <p className="font-medium">{customer.phone_alt}</p>
+              <p className="text-[var(--text-secondary)] text-sm">هاتف إضافي</p>
+              <p className="font-medium text-[var(--text-primary)]">{customer.phone_alt}</p>
             </div>
           )}
           {customer.national_id && (
             <div>
-              <p className="text-text-primary text-sm">الرقم الوطني</p>
-              <p className="font-medium">{customer.national_id}</p>
+              <p className="text-[var(--text-secondary)] text-sm">الرقم الوطني</p>
+              <p className="font-medium text-[var(--text-primary)]">{customer.national_id}</p>
             </div>
           )}
           {customer.address && (
             <div className="md:col-span-2">
-              <p className="text-text-primary text-sm">العنوان</p>
-              <p className="font-medium">{customer.address}</p>
+              <p className="text-[var(--text-secondary)] text-sm">العنوان</p>
+              <p className="font-medium text-[var(--text-primary)]">{customer.address}</p>
             </div>
           )}
           {customer.notes && (
             <div className="md:col-span-2">
-              <p className="text-text-primary text-sm">ملاحظات</p>
-              <p className="font-medium">{customer.notes}</p>
+              <p className="text-[var(--text-secondary)] text-sm">ملاحظات</p>
+              <p className="font-medium text-[var(--text-primary)]">{customer.notes}</p>
             </div>
           )}
           <div>
-            <p className="text-text-primary text-sm">تاريخ التسجيل</p>
-            <p className="font-medium">{new Date(customer.created_at).toLocaleDateString('ar-IQ')}</p>
+            <p className="text-[var(--text-secondary)] text-sm">تاريخ التسجيل</p>
+            <p className="font-medium text-[var(--text-primary)]">{new Date(customer.created_at).toLocaleDateString('ar-IQ')}</p>
           </div>
         </div>
       </div>
 
       {/* أقساط العميل */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
+      <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-navy">الأقساط</h2>
+          <h2 className="text-xl font-bold text-[var(--text-primary)]">الأقساط</h2>
           <Link
             href={`/installments/new?customer_id=${customerId}`}
-            className="bg-electric hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm transition"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition"
           >
             + إضافة قسط جديد
           </Link>
         </div>
 
         {installments.length === 0 ? (
-          <p className="text-text-primary text-center py-8">لا توجد أقساط لهذا العميل</p>
+          <p className="text-[var(--text-secondary)] text-center py-8">لا توجد أقساط لهذا العميل</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-right py-3 px-4 text-text-primary font-semibold">المنتج</th>
-                  <th className="text-right py-3 px-4 text-text-primary font-semibold">المبلغ الكلي</th>
-                  <th className="text-right py-3 px-4 text-text-primary font-semibold">المتبقي</th>
-                  <th className="text-right py-3 px-4 text-text-primary font-semibold">التقدم</th>
-                  <th className="text-right py-3 px-4 text-text-primary font-semibold">الحالة</th>
-                  <th className="text-right py-3 px-4 text-text-primary font-semibold"></th>
+                <tr className="border-b border-[var(--border-color)]">
+                  <th className="text-right py-3 px-4 text-[var(--text-secondary)] font-semibold">المنتج</th>
+                  <th className="text-right py-3 px-4 text-[var(--text-secondary)] font-semibold">المبلغ الكلي</th>
+                  <th className="text-right py-3 px-4 text-[var(--text-secondary)] font-semibold">المتبقي</th>
+                  <th className="text-right py-3 px-4 text-[var(--text-secondary)] font-semibold">التقدم</th>
+                  <th className="text-right py-3 px-4 text-[var(--text-secondary)] font-semibold">الحالة</th>
+                  <th className="text-right py-3 px-4 text-[var(--text-secondary)] font-semibold"></th>
                  </tr>
               </thead>
               <tbody>
                 {installments.map((inst) => {
                   const progress = ((inst.paid_count || 0) / inst.installments_count) * 100;
                   return (
-                    <tr key={inst.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 text-text-primary">{inst.product_name}</td>
-                      <td className="py-3 px-4 text-text-primary">{inst.total_price.toLocaleString()} IQD</td>
-                      <td className="py-3 px-4 text-text-primary">{inst.remaining_amount.toLocaleString()} IQD</td>
+                    <tr key={inst.id} className="border-b border-[var(--border-color)] hover:bg-[var(--border-color)]">
+                      <td className="py-3 px-4 text-[var(--text-primary)]">{inst.product_name}</td>
+                      <td className="py-3 px-4 text-[var(--text-primary)]">{inst.total_price.toLocaleString()} IQD</td>
+                      <td className="py-3 px-4 text-[var(--text-primary)]">{inst.remaining_amount.toLocaleString()} IQD</td>
                       <td className="py-3 px-4">
-                        <div className="w-24 bg-gray-200 rounded-full h-2">
+                        <div className="w-24 bg-[var(--border-color)] rounded-full h-2">
                           <div
-                            className="bg-electric rounded-full h-2"
+                            className="bg-blue-600 rounded-full h-2"
                             style={{ width: `${progress}%` }}
                           />
                         </div>
-                        <span className="text-xs text-text-primary mt-1">
+                        <span className="text-xs text-[var(--text-secondary)] mt-1">
                           {inst.paid_count || 0}/{inst.installments_count}
                         </span>
                       </td>
@@ -223,7 +220,7 @@ export default function CustomerDetailPage() {
                       <td className="py-3 px-4">
                         <Link
                           href={`/installments/${inst.id}`}
-                          className="text-electric hover:underline"
+                          className="text-blue-600 dark:text-blue-400 hover:underline"
                         >
                           تفاصيل
                         </Link>

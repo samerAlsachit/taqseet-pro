@@ -3,6 +3,18 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
+import { 
+  FileText, 
+  TrendingUp, 
+  DollarSign, 
+  Calendar, 
+  Download, 
+  Printer,
+  BarChart3,
+  PieChart,
+  LineChart
+} from 'lucide-react';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface ReportData {
   daily: {
@@ -64,11 +76,7 @@ export default function ReportsPage() {
   }, [reportType]);
 
   if (loading) {
-    return (
-      <div className="flex justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric"></div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   const currentData = reportType === 'daily' ? data?.daily : reportType === 'monthly' ? data?.monthly : data?.total;
@@ -175,90 +183,65 @@ export default function ReportsPage() {
 
   return (
     <>
-    <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 print-area">
-      <h1 className="text-2xl font-bold text-[var(--text-primary)]/70white mb-6">التقارير</h1>
-
-      {/* اختيار نوع التقرير */}
-      <div className="flex gap-4 mb-8">
+      <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 print-area">
+        <div className="flex items-center gap-2 mb-6">
+          <FileText className="text-electric" size={28} />
+          <h1 className="text-2xl font-bold text-navy dark:text-white">التقارير</h1>
+        </div>
         <button
           onClick={() => setReportType('daily')}
-          className={`px-6 py-2 rounded-lg transition ${
+          className={`flex items-center gap-2 px-6 py-2 rounded-lg transition ${
             reportType === 'daily'
               ? 'bg-electric text-white'
-              : 'bg-[var(--card-bg)] text-[var(--text-primary)] border border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
+              : 'bg-white dark:bg-gray-800 text-text-primary border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
           }`}
         >
-          يومي
+          <Calendar size={18} />
+          <span>يومي</span>
         </button>
         <button
           onClick={() => setReportType('monthly')}
-          className={`px-6 py-2 rounded-lg transition ${
+          className={`flex items-center gap-2 px-6 py-2 rounded-lg transition ${
             reportType === 'monthly'
               ? 'bg-electric text-white'
-              : 'bg-[var(--card-bg)] text-[var(--text-primary)] border border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
+              : 'bg-white dark:bg-gray-800 text-text-primary border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
           }`}
         >
-          شهري
+          <BarChart3 size={18} />
+          <span>شهري</span>
         </button>
         <button
           onClick={() => setReportType('total')}
-          className={`px-6 py-2 rounded-lg transition ${
+          className={`flex items-center gap-2 px-6 py-2 rounded-lg transition ${
             reportType === 'total'
               ? 'bg-electric text-white'
-              : 'bg-[var(--card-bg)] text-[var(--text-primary)] border border-[var(--border-color)] hover:bg-[var(--bg-primary)]'
+              : 'bg-white dark:bg-gray-800 text-text-primary border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
           }`}
         >
-          إجمالي
+          <PieChart size={18} />
+          <span>إجمالي</span>
         </button>
       </div>
 
       {/* بطاقات الإحصائيات */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-success">
-          <p className="text-[var(--text-primary)] text-sm mb-1">إجمالي التحصيلات</p>
-          <div className="text-2xl font-bold text-[var(--text-primary)]/70white">
-            {reportType === 'daily' ? (
-              <>
-                {data?.daily?.total_collection?.IQD > 0 && (
-                  <div>{data.daily.total_collection.IQD.toLocaleString()} IQD</div>
-                )}
-                {data?.daily?.total_collection?.USD > 0 && (
-                  <div>{data.daily.total_collection.USD.toLocaleString()} USD</div>
-                )}
-                {(!data?.daily?.total_collection?.IQD && !data?.daily?.total_collection?.USD) && (
-                  <div>0</div>
-                )}
-              </>
-            ) : reportType === 'monthly' ? (
-              <>
-                {data?.monthly?.total_collection?.IQD > 0 && (
-                  <div>{data.monthly.total_collection.IQD.toLocaleString()} IQD</div>
-                )}
-                {data?.monthly?.total_collection?.USD > 0 && (
-                  <div>{data.monthly.total_collection.USD.toLocaleString()} USD</div>
-                )}
-                {(!data?.monthly?.total_collection?.IQD && !data?.monthly?.total_collection?.USD) && (
-                  <div>0</div>
-                )}
-              </>
-            ) : (
-              <>
-                {data?.total?.total_collection?.IQD > 0 && (
-                  <div>{data.total.total_collection.IQD.toLocaleString()} IQD</div>
-                )}
-                {data?.total?.total_collection?.USD > 0 && (
-                  <div>{data.total.total_collection.USD.toLocaleString()} USD</div>
-                )}
-                {(!data?.total?.total_collection?.IQD && !data?.total?.total_collection?.USD) && (
-                  <div>0</div>
-                )}
-              </>
-            )}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border-r-4 border-green-600">
+          <div className="flex items-center justify-between mb-2">
+            <DollarSign className="text-green-600" size={24} />
+            <p className="text-gray-500 dark:text-gray-400 text-sm">إجمالي التحصيلات</p>
+          </div>
+          <div className="text-2xl font-bold text-gray-900 dark:text-white">
+            {reportType === 'daily' 
+              ? `${(data?.daily?.total_collection?.IQD || 0).toLocaleString()} IQD${data?.daily?.total_collection?.USD > 0 ? ` / ${data.daily.total_collection.USD.toLocaleString()} USD` : ''}` 
+              : reportType === 'monthly'
+              ? `${(data?.monthly?.total_collection?.IQD || 0).toLocaleString()} IQD${data?.monthly?.total_collection?.USD > 0 ? ` / ${data.monthly.total_collection.USD.toLocaleString()} USD` : ''}` 
+              : `${(data?.total?.total_collection?.IQD || 0).toLocaleString()} IQD${data?.total?.total_collection?.USD > 0 ? ` / ${data.total.total_collection.USD.toLocaleString()} USD` : ''}` 
+            }
           </div>
         </div>
-        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-electric">
-          <p className="text-[var(--text-primary)] text-sm mb-1">عدد الدفعات</p>
-          <p className="text-2xl font-bold text-[var(--text-primary)]/70white">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border-r-4 border-blue-600">
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">عدد الدفعات</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">
             {reportType === 'daily' 
               ? data?.daily?.paid_count || 0
               : reportType === 'monthly'
@@ -267,9 +250,9 @@ export default function ReportsPage() {
             }
           </p>
         </div>
-        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-warning">
-          <p className="text-[var(--text-primary)] text-sm mb-1">أقساط جديدة</p>
-          <p className="text-2xl font-bold text-[var(--text-primary)]/70white">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border-r-4 border-yellow-600">
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">أقساط جديدة</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white">
             {reportType === 'daily' 
               ? data?.daily?.new_installments || 0
               : reportType === 'monthly'
@@ -283,9 +266,9 @@ export default function ReportsPage() {
       {/* إحصائيات إضافية للتقرير الإجمالي */}
       {reportType === 'total' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
-            <p className="text-[var(--text-primary)] text-sm mb-1">إجمالي المبالغ المتبقية</p>
-            <div className="text-2xl font-bold text-[var(--text-danger)]">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">إجمالي المبالغ المتبقية</p>
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">
               {data?.total?.total_remaining?.IQD > 0 && (
                 <div>{data.total.total_remaining.IQD.toLocaleString()} IQD</div>
               )}
@@ -297,56 +280,37 @@ export default function ReportsPage() {
               )}
             </div>
           </div>
-          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
-            <p className="text-[var(--text-primary)] text-sm mb-1">الأقساط النشطة</p>
-            <p className="text-2xl font-bold text-[var(--text-primary)]/70white">{data?.total?.active_installments || 0}</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">الأقساط النشطة</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{data?.total?.active_installments || 0}</p>
           </div>
-          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
-            <p className="text-[var(--text-primary)] text-sm mb-1">إجمالي العملاء</p>
-            <p className="text-2xl font-bold text-[var(--text-primary)]/70white">{data?.total?.total_customers || 0}</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">إجمالي العملاء</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{data?.total?.total_customers || 0}</p>
           </div>
-          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
-            <p className="text-[var(--text-primary)] text-sm mb-1">إجمالي الأقساط</p>
-            <p className="text-2xl font-bold text-[var(--text-primary)]/70white">{data?.total?.total_installments || 0}</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">إجمالي الأقساط</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{data?.total?.total_installments || 0}</p>
           </div>
         </div>
       )}
-
       {/* زر تصدير */}
       <div className="mt-8 flex justify-end gap-3">
         <button
           onClick={exportToExcel}
-          className="bg-success hover:bg-green-600 text-white px-4 py-2 rounded-lg transition flex items-center gap-2"
+          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition"
         >
-          📊 Excel
+          <Download size={18} />
+          <span>Excel</span>
         </button>
         <button
           onClick={handlePrint}
-          className="bg-navy hover:bg-navy/80 text-white px-4 py-2 rounded-lg transition flex items-center gap-2"
+          className="flex items-center gap-2 bg-navy hover:bg-navy/80 text-white px-4 py-2 rounded-lg transition"
         >
-          🖨️ طباعة
+          <Printer size={18} />
+          <span>طباعة</span>
         </button>
       </div>
-    </div>
-    <style jsx global>{`
-      @media print {
-        body * {
-          visibility: hidden;
-        }
-        .print-area, .print-area * {
-          visibility: visible;
-        }
-        .print-area {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-        }
-        button, .no-print, nav, header {
-          display: none !important;
-        }
-      }
-    `}</style>
     </>
   );
 }

@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { connectToBluetoothPrinter, printReceipt, isBluetoothAvailable } from '@/lib/bluetoothPrint';
+import toast from 'react-hot-toast';
+import { Printer, MessageCircle } from 'lucide-react';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface InstallmentPlan {
   id: string;
@@ -240,9 +243,12 @@ ${storeSettings?.receipt_footer || 'شكراً لثقتكم'}
             <span class="info-label">التاريخ:</span>
             <span class="info-value">${new Date(payment.payment_date).toLocaleDateString('ar-IQ')}</span>
           </div>
+          <div class="info">
           <div class="info-row">
-            <span class="info-label">المنتج:</span>
-            <span class="info-value">${plan?.product_name || ''}</span>
+            <span class="info-label">المنتجات:</span>
+            <span class="info-value">
+              ${plan.products && plan.products.length > 0 ? plan.products.map((p: any) => p.product_name + ' (' + p.quantity + ')').join(', ') : plan.product_name}
+            </span>
           </div>
         </div>
         
@@ -293,13 +299,17 @@ ${storeSettings?.receipt_footer || 'شكراً لثقتكم'}
 };
 
   const handleSendWhatsApp = (payment: Payment) => {
+    const productsText = plan.products && plan.products.length > 0
+      ? plan.products.map((p: any) => p.product_name + ' (' + p.quantity + ')').join(', ')
+      : plan.product_name;
+
     const message = `
 *مرساة - وصل دفع*
 
 رقم الوصل: ${payment.receipt_number}
 التاريخ: ${new Date(payment.payment_date).toLocaleDateString('ar-IQ')}
 العميل: ${plan?.customer_name}
-المنتج: ${plan?.product_name}
+المنتجات: ${productsText}
 
 المبلغ المدفوع: ${payment?.amount_paid ? payment.amount_paid.toLocaleString() : '0'} IQD
 المبلغ المتبقي: ${plan?.remaining_amount ? plan.remaining_amount.toLocaleString() : '0'} IQD
@@ -393,13 +403,14 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
       });
       const data = await res.json();
       if (data.success) {
+        toast.success('تم تسجيل الدفعة بنجاح');
         setShowPaymentModal(false);
         fetchInstallmentData();
       } else {
-        alert(data.error || 'فشل في تسجيل الدفعة');
+        toast.error(data.error || 'فشل في تسجيل الدفعة');
       }
     } catch {
-      alert('حدث خطأ في الاتصال بالخادم');
+      toast.error('حدث خطأ في الاتصال بالخادم');
     } finally {
       setPaymentLoading(false);
     }
@@ -414,7 +425,7 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
       case 'overdue':
         return <span className="px-2 py-1 rounded-full text-sm bg-danger/10 text-danger">متأخر</span>;
       default:
-        return <span className="px-2 py-1 rounded-full text-sm bg-gray-100">{status}</span>;
+        return <span className="px-2 py-1 rounded-full text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-200">{status}</span>;
     }
   };
 
@@ -439,11 +450,7 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric"></div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (error || !plan) {
@@ -453,7 +460,7 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
           {error || 'القسط غير موجود'}
         </div>
         <div className="text-center mt-4">
-          <Link href="/installments" className="text-electric hover:underline">
+          <Link href="/installments" className="text-blue-600 dark:text-blue-400 hover:underline">
             ← العودة إلى الأقساط
           </Link>
         </div>
@@ -470,12 +477,12 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
         <Link href="/installments" className="text-electric hover:underline">
           ← العودة إلى الأقساط
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">تفاصيل القسط</h1>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]">تفاصيل القسط</h1>
       </div>
 
       
       {/* معلومات القسط */}
-      <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 mb-8">
+      <div className="bg-white dark:bg-[#161B22] rounded-xl shadow-md border border-gray-100 dark:border-[#30363D] p-6 mb-8">
         <div className="flex justify-between items-start mb-4">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">معلومات القسط</h2>
           {plan && getPlanStatusBadge(plan?.status)}
@@ -483,45 +490,55 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
         {plan && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">العميل</p>
-              <p className="font-medium text-gray-900 dark:text-white">{plan.customer_name || 'غير محدد'}</p>
-              <p className="text-sm text-[var(--text-primary)]/70">{plan.customer_phone || ''}</p>
+              <p className="text-[var(--text-secondary)] text-sm">العميل</p>
+              <p className="font-medium text-[var(--text-primary)]">{plan.customer_name || 'غير محدد'}</p>
+              <p className="text-sm text-[var(--text-secondary)]">{plan.customer_phone || ''}</p>
             </div>
             <div>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">المنتج</p>
-              <p className="font-medium text-gray-900 dark:text-white">{plan.product_name || 'غير محدد'}</p>
+              <p className="text-gray-600 dark:text-gray-400 text-sm">المنتجات</p>
+              {plan.products && plan.products.length > 0 ? (
+                <div className="mt-1">
+                  {plan.products.map((p: any, idx: number) => (
+                    <div key={idx} className="text-sm text-gray-900 dark:text-white">
+                      • {p.product_name} ({p.quantity} × {p.price?.toLocaleString()} {plan.currency})
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="font-medium text-gray-900 dark:text-white">{plan.product_name || 'غير محدد'}</p>
+              )}
             </div>
             <div>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">المبلغ الكلي</p>
-              <p className="font-medium text-gray-900 dark:text-white">{plan.total_price?.toLocaleString() || 0} {plan.currency === 'USD' ? 'USD' : 'IQD'}</p>
+              <p className="text-[var(--text-secondary)] text-sm">المبلغ الكلي</p>
+              <p className="font-medium text-[var(--text-primary)]">{plan.total_price?.toLocaleString() || 0} {plan.currency === 'USD' ? 'USD' : 'IQD'}</p>
             </div>
             <div>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">المبلغ المتبقي</p>
+              <p className="text-[var(--text-secondary)] text-sm">المبلغ المتبقي</p>
               <p className="font-medium text-gray-900 dark:text-white text-danger">{plan.remaining_amount?.toLocaleString() || 0} {plan.currency === 'USD' ? 'USD' : 'IQD'}</p>
             </div>
             <div>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">الدفعة المقدمة</p>
-              <p className="font-medium text-gray-900 dark:text-white">{plan.down_payment?.toLocaleString() || 0} {plan.currency === 'USD' ? 'USD' : 'IQD'}</p>
+              <p className="text-[var(--text-secondary)] text-sm">الدفعة المقدمة</p>
+              <p className="font-medium text-[var(--text-primary)]">{plan.down_payment?.toLocaleString() || 0} {plan.currency === 'USD' ? 'USD' : 'IQD'}</p>
             </div>
             <div>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">قيمة القسط</p>
-              <p className="font-medium text-gray-900 dark:text-white">{plan.installment_amount?.toLocaleString() || 0} {plan.currency === 'USD' ? 'USD' : 'IQD'}</p>
+              <p className="text-[var(--text-secondary)] text-sm">قيمة القسط</p>
+              <p className="font-medium text-[var(--text-primary)]">{plan.installment_amount?.toLocaleString() || 0} {plan.currency === 'USD' ? 'USD' : 'IQD'}</p>
             </div>
             <div>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">نظام الدفع</p>
-              <p className="font-medium text-gray-900 dark:text-white">
+              <p className="text-[var(--text-secondary)] text-sm">نظام الدفع</p>
+              <p className="font-medium text-[var(--text-primary)]">
                 {plan.frequency === 'monthly' ? 'شهري' : plan.frequency === 'weekly' ? 'أسبوعي' : 'يومي'}
               </p>
             </div>
             <div>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">المدة</p>
-              <p className="font-medium text-gray-900 dark:text-white">{plan.installments_count} قسط</p>
+              <p className="text-[var(--text-secondary)] text-sm">المدة</p>
+              <p className="font-medium text-[var(--text-primary)]">{plan.installments_count} قسط</p>
             </div>
             <div>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">العملة</p>
-              <p className="font-medium text-gray-900 dark:text-white">{plan?.currency === 'USD' ? 'دولار أمريكي (USD)' : 'دينار عراقي (IQD)'}</p>
+              <p className="text-[var(--text-secondary)] text-sm">العملة</p>
+              <p className="font-medium text-[var(--text-primary)]">{plan?.currency === 'USD' ? 'دولار أمريكي (USD)' : 'دينار عراقي (IQD)'}</p>
               {plan?.exchange_rate > 1 && (
-                <p className="text-xs text-[var(--text-primary)]/70">سعر الصرف: 1 USD = {plan.exchange_rate} IQD</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">سعر الصرف: 1 USD = {plan.exchange_rate} IQD</p>
               )}
             </div>
           </div>
@@ -532,49 +549,49 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
             <span>التقدم</span>
             <span>{paidCount}/{plan?.installments_count || 0} قسط مدفوع</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className="w-full bg-gray-100 dark:bg-[#30363D] rounded-full h-2">
             <div
-              className="bg-electric h-2 rounded-full transition-all duration-300"
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
               style={{ width: `${(paidCount / (plan?.installments_count || 1)) * 100}%` }}
             ></div>
           </div>
         </div>
 
         {plan?.notes && (
-          <div className="mt-4 p-3 bg-gray-bg rounded-lg">
+          <div className="mt-4 p-3 bg-gray-50 dark:bg-[#1C2128] rounded-lg">
             <p className="text-gray-600 dark:text-gray-400 text-sm">ملاحظات</p>
-            <p className="text-[var(--text-primary)]">{plan.notes}</p>
+            <p className="text-gray-900 dark:text-white">{plan.notes}</p>
           </div>
         )}
       </div>
 
       {/* جدول الأقساط */}
-      <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 mb-8">
+      <div className="bg-white dark:bg-[#161B22] rounded-xl shadow-md border border-gray-100 dark:border-[#30363D] p-6 mb-8">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">جدول الأقساط</h2>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-[var(--border-color)] bg-[var(--bg-primary)]">
+              <tr className="border-t border-gray-100 dark:border-[#30363D] bg-gray-50 dark:bg-[#1C2128]">
                 <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">#</th>
                 <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">تاريخ الاستحقاق</th>
                 <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">المبلغ</th>
                 <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">الحالة</th>
                 <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold"></th>
-               </tr>
+              </tr>
             </thead>
             <tbody>
               {schedule.length > 0 ? (
               schedule.map((item) => (
-                <tr key={item.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
-                  <td className="py-3 px-4 text-[var(--text-primary)]">{item.installment_no}</td>
-                  <td className="py-3 px-4 text-[var(--text-primary)]">{new Date(item.due_date).toLocaleDateString('ar-IQ')}</td>
-                  <td className="py-3 px-4 text-[var(--text-primary)]">{item?.amount ? item.amount.toLocaleString() : '0'} {plan?.currency === 'USD' ? 'USD' : 'IQD'}</td>
-                  <td className="py-3 px-4 text-[var(--text-primary)]">{getStatusBadge(item.status)}</td>
-                  <td className="py-3 px-4 text-[var(--text-primary)]">
-                    {item.status === 'pending' && plan?.status === 'active' && (
+                <tr key={item.id} className="border-t border-gray-100 dark:border-[#30363D] hover:bg-gray-50 dark:hover:bg-[#1C2128]">
+                  <td className="py-3 px-4 text-gray-900 dark:text-white">{item.installment_no}</td>
+                  <td className="py-3 px-4 text-gray-900 dark:text-white">{new Date(item.due_date).toLocaleDateString('ar-IQ')}</td>
+                  <td className="py-3 px-4 text-gray-900 dark:text-white">{item?.amount ? item.amount.toLocaleString() : '0'} {plan?.currency === 'USD' ? 'USD' : 'IQD'}</td>
+                  <td className="py-3 px-4">{getStatusBadge(item.status)}</td>
+                  <td className="py-3 px-4">
+                    {item.status === 'pending' && (
                       <button
                         onClick={() => openPaymentModal(item)}
-                        className="bg-electric hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-sm transition"
+                        className="bg-[#28A745] hover:bg-[#1F8B3A] text-white px-3 py-1 rounded-lg text-sm transition"
                       >
                         تسديد
                       </button>
@@ -583,32 +600,37 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
                 </tr>
               ))
             ) : (
-              <tr><td colSpan={4} className="text-center py-8">لا توجد أقساط</td></tr>
+              <tr>
+                <td colSpan={5} className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  لا توجد أقساط مسجلة
+                </td>
+              </tr>
             )}
             </tbody>
-           </table>
+          </table>
         </div>
       </div>
 
       {/* سجل الدفعات */}
       {payments.length > 0 && (
-        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
+        <div className="bg-white dark:bg-[#161B22] rounded-xl shadow-md border border-gray-100 dark:border-[#30363D] p-6">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">سجل الدفعات</h2>
+          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">سجل الدفعات</h2>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[var(--border-color)] bg-[var(--bg-primary)]">
-                  <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">رقم الوصل</th>
-                  <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">التاريخ</th>
-                  <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">المبلغ</th>
-                  <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">ملاحظات</th>
-                  <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold"></th>
+                <tr className="border-b border-[var(--border-color)] dark:border-gray-700 bg-[var(--bg-primary)] dark:bg-gray-800">
+                  <th className="text-right py-3 px-4 text-[var(--text-secondary)] dark:text-gray-400 font-semibold">رقم الوصل</th>
+                  <th className="text-right py-3 px-4 text-[var(--text-secondary)] dark:text-gray-400 font-semibold">التاريخ</th>
+                  <th className="text-right py-3 px-4 text-[var(--text-secondary)] dark:text-gray-400 font-semibold">المبلغ</th>
+                  <th className="text-right py-3 px-4 text-[var(--text-secondary)] dark:text-gray-400 font-semibold">ملاحظات</th>
+                  <th className="text-right py-3 px-4 text-[var(--text-secondary)] dark:text-gray-400 font-semibold"></th>
                  </tr>
               </thead>
               <tbody>
                 {payments.length > 0 ? (
                 payments.map((payment) => (
-                  <tr key={payment.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+                  <tr key={payment.id} className="border-b border-[var(--border-color)] dark:border-gray-700 hover:bg-[var(--border-color)]">
                     <td className="py-3 px-4 text-[var(--text-primary)] font-mono text-sm">{payment.receipt_number}</td>
                     <td className="py-3 px-4 text-[var(--text-primary)]">{new Date(payment.payment_date).toLocaleDateString('ar-IQ')}</td>
                     <td className="py-3 px-4 text-[var(--text-primary)]">{payment?.amount_paid ? payment.amount_paid.toLocaleString() : '0'} {plan?.currency === 'USD' ? 'USD' : 'IQD'}</td>
@@ -617,22 +639,25 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
                       <div className="flex gap-2">
                         <button
                           onClick={() => handlePrintReceipt(payment)}
-                          className="text-electric hover:underline text-sm"
+                          className="text-[#3A86FF] hover:underline text-sm"
                         >
-                          🖨️ طباعة
+                          <Printer size={16} className="inline ml-1" />
+                          طباعة
                         </button>
                         <button
                           onClick={() => handleBluetoothPrint(payment)}
                           disabled={connecting}
-                          className="text-blue-600 hover:underline text-sm"
+                          className="text-[#3A86FF] hover:underline text-sm"
                         >
-                          {connecting ? 'جاري الاتصال...' : '📱 طباعة بلوتوث'}
+                          <Printer size={16} className="inline ml-1" />
+                          {connecting ? 'جاري الاتصال...' : 'طباعة بلوتوث'}
                         </button>
                         <button
                           onClick={() => handleSendWhatsApp(payment)}
-                          className="text-green-600 hover:underline text-sm"
+                          className="text-[#28A745] hover:underline text-sm"
                         >
-                          📱 WhatsApp
+                          <MessageCircle size={16} className="inline ml-1" />
+                          WhatsApp
                         </button>
                       </div>
                     </td>
@@ -651,41 +676,41 @@ ${payment.notes ? `ملاحظات: ${payment.notes}` : ''}
       {showPaymentModal && selectedSchedule && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-[var(--card-bg)] rounded-xl shadow-xl w-full max-w-md p-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">تسديد قسط</h2>
+            <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">تسديد قسط</h2>
             <div className="mb-4">
               <p className="text-[var(--text-primary)]">القسط رقم {selectedSchedule.installment_no}</p>
               <p className="text-[var(--text-primary)]">تاريخ الاستحقاق: {new Date(selectedSchedule.due_date).toLocaleDateString('ar-IQ')}</p>
               <p className="text-[var(--text-primary)] font-bold mt-2">المبلغ المستحق: {selectedSchedule?.amount ? selectedSchedule.amount.toLocaleString() : '0'} IQD</p>
             </div>
             <div className="mb-4">
-              <label className="block text-[var(--text-primary)] mb-2">المبلغ المدفوع</label>
+              <label className="block text-[var(--text-secondary)] mb-2">المبلغ المدفوع</label>
               <input
                 type="number"
                 value={paymentAmount}
                 onChange={(e) => setPaymentAmount(parseInt(e.target.value) || 0)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+                className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[var(--card-bg)] text-[var(--text-primary)]"
               />
             </div>
             <div className="mb-6">
-              <label className="block text-[var(--text-primary)] mb-2">ملاحظات</label>
+              <label className="block text-[var(--text-secondary)] mb-2">ملاحظات</label>
               <textarea
                 value={paymentNotes}
                 onChange={(e) => setPaymentNotes(e.target.value)}
                 rows={2}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+                className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[var(--card-bg)] text-[var(--text-primary)]"
               />
             </div>
             <div className="flex gap-3">
               <button
                 onClick={handlePayment}
                 disabled={paymentLoading || paymentAmount <= 0}
-                className="flex-1 bg-success hover:bg-green-600 text-white py-2 rounded-lg transition disabled:opacity-50"
+                className="bg-[#28A745] hover:bg-[#1F8B3A] text-white px-3 py-1 rounded-lg text-sm transition"
               >
                 {paymentLoading ? 'جاري التسديد...' : 'تأكيد التسديد'}
               </button>
               <button
                 onClick={() => setShowPaymentModal(false)}
-                className="flex-1 border border-gray-300 dark:border-gray-600 text-[var(--text-primary)] hover:bg-gray-50 dark:hover:bg-gray-700 py-2 rounded-lg transition"
+                className="btn-outline"
               >
                 إلغاء
               </button>

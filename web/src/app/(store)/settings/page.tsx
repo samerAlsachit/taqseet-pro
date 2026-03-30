@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { connectToBluetoothPrinter } from '@/lib/bluetoothPrint';
+import { Settings, User, Store, CreditCard, FileText, Save, X, Users, CheckCircle, Star, Rocket, Calendar, Headset, Zap } from 'lucide-react';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface StoreSettings {
   id: string;
@@ -37,7 +39,7 @@ export default function SettingsPage() {
   const [store, setStore] = useState<StoreSettings | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
   const [plans, setPlans] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'info' | 'subscription'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'subscription' | 'employees'>('info');
   const [bluetoothPrinter, setBluetoothPrinter] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -108,6 +110,8 @@ export default function SettingsPage() {
     const tab = searchParams.get('tab');
     if (tab === 'subscription') {
       setActiveTab('subscription');
+    } else if (tab === 'employees') {
+      setActiveTab('employees');
     }
   }, [searchParams]);
 
@@ -149,16 +153,15 @@ export default function SettingsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric"></div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-      <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-6">إعدادات المحل</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+        <Settings size={24} />
+        إعدادات المحل
+      </h1>
 
       {error && (
         <div className="bg-red-50 text-danger border border-danger/20 rounded-lg p-3 mb-6">
@@ -173,28 +176,41 @@ export default function SettingsPage() {
       )}
 
       {/* تبويبات */}
-      <div className="bg-[var(--card-bg)] rounded-xl shadow-sm mb-6">
-        <div className="border-b border-[var(--border-color)]">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm mb-6">
+        <div className="border-b border-gray-200 dark:border-gray-700">
           <nav className="flex space-x-8 px-6" aria-label="Tabs">
             <button
               onClick={() => setActiveTab('info')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              className={`flex items-center gap-2 pb-2 px-4 ${
                 activeTab === 'info'
-                  ? 'border-electric text-electric'
-                  : 'border-transparent text-[var(--text-primary)] hover:border-gray-300'
+                  ? 'border-b-2 border-electric text-electric'
+                  : 'text-text-primary'
               }`}
             >
-              معلومات المحل
+              <Store size={18} />
+              <span>معلومات المحل</span>
             </button>
             <button
               onClick={() => setActiveTab('subscription')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              className={`flex items-center gap-2 pb-2 px-4 ${
                 activeTab === 'subscription'
-                  ? 'border-electric text-electric'
-                  : 'border-transparent text-[var(--text-primary)] hover:border-gray-300'
+                  ? 'border-b-2 border-electric text-electric'
+                  : 'text-text-primary'
               }`}
             >
-              الاشتراك
+              <CreditCard size={18} />
+              <span>الاشتراك</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('employees')}
+              className={`flex items-center gap-2 pb-2 px-4 ${
+                activeTab === 'employees'
+                  ? 'border-b-2 border-electric text-electric'
+                  : 'text-text-primary'
+              }`}
+            >
+              <Users size={18} />
+              <span>الموظفين</span>
             </button>
           </nav>
         </div>
@@ -202,122 +218,124 @@ export default function SettingsPage() {
         {/* محتوى تبويب معلومات المحل */}
         {activeTab === 'info' && (
           <form onSubmit={handleSubmit} className="p-6">
-            <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4 pb-2 border-b">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b">
               معلومات المحل
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               <div>
-                <label className="block text-[var(--text-primary)] mb-2">اسم المحل *</label>
+                <label className="block text-gray-500 dark:text-gray-400 mb-2">اسم المحل *</label>
                 <input
                   type="text"
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
               </div>
               <div>
-                <label className="block text-[var(--text-primary)] mb-2">اسم المالك *</label>
+                <label className="block text-gray-500 dark:text-gray-400 mb-2">اسم المالك *</label>
                 <input
                   type="text"
                   required
                   value={formData.owner_name}
                   onChange={(e) => setFormData({ ...formData, owner_name: e.target.value })}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
               </div>
               <div>
-                <label className="block text-[var(--text-primary)] mb-2">رقم الهاتف *</label>
+                <label className="block text-gray-500 dark:text-gray-400 mb-2">رقم الهاتف *</label>
                 <input
                   type="tel"
                   required
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
               </div>
               <div>
-                <label className="block text-[var(--text-primary)] mb-2">المدينة</label>
+                <label className="block text-gray-500 dark:text-gray-400 mb-2">المدينة</label>
                 <input
                   type="text"
                   value={formData.city}
                   onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-[var(--text-primary)] mb-2">العنوان</label>
+                <label className="block text-gray-500 dark:text-gray-400 mb-2">العنوان</label>
                 <input
                   type="text"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
               </div>
             </div>
 
             {/* إعدادات العملة */}
-            <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4 pb-2 border-b mt-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b mt-6">
               إعدادات العملة
             </h2>
             <div className="grid grid-cols-1 gap-6 mb-8">
               <div>
-                <label className="block text-[var(--text-primary)] mb-2">العملة الافتراضية</label>
+                <label className="block text-gray-500 dark:text-gray-400 mb-2">العملة الافتراضية</label>
                 <select
                   value={formData.default_currency}
                   onChange={(e) => setFormData({ ...formData, default_currency: e.target.value })}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 >
                   <option value="IQD">دينار عراقي (IQD)</option>
                   <option value="USD">دولار أمريكي (USD)</option>
                 </select>
-                <p className="text-xs text-[var(--text-primary)] mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   سيتم استخدام هذه العملة كافتراضية عند إنشاء الأقساط
                 </p>
               </div>
             </div>
 
             {/* إعدادات الوصل */}
-            <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4 pb-2 border-b mt-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 pb-2 border-b mt-6">
               إعدادات الوصل
             </h2>
             <div className="grid grid-cols-1 gap-6 mb-8">
               <div>
-                <label className="block text-[var(--text-primary)] mb-2">رأس الوصل (Header)</label>
+                <label className="block text-gray-500 dark:text-gray-400 mb-2">رأس الوصل (Header)</label>
                 <textarea
                   rows={3}
                   value={formData.receipt_header}
                   onChange={(e) => setFormData({ ...formData, receipt_header: e.target.value })}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   placeholder="نص يظهر أعلى الوصل مثل: شكراً لثقتكم بنا"
                 />
               </div>
               <div>
-                <label className="block text-[var(--text-primary)] mb-2">تذييل الوصل (Footer)</label>
+                <label className="block text-gray-500 dark:text-gray-400 mb-2">تذييل الوصل (Footer)</label>
                 <textarea
                   rows={3}
                   value={formData.receipt_footer}
                   onChange={(e) => setFormData({ ...formData, receipt_footer: e.target.value })}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   placeholder="نص يظهر أسفل الوصل مثل: للاستفسار: 077XXXXXXXX"
                 />
               </div>
             </div>
 
-            <div className="flex gap-3 pt-4 border-t">
+            <div className="flex gap-3 mt-6">
               <button
                 type="submit"
                 disabled={saving}
-                className="bg-electric hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition disabled:opacity-50"
+                className="flex items-center gap-2 bg-electric hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition disabled:opacity-50"
               >
-                {saving ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+                <Save size={18} />
+                <span>{saving ? 'جاري الحفظ...' : 'حفظ التغييرات'}</span>
               </button>
               <button
                 type="button"
                 onClick={() => router.push('/dashboard')}
-                className="border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-primary)] px-6 py-2 rounded-lg transition"
+                className="flex items-center gap-2 border border-gray-300 dark:border-gray-600 text-text-primary hover:bg-gray-100 dark:hover:bg-gray-700 px-6 py-2 rounded-lg transition"
               >
-                إلغاء
+                <X size={18} />
+                <span>إلغاء</span>
               </button>
             </div>
           </form>
@@ -326,24 +344,24 @@ export default function SettingsPage() {
         {/* محتوى تبويب الاشتراك */}
         {activeTab === 'subscription' && (
           <div className="p-6">
-            <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">معلومات الاشتراك</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">معلومات الاشتراك</h2>
 
             {subscription && (
-              <div className="mb-6 p-4 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-color)]">
+              <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                 {subscription.is_trial ? (
-                  <p className="text-[var(--text-primary)]">
+                  <p className="text-gray-900 dark:text-gray-200">
                     أنت في فترة التجربة المجانية.{' '}
                     {subscription.trial_days_remaining !== null && (
-                      <span className="font-bold text-electric">
+                      <span className="font-bold text-blue-600">
                         متبقي {subscription.trial_days_remaining} يوم
                       </span>
                     )}
                   </p>
                 ) : subscription.is_active ? (
-                  <p className="text-[var(--text-primary)]">
+                  <p className="text-gray-900 dark:text-gray-200">
                     اشتراكك نشط.{' '}
                     {subscription.days_remaining !== null && (
-                      <span className="font-bold text-electric">
+                      <span className="font-bold text-blue-600">
                         متبقي {subscription.days_remaining} يوم
                       </span>
                     )}
@@ -354,38 +372,69 @@ export default function SettingsPage() {
               </div>
             )}
 
-            <h3 className="text-lg font-bold text-[var(--text-primary)] mb-4">الخطط المتاحة</h3>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">الخطط المتاحة</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {plans.map((plan: any) => (
-                <div
-                  key={plan.id}
-                  className="border border-[var(--border-color)] rounded-xl p-4 bg-[var(--card-bg)]"
-                >
-                  <h4 className="text-lg font-bold text-[var(--text-primary)]">{plan.name}</h4>
-                  <p className="text-electric font-bold text-xl my-2">
-                    {plan.price} {plan.currency}
-                  </p>
-                  <ul className="text-[var(--text-primary)] text-sm space-y-1 mb-4">
-                    {plan.features?.map((f: string, i: number) => (
-                      <li key={i}>✅ {f}</li>
-                    ))}
-                  </ul>
-                  <button
-                    onClick={() =>
-                      alert(`طلب اشتراك في خطة ${plan.name} - سيتم التواصل معك قريباً`)
-                    }
-                    className="w-full bg-electric text-white py-2 rounded-lg hover:bg-blue-600 transition"
+              {plans.map((plan: any) => {
+                const isYearly = plan.name === 'سنوي';
+                const isThreeYear = plan.name === '3 سنوات';
+                const isMonthly = plan.name === 'شهري';
+                
+                return (
+                  <div
+                    key={plan.id}
+                    className={`border rounded-xl p-6 hover:shadow-lg transition relative ${
+                      isYearly ? 'border-2 border-electric' : 'border border-gray-300 dark:border-gray-600'
+                    } bg-white dark:bg-gray-800`}
                   >
-                    اشتراك
-                  </button>
-                </div>
-              ))}
+                    {isYearly && (
+                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-electric text-white px-3 py-1 rounded-full text-sm flex items-center gap-1">
+                        <Star size={12} />
+                        <span>الأكثر طلباً</span>
+                      </div>
+                    )}
+                    
+                    {isMonthly && (
+                      <Calendar className="text-electric w-10 h-10 mb-3" />
+                    )}
+                    
+                    {isThreeYear && (
+                      <Rocket className="text-electric w-10 h-10 mb-3" />
+                    )}
+                    
+                    {isYearly && (
+                      <Star className="text-yellow-500 w-10 h-10 mb-3" />
+                    )}
+                    
+                    <h3 className="text-xl font-bold text-navy dark:text-white mb-2">{plan.name}</h3>
+                    <p className="text-blue-600 font-bold text-xl my-2">
+                      {plan.price} {plan.currency}
+                    </p>
+                    <ul className="text-gray-900 dark:text-gray-200 text-sm space-y-1 mb-6">
+                      {plan.features?.map((f: string, i: number) => (
+                        <li key={i} className="flex items-center gap-2">
+                          <CheckCircle size={16} className="text-success" />
+                          <span>{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      onClick={() =>
+                        alert(`طلب اشتراك في خطة ${plan.name} - سيتم التواصل معك قريباً`)
+                      }
+                      className="btn-primary"
+                    >
+                      اشتراك
+                    </button>
+                  </div>
+                );
+              })}
             </div>
 
-            <div className="mt-8 p-4 bg-[var(--bg-primary)] rounded-lg text-center border border-[var(--border-color)]">
-              <p className="text-[var(--text-primary)] text-sm">
+            <div className="mt-8 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg text-center border border-gray-200 dark:border-gray-600">
+              <p className="text-gray-900 dark:text-gray-200 text-sm">
                 للاستفسار عن الاشتراك، يرجى التواصل مع الدعم:
                 <br />
+                077XXXXXXXX | support@marsat.com
                 📞 077XXXXXXXX | 📧 support@marsat.com
               </p>
             </div>
@@ -394,17 +443,17 @@ export default function SettingsPage() {
       </div>
 
       {/* إعدادات الطباعة */}
-      <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
-        <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">إعدادات الطباعة</h2>
-        <p className="text-[var(--text-primary)] mb-4">طابعة بلوتوث</p>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">إعدادات الطباعة</h2>
+        <p className="text-gray-900 dark:text-gray-200 mb-4">طابعة بلوتوث</p>
         {bluetoothPrinter ? (
           <div className="flex justify-between items-center">
-            <span className="text-[var(--text-primary)]">
+            <span className="text-gray-900 dark:text-gray-200">
               الطابعة المتصلة: {bluetoothPrinter.name}
             </span>
             <button
               onClick={() => setBluetoothPrinter(null)}
-              className="text-danger hover:underline"
+              className="btn-outline"
             >
               قطع الاتصال
             </button>
@@ -415,12 +464,12 @@ export default function SettingsPage() {
               const printer = await connectToBluetoothPrinter();
               if (printer) setBluetoothPrinter(printer);
             }}
-            className="bg-electric text-white px-4 py-2 rounded-lg"
+            className="btn-primary"
           >
             توصيل طابعة بلوتوث
           </button>
         )}
-        <p className="text-[var(--text-primary)] text-sm mt-4">
+        <p className="text-gray-500 dark:text-gray-400 text-sm mt-4">
           ملاحظة: هذه الميزة تعمل على المتصفحات التي تدعم Web Bluetooth (Chrome, Edge)
         </p>
       </div>

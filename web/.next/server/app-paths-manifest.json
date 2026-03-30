@@ -1,8 +1,3 @@
 {
-  "/login/page": "app/login/page.js",
-  "/(store)/installments/page": "app/(store)/installments/page.js",
-  "/(store)/customers/page": "app/(store)/customers/page.js",
-  "/(store)/payments/new/page": "app/(store)/payments/new/page.js",
-  "/(store)/reports/page": "app/(store)/reports/page.js",
-  "/(store)/customers/[id]/page": "app/(store)/customers/[id]/page.js"
+  "/(store)/dashboard/page": "app/(store)/dashboard/page.js"
 }

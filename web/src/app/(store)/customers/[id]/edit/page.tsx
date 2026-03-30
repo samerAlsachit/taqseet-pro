@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 export default function EditCustomerPage() {
   const router = useRouter();
@@ -96,32 +97,28 @@ export default function EditCustomerPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric"></div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+    <div className="max-w-3xl mx-auto px-4 py-8 sm:px-6 lg:px-8 bg-[#F0F2F5] dark:bg-[#0D1117]">
       <div className="flex items-center gap-4 mb-6">
         <Link href={`/customers/${customerId}`} className="text-electric hover:underline">
           ← العودة إلى ملف العميل
         </Link>
-        <h1 className="text-2xl font-bold text-navy">تعديل بيانات العميل</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">تعديل العميل</h1>
       </div>
 
       {error && (
-        <div className="bg-red-50 text-danger border border-danger/20 rounded-lg p-3 mb-6">
+        <div className="bg-red-50 text-red-600 border border-red-200 rounded-lg p-3 mb-6">
           {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm p-6">
+      <form onSubmit={handleSubmit} className="bg-white dark:bg-[#161B22] rounded-xl shadow-md border border-gray-100 dark:border-[#30363D] p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="md:col-span-2">
-            <label className="block text-text-primary mb-2">
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
               اسم العميل <span className="text-danger">*</span>
             </label>
             <input
@@ -129,12 +126,12 @@ export default function EditCustomerPage() {
               required
               value={formData.full_name}
               onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+              className="w-full px-4 py-2 bg-white dark:bg-[#1C2128] border border-gray-300 dark:border-[#30363D] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3A86FF] focus:border-transparent transition-colors duration-200"
             />
           </div>
 
           <div>
-            <label className="block text-text-primary mb-2">
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">
               رقم الهاتف <span className="text-danger">*</span>
             </label>
             <input
@@ -142,47 +139,47 @@ export default function EditCustomerPage() {
               required
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+              className="w-full px-4 py-2 bg-white dark:bg-[#1C2128] border border-gray-300 dark:border-[#30363D] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3A86FF] focus:border-transparent transition-colors duration-200"
             />
           </div>
 
           <div>
-            <label className="block text-text-primary mb-2">هاتف إضافي</label>
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">هاتف إضافي</label>
             <input
               type="tel"
               value={formData.phone_alt}
               onChange={(e) => setFormData({ ...formData, phone_alt: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+              className="w-full px-4 py-2 bg-white dark:bg-[#1C2128] border border-gray-300 dark:border-[#30363D] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3A86FF] focus:border-transparent transition-colors duration-200"
             />
           </div>
 
           <div>
-            <label className="block text-text-primary mb-2">الرقم الوطني</label>
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">الرقم الوطني</label>
             <input
               type="text"
               value={formData.national_id}
               onChange={(e) => setFormData({ ...formData, national_id: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+              className="w-full px-4 py-2 bg-white dark:bg-[#1C2128] border border-gray-300 dark:border-[#30363D] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3A86FF] focus:border-transparent transition-colors duration-200"
             />
           </div>
 
           <div className="md:col-span-2">
-            <label className="block text-text-primary mb-2">العنوان</label>
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">العنوان</label>
             <input
               type="text"
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+              className="w-full px-4 py-2 bg-white dark:bg-[#1C2128] border border-gray-300 dark:border-[#30363D] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3A86FF] focus:border-transparent transition-colors duration-200"
             />
           </div>
 
           <div className="md:col-span-2">
-            <label className="block text-text-primary mb-2">ملاحظات</label>
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">ملاحظات</label>
             <textarea
               rows={3}
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+              className="w-full px-4 py-2 bg-white dark:bg-[#1C2128] border border-gray-300 dark:border-[#30363D] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3A86FF] focus:border-transparent transition-colors duration-200"
             />
           </div>
         </div>
@@ -191,13 +188,13 @@ export default function EditCustomerPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="bg-electric hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition disabled:opacity-50"
+            className="bg-[#3A86FF] hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition disabled:opacity-50"
           >
             {submitting ? 'جاري الحفظ...' : 'حفظ التغييرات'}
           </button>
           <Link
             href={`/customers/${customerId}`}
-            className="border border-gray-300 text-text-primary hover:bg-gray-50 px-6 py-2 rounded-lg transition"
+            className="border border-gray-300 dark:border-[#30363D] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1C2128] px-6 py-2 rounded-lg transition"
           >
             إلغاء
           </Link>

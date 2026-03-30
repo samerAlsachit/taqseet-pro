@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
+import { Edit, Trash2 } from 'lucide-react';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface Product {
   id: string;
@@ -73,12 +76,13 @@ export default function ProductsPage() {
       });
       const data = await res.json();
       if (data.success) {
+        toast.success('تم حذف المنتج بنجاح');
         fetchProducts();
       } else {
-        alert(data.error || 'فشل في حذف المنتج');
+        toast.error(data.error || 'فشل في حذف المنتج');
       }
     } catch {
-      alert('حدث خطأ في الاتصال بالخادم');
+      toast.error('حدث خطأ في الاتصال بالخادم');
     }
   };
 
@@ -96,10 +100,10 @@ export default function ProductsPage() {
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className="text-2xl font-bold text-navy">المخزن</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">المخزن</h1>
         <Link
           href="/products/new"
-          className="bg-electric hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition text-center"
+          className="btn-primary"
         >
           + إضافة منتج جديد
         </Link>
@@ -115,9 +119,9 @@ export default function ProductsPage() {
             setSearch(e.target.value);
             setPage(1);
           }}
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+          className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
         />
-        <label className="flex items-center gap-2 px-4 py-2 bg-[var(--card-bg)] rounded-lg border border-gray-300 dark:border-gray-700">
+        <label className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600">
           <input
             type="checkbox"
             checked={showLowStock}
@@ -125,50 +129,48 @@ export default function ProductsPage() {
               setShowLowStock(e.target.checked);
               setPage(1);
             }}
-            className="w-4 h-4 text-electric"
+            className="w-4 h-4 text-blue-600"
           />
-          <span className="text-[var(--text-primary)]">منتجات المخزون المنخفض فقط</span>
+          <span className="text-gray-900 dark:text-white">منتجات المخزون المنخفض فقط</span>
         </label>
       </div>
 
       {/* Table */}
       {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric"></div>
-        </div>
+        <LoadingSpinner />
       ) : products.length === 0 ? (
-        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-12 text-center">
-          <p className="text-[var(--text-primary)] mb-4">لا توجد منتجات</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-12 text-center">
+          <p className="text-gray-900 dark:text-white mb-4">لا توجد منتجات</p>
           <Link
             href="/products/new"
-            className="bg-electric text-white px-4 py-2 rounded-lg inline-block"
+            className="btn-primary"
           >
             أضف أول منتج
           </Link>
         </div>
       ) : (
         <>
-          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-[var(--border-color)] bg-[var(--bg-primary)]">
-                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">المنتج</th>
-                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">الفئة</th>
-                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">الكمية</th>
-                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">العملة</th>
-                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">سعر البيع نقداً</th>
-                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">سعر البيع بالقسط</th>
-                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">الحالة</th>
-                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">إجراءات</th>
+                  <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                    <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">المنتج</th>
+                    <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">الفئة</th>
+                    <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">الكمية</th>
+                    <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">العملة</th>
+                    <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">سعر البيع نقداً</th>
+                    <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">سعر البيع بالقسط</th>
+                    <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">الحالة</th>
+                    <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">إجراءات</th>
                   </tr>
                 </thead>
                 <tbody>
                   {products.map((product) => (
-                    <tr key={product.id} className="border-b border-[var(--border-color)] hover:bg-gray-50">
-                      <td className="py-3 px-4 text-[var(--text-primary)] font-medium">{product.name}</td>
-                      <td className="py-3 px-4 text-[var(--text-primary)]">{product.category || '-'}</td>
-                      <td className="py-3 px-4 text-[var(--text-primary)]">{product.quantity}</td>
+                    <tr key={product.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <td className="py-3 px-4 text-gray-900 dark:text-white font-medium">{product.name}</td>
+                      <td className="py-3 px-4 text-gray-900 dark:text-white">{product.category || '-'}</td>
+                      <td className="py-3 px-4 text-gray-900 dark:text-white">{product.quantity}</td>
                       <td className="py-3 px-4">
                         <span className="px-2 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-700">
                           {product.currency === 'USD' ? 'دولار' : 'دينار'}
@@ -189,14 +191,16 @@ export default function ProductsPage() {
                         <div className="flex gap-2">
                           <Link
                             href={`/products/${product.id}/edit`}
-                            className="text-electric hover:underline"
+                            className="text-[#3A86FF] hover:underline text-sm"
                           >
+                            <Edit size={16} className="inline ml-1" />
                             تعديل
                           </Link>
                           <button
                             onClick={() => handleDelete(product.id)}
-                            className="text-danger hover:underline"
+                            className="text-[#DC3545] hover:underline text-sm"
                           >
+                            <Trash2 size={16} className="inline ml-1" />
                             حذف
                           </button>
                         </div>
@@ -214,17 +218,17 @@ export default function ProductsPage() {
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-4 py-2 rounded-lg border border-gray-300 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white disabled:opacity-50"
               >
                 السابق
               </button>
-              <span className="px-4 py-2 text-[var(--text-primary)]">
+              <span className="px-4 py-2 text-gray-900 dark:text-white">
                 صفحة {page} من {totalPages}
               </span>
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="px-4 py-2 rounded-lg border border-gray-300 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white disabled:opacity-50"
               >
                 التالي
               </button>

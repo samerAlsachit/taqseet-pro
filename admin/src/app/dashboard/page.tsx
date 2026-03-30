@@ -4,6 +4,18 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AdminLayout from '@/components/layout/AdminLayout';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import {
+  Store,
+  AlertTriangle,
+  MessageCircle,
+  Mail,
+  Clock,
+  Users,
+  AlertCircle,
+  Calendar,
+  TrendingUp
+} from 'lucide-react';
 
 interface Stats {
   total_stores: number;
@@ -133,12 +145,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric mx-auto"></div>
-            <p className="mt-4 text-text-primary">جاري تحميل البيانات...</p>
-          </div>
-        </div>
+        <LoadingSpinner />
       </AdminLayout>
     );
   }
@@ -160,19 +167,31 @@ export default function DashboardPage() {
       {/* بطاقات الإحصائيات */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-[var(--electric-color)]">
-          <p className="text-[var(--text-primary)]/70 text-sm mb-1">إجمالي المحلات</p>
+          <div className="flex items-center justify-between mb-2">
+            <Store className="text-[var(--electric-color)]" size={24} />
+            <p className="text-[var(--text-primary)]/70 text-sm">إجمالي المحلات</p>
+          </div>
           <p className="text-3xl font-bold text-[var(--text-primary)]">{stats?.total_stores || 0}</p>
         </div>
         <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-[var(--success-color)]">
-          <p className="text-[var(--text-primary)]/70 text-sm mb-1">المحلات النشطة</p>
+          <div className="flex items-center justify-between mb-2">
+            <Users className="text-[var(--success-color)]" size={24} />
+            <p className="text-[var(--text-primary)]/70 text-sm">المحلات النشطة</p>
+          </div>
           <p className="text-3xl font-bold text-[var(--text-primary)]">{stats?.active_stores || 0}</p>
         </div>
         <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-[var(--warning-color)]">
-          <p className="text-[var(--text-primary)]/70 text-sm mb-1">تنتهي خلال 7 أيام</p>
+          <div className="flex items-center justify-between mb-2">
+            <AlertCircle className="text-[var(--warning-color)]" size={24} />
+            <p className="text-[var(--text-primary)]/70 text-sm">تنتهي خلال 7 أيام</p>
+          </div>
           <p className="text-3xl font-bold text-[var(--text-primary)]">{stats?.expiring_soon || 0}</p>
         </div>
         <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-[var(--electric-color)]">
-          <p className="text-[var(--text-primary)]/70 text-sm mb-1">محلات جديدة هذا الشهر</p>
+          <div className="flex items-center justify-between mb-2">
+            <Calendar className="text-[var(--electric-color)]" size={24} />
+            <p className="text-[var(--text-primary)]/70 text-sm">محلات جديدة هذا الشهر</p>
+          </div>
           <p className="text-3xl font-bold text-[var(--text-primary)]">{stats?.new_stores_this_month || 0}</p>
         </div>
       </div>
@@ -181,7 +200,10 @@ export default function DashboardPage() {
       {expiringStores.length > 0 && (
         <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 mb-8">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-[var(--warning-color)]">⚠️ محلات على وشك انتهاء الاشتراك</h2>
+            <h2 className="text-xl font-bold text-[var(--warning-color)] flex items-center gap-2">
+              <AlertTriangle size={20} />
+              محلات على وشك انتهاء الاشتراك
+            </h2>
             <Link href="/stores?status=expiring" className="text-[var(--electric-color)] hover:underline text-sm">
               عرض الكل
             </Link>
@@ -199,18 +221,21 @@ export default function DashboardPage() {
                     onClick={() => handleSendWhatsApp(store)}
                     className="bg-[var(--success-color)] text-white px-3 py-1 rounded-lg text-sm"
                   >
-                    📱 واتساب
+                    <MessageCircle size={16} className="inline ml-1" />
+                    واتساب
                   </button>
                   <button
                     onClick={() => handleSendEmail(store)}
                     className="bg-[var(--electric-color)] text-white px-3 py-1 rounded-lg text-sm"
                   >
-                    📧 إيميل
+                    <Mail size={16} className="inline ml-1" />
+                    إيميل
                   </button>
                   <button
                     onClick={() => router.push(`/stores?extend=${store.id}`)}
                     className="bg-[var(--warning-color)] text-white px-3 py-1 rounded-lg text-sm"
                   >
+                    <Clock size={16} className="inline ml-1" />
                     تمديد
                   </button>
                 </div>

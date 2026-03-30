@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 
 interface Customer {
   id: string;
@@ -20,6 +21,7 @@ interface Installment {
   installment_amount: number;
   total_count: number;
   paid_count: number;
+  currency: string;
 }
 
 export default function NewPaymentPage() {
@@ -41,13 +43,11 @@ export default function NewPaymentPage() {
   const [paymentNotes, setPaymentNotes] = useState('');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
 
-  // أضف هذه الـ states
   const [paymentType, setPaymentType] = useState<'installment' | 'full'>('installment');
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
   const [discountValue, setDiscountValue] = useState(0);
   const [finalAmount, setFinalAmount] = useState(0);
 
-  // جلب العملاء
   useEffect(() => {
     const fetchCustomers = async () => {
       const token = localStorage.getItem('token');
@@ -73,12 +73,10 @@ export default function NewPaymentPage() {
     fetchCustomers();
   }, [preSelectedCustomer]);
 
-  // فلترة العملاء حسب البحث
   const filteredCustomers = customers.filter(customer =>
     customer.full_name.includes(searchTerm) || customer.phone.includes(searchTerm)
   );
 
-  // اختيار عميل
   const handleSelectCustomer = (customer: Customer) => {
     setSelectedCustomer(customer.id);
     setSearchTerm(customer.full_name);
@@ -87,7 +85,6 @@ export default function NewPaymentPage() {
     setInstallments([]);
   };
 
-  // جلب الأقساط النشطة للعميل
   useEffect(() => {
     if (!selectedCustomer) {
       setInstallments([]);
@@ -112,7 +109,7 @@ export default function NewPaymentPage() {
             installment_amount: inst.installment_amount,
             total_count: inst.total_count,
             paid_count: inst.paid_count,
-            currency: inst.currency || 'IQD'  // <-- أضف هذا السطر
+            currency: inst.currency || 'IQD'
           }));
           setInstallments(formatted);
         }
@@ -123,17 +120,6 @@ export default function NewPaymentPage() {
     fetchInstallments();
   }, [selectedCustomer]);
 
-  // عند اختيار قسط، تعيين المبلغ المستحق
-  useEffect(() => {
-    const installment = installments.find(i => i.id === selectedInstallment);
-    if (installment) {
-      setPaymentAmount(installment.next_due_amount);
-    } else {
-      setPaymentAmount(0);
-    }
-  }, [selectedInstallment, installments]);
-
-  // حساب المبلغ النهائي بعد التخفيض
   useEffect(() => {
     const installment = installments.find(i => i.id === selectedInstallment);
     if (!installment) return;
@@ -160,11 +146,11 @@ export default function NewPaymentPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedInstallment) {
-      setError('الرجاء اختيار قسط');
+      toast.error('الرجاء اختيار قسط');
       return;
     }
     if (paymentAmount <= 0) {
-      setError('المبلغ غير صحيح');
+      toast.error('المبلغ غير صحيح');
       return;
     }
 
@@ -175,7 +161,6 @@ export default function NewPaymentPage() {
     const token = localStorage.getItem('token');
     try {
       if (paymentType === 'full') {
-        // استخدام endpoint التسديد الكامل
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments/full-settlement`, {
           method: 'POST',
           headers: {
@@ -194,80 +179,59 @@ export default function NewPaymentPage() {
 
         const data = await res.json();
         if (data.success) {
-          setSuccess(data.message);
+          toast.success(data.message);
           setTimeout(() => {
             router.push(`/installments/${selectedInstallment}`);
           }, 2000);
         } else {
-          setError(data.error || 'فشل في تسجيل الدفعة');
+          toast.error(data.error || 'فشل في تسجيل الدفعة');
         }
       } else {
-        // التسديد العادي (قسط واحد)
-        // جلب تفاصيل القسط
         const planRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/installments/${selectedInstallment}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const planData = await planRes.json();
         
         if (!planData.success) {
-          setError('فشل في جلب تفاصيل القسط');
+          toast.error('فشل في جلب تفاصيل القسط');
           setLoading(false);
           return;
         }
 
-        let scheduleIds: string[] = [];
-        
-        if (paymentType === 'full') {
-          // جلب جميع الأقساط المتبقية
-          const pendingSchedules = planData.data.installments.filter((s: any) => s.status === 'pending');
-          scheduleIds = pendingSchedules.map((s: any) => s.id);
+        const nextSchedule = planData.data.installments.find((s: any) => s.status === 'pending');
+        if (!nextSchedule) {
+          toast.error('لا توجد أقساط مستحقة للدفع');
+          setLoading(false);
+          return;
+        }
+
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}` 
+          },
+          body: JSON.stringify({
+            plan_id: selectedInstallment,
+            schedule_id: nextSchedule.id,
+            amount_paid: paymentAmount,
+            payment_date: paymentDate,
+            notes: paymentNotes
+          })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          toast.success('تم تسجيل الدفعة بنجاح');
+          setTimeout(() => {
+            router.push(`/installments/${selectedInstallment}`);
+          }, 2000);
         } else {
-          // جلب القسط التالي فقط
-          const nextSchedule = planData.data.installments.find((s: any) => s.status === 'pending');
-          if (!nextSchedule) {
-            setError('لا توجد أقساط مستحقة للدفع');
-            setLoading(false);
-            return;
-          }
-          scheduleIds = [nextSchedule.id];
+          toast.error(data.error || 'فشل في تسجيل الدفعة');
         }
-
-        // إنشاء دفعة واحدة لكل قسط
-        for (const scheduleId of scheduleIds) {
-          const scheduleAmount = scheduleIds.length === 1 
-            ? paymentAmount 
-            : (paymentAmount / scheduleIds.length); // توزيع المبلغ على الأقساط
-
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payments`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}` 
-            },
-            body: JSON.stringify({
-              plan_id: selectedInstallment,
-              schedule_id: scheduleId,
-              amount_paid: Math.round(scheduleAmount),
-              payment_date: paymentDate,
-              notes: paymentType === 'full' 
-                ? `تسديد كامل المبلغ${discountValue > 0 ? ` مع تخفيض ${discountType === 'percentage' ? `${discountValue}%` : `${discountValue} IQD`}` : ''} - ${paymentNotes}` 
-                : paymentNotes
-            })
-          });
-          
-          const data = await res.json();
-          if (!data.success) {
-            throw new Error(data.error);
-          }
-        }
-
-        setSuccess(`تم تسجيل الدفعة بنجاح (${scheduleIds.length} قسط)`);
-        setTimeout(() => {
-          router.push(`/installments/${selectedInstallment}`);
-        }, 2000);
       }
     } catch (err: any) {
-      setError(err.message || 'فشل في تسجيل الدفعة');
+      toast.error(err.message || 'فشل في تسجيل الدفعة');
     } finally {
       setLoading(false);
     }
@@ -277,7 +241,7 @@ export default function NewPaymentPage() {
   const selectedInstallmentData = installments.find(i => i.id === selectedInstallment);
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+    <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex items-center gap-4 mb-6">
         <Link href="/dashboard" className="text-electric hover:underline">
           ← العودة إلى لوحة التحكم
@@ -297,8 +261,7 @@ export default function NewPaymentPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
-        {/* اختيار العميل مع بحث */}
+      <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <div className="mb-6 relative">
           <label className="block text-text-primary dark:text-gray-300 mb-2">العميل *</label>
           <input
@@ -307,24 +270,22 @@ export default function NewPaymentPage() {
             onChange={(e) => {
               setSearchTerm(e.target.value);
               setShowCustomerDropdown(true);
-              if (e.target.value === '') {
-                setSelectedCustomer('');
-              }
+              if (e.target.value === '') setSelectedCustomer('');
             }}
             onFocus={() => setShowCustomerDropdown(true)}
             placeholder="ابحث باسم العميل أو رقم الهاتف..."
-            className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-card text-text-primary dark:text-white"
+            className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
             required
           />
           
           {showCustomerDropdown && filteredCustomers.length > 0 && (
-            <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-border rounded-lg shadow-lg max-h-60 overflow-auto">
+            <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-auto">
               {filteredCustomers.map((customer) => (
                 <button
                   key={customer.id}
                   type="button"
                   onClick={() => handleSelectCustomer(customer)}
-                  className="w-full text-right px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition text-text-primary dark:text-white"
+                  className="w-full text-right px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition text-text-primary"
                 >
                   <div className="font-medium">{customer.full_name}</div>
                   <div className="text-sm text-gray-500 dark:text-gray-400">{customer.phone}</div>
@@ -334,7 +295,6 @@ export default function NewPaymentPage() {
           )}
         </div>
 
-        {/* عرض أقساط العميل */}
         {selectedCustomer && installments.length > 0 && (
           <div className="mb-6">
             <label className="block text-text-primary dark:text-gray-300 mb-2">اختر القسط *</label>
@@ -347,7 +307,7 @@ export default function NewPaymentPage() {
                   className={`w-full text-right p-4 border rounded-lg transition ${
                     selectedInstallment === inst.id
                       ? 'border-electric bg-electric/5 dark:bg-electric/10'
-                      : 'border-border hover:border-electric'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-electric'
                   }`}
                 >
                   <div className="flex justify-between items-center">
@@ -381,10 +341,8 @@ export default function NewPaymentPage() {
           </div>
         )}
 
-        {/* تفاصيل الدفعة */}
         {selectedInstallment && selectedInstallmentData && (
           <>
-            {/* خيارات التسديد */}
             <div className="mb-6">
               <label className="block text-text-primary dark:text-gray-300 mb-2">نوع التسديد</label>
               <div className="flex gap-4">
@@ -396,7 +354,7 @@ export default function NewPaymentPage() {
                     onChange={(e) => setPaymentType(e.target.value as any)}
                     className="w-4 h-4 text-electric"
                   />
-                  <span>تسديد القسط الحالي فقط</span>
+                  <span className="text-text-primary dark:text-white">تسديد القسط الحالي فقط</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -406,14 +364,13 @@ export default function NewPaymentPage() {
                     onChange={(e) => setPaymentType(e.target.value as any)}
                     className="w-4 h-4 text-electric"
                   />
-                  <span>تسديد كامل المبلغ المتبقي دفعة واحدة</span>
+                  <span className="text-text-primary dark:text-white">تسديد كامل المبلغ المتبقي دفعة واحدة</span>
                 </label>
               </div>
             </div>
 
-            {/* خيارات التخفيض (للتسديد الكامل) */}
             {paymentType === 'full' && (
-              <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+              <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
                 <label className="block text-text-primary dark:text-gray-300 mb-2">تخفيض</label>
                 <div className="flex gap-4 mb-3">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -424,7 +381,7 @@ export default function NewPaymentPage() {
                       onChange={(e) => setDiscountType(e.target.value as any)}
                       className="w-4 h-4 text-electric"
                     />
-                    <span>نسبة مئوية (%)</span>
+                    <span className="text-text-primary dark:text-white">نسبة مئوية (%)</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -434,7 +391,7 @@ export default function NewPaymentPage() {
                       onChange={(e) => setDiscountType(e.target.value as any)}
                       className="w-4 h-4 text-electric"
                     />
-                    <span>قيمة ثابتة (IQD)</span>
+                    <span className="text-text-primary dark:text-white">قيمة ثابتة</span>
                   </label>
                 </div>
                 
@@ -442,27 +399,9 @@ export default function NewPaymentPage() {
                   type="number"
                   value={discountValue}
                   onChange={(e) => setDiscountValue(parseInt(e.target.value) || 0)}
-                  placeholder={discountType === 'percentage' ? 'نسبة التخفيض (مثال: 10)' : 'قيمة التخفيض (مثال: 50000)'}
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-card text-text-primary dark:text-white"
+                  placeholder={discountType === 'percentage' ? 'نسبة التخفيض (مثال: 10)' : 'قيمة التخفيض'}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
-                
-                <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/30 rounded-lg">
-                  <p className="text-text-primary dark:text-gray-300 text-sm">
-                    المبلغ الأصلي: <strong>{selectedInstallmentData?.remaining_amount?.toLocaleString()} {selectedInstallmentData?.currency === 'USD' ? 'USD' : 'IQD'}</strong>
-                  </p>
-                  {discountValue > 0 && (
-                    <p className="text-text-primary dark:text-gray-300 text-sm mt-1">
-                      التخفيض: <strong className="text-danger">
-                        {discountType === 'percentage' 
-                          ? `${discountValue}% (${Math.round(selectedInstallmentData.remaining_amount * discountValue / 100).toLocaleString()} IQD)` 
-                          : `${discountValue.toLocaleString()} IQD`}
-                      </strong>
-                    </p>
-                  )}
-                  <p className="text-text-primary dark:text-gray-300 text-sm mt-1 font-bold">
-                    المبلغ النهائي: <strong className="text-success text-lg">{finalAmount.toLocaleString()} {selectedInstallmentData?.currency === 'USD' ? 'USD' : 'IQD'}</strong>
-                  </p>
-                </div>
               </div>
             )}
 
@@ -473,11 +412,13 @@ export default function NewPaymentPage() {
                   type="number"
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(parseInt(e.target.value) || 0)}
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-card text-text-primary dark:text-white"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   required
                   min="1"
                 />
-                <p className="text-xs text-gray-500 mt-1">المبلغ المستحق: {(selectedInstallmentData?.next_due_amount ?? 0).toLocaleString()} {selectedInstallmentData?.currency === 'USD' ? 'USD' : 'IQD'}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  المبلغ المستحق: {(selectedInstallmentData?.next_due_amount ?? 0).toLocaleString()} {selectedInstallmentData?.currency === 'USD' ? 'USD' : 'IQD'}
+                </p>
               </div>
 
               <div>
@@ -486,7 +427,7 @@ export default function NewPaymentPage() {
                   type="date"
                   value={paymentDate}
                   onChange={(e) => setPaymentDate(e.target.value)}
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-card text-text-primary dark:text-white"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   required
                 />
               </div>
@@ -497,13 +438,13 @@ export default function NewPaymentPage() {
                   rows={3}
                   value={paymentNotes}
                   onChange={(e) => setPaymentNotes(e.target.value)}
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-card text-text-primary dark:text-white"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   placeholder="ملاحظات إضافية (اختياري)"
                 />
               </div>
             </div>
 
-            <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
               <p className="text-text-primary dark:text-gray-300 text-sm">
                 العميل: <strong>{selectedCustomerData?.full_name}</strong>
               </p>
@@ -523,13 +464,13 @@ export default function NewPaymentPage() {
           <button
             type="submit"
             disabled={loading || !selectedInstallment}
-            className="flex-1 bg-success hover:bg-green-600 text-white py-2 rounded-lg transition disabled:opacity-50"
+            className="flex-1 bg-[#28A745] hover:bg-[#1F8B3A] text-white py-2 rounded-lg transition disabled:opacity-50"
           >
             {loading ? 'جاري التسديد...' : 'تأكيد التسديد'}
           </button>
           <Link
             href="/dashboard"
-            className="flex-1 border border-border text-text-primary hover:bg-gray-50 dark:hover:bg-gray-700 py-2 rounded-lg transition text-center"
+            className="flex-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 py-2 rounded-lg transition text-center"
           >
             إلغاء
           </Link>

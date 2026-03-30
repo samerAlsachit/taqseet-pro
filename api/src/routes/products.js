@@ -302,7 +302,7 @@ router.delete('/:id', auth, checkSubscription, async (req, res) => {
     }
 
     // جلب بيانات المنتج قبل الحذف
-    const { data: deletedProduct } = await supabase
+    const { data: productToDelete } = await supabase
       .from('products')
       .select('*')
       .eq('id', id)
@@ -317,13 +317,12 @@ router.delete('/:id', auth, checkSubscription, async (req, res) => {
 
     if (error) throw error;
 
+    await logAudit(req, 'DELETE', 'products', id, productToDelete, null);
+
     res.json({
       success: true,
       message: 'تم حذف المنتج بنجاح'
     });
-
-    // تسجيل العملية
-    await logAudit(req, 'DELETE', 'products', id, deletedProduct, null);
   } catch (error) {
     console.error('خطأ في حذف المنتج:', error);
     res.status(500).json({

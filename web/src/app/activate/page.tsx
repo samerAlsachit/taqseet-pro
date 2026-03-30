@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Anchor } from 'lucide-react';
 
 export default function ActivatePage() {
   const router = useRouter();
@@ -76,7 +77,7 @@ export default function ActivatePage() {
       <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
         <div className="text-center mb-8">
   <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-navy to-electric mb-4">
-    <span className="text-3xl">⚓</span>
+    <Anchor className="text-white" size={32} />
   </div>
   <h1 className="text-4xl font-bold bg-gradient-to-r from-navy to-electric bg-clip-text text-transparent">
     مرساة
@@ -103,7 +104,7 @@ export default function ActivatePage() {
             <button
               onClick={verifyCode}
               disabled={loading || !code}
-              className="w-full bg-electric hover:bg-blue-600 text-white py-2 rounded-lg transition disabled:opacity-50"
+              className="btn-primary"
             >
               {loading ? 'جاري التحقق...' : 'التحقق من الكود'}
             </button>
@@ -180,7 +181,7 @@ export default function ActivatePage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-electric hover:bg-blue-600 text-white py-2 rounded-lg transition disabled:opacity-50"
+                className="btn-primary"
               >
                 {loading ? 'جاري التفعيل...' : 'تفعيل المحل'}
               </button>

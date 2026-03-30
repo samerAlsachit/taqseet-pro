@@ -4,6 +4,17 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from '../../context/ThemeContext';
+import {
+  LayoutDashboard,
+  Store,
+  Key,
+  Package,
+  FileText,
+  LogOut,
+  Moon,
+  Sun,
+  Anchor
+} from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -17,18 +28,18 @@ export default function Sidebar() {
   };
 
   const navItems = [
-    { name: 'الرئيسية', path: '/dashboard', icon: '📊' },
-    { name: 'المحلات', path: '/stores', icon: '🏪' },
-    { name: 'كودات التفعيل', path: '/activation-codes', icon: '🔑' },
-    { name: 'خطط الاشتراك', path: '/plans', icon: '📦' },
-    { name: 'سجل العمليات', path: '/audit', icon: '📋' },
+    { name: 'الرئيسية', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'المحلات', path: '/stores', icon: Store },
+    { name: 'كودات التفعيل', path: '/activation-codes', icon: Key },
+    { name: 'خطط الاشتراك', path: '/plans', icon: Package },
+    { name: 'سجل العمليات', path: '/audit', icon: FileText },
   ];
 
   return (
     <aside className="w-64 bg-navy min-h-screen flex flex-col">
       <div className="p-6 border-b border-white/10">
         <div className="flex flex-col items-center">
-          <span className="text-3xl mb-2">⚓</span>
+          <Anchor className="text-white" size={24} />
           <h1 className="text-2xl font-bold tracking-wide bg-gradient-to-r from-white to-electric bg-clip-text text-transparent">
             مرساة
           </h1>
@@ -47,7 +58,7 @@ export default function Sidebar() {
                 : 'text-white/70 hover:bg-white/10 hover:text-white'
             }`}
           >
-            <span>{item.icon}</span>
+            <item.icon size={20} />
             <span>{item.name}</span>
           </Link>
         ))}
@@ -59,7 +70,7 @@ export default function Sidebar() {
           onClick={toggleTheme}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white/70 hover:bg-white/10 hover:text-white transition"
         >
-          <span>{theme === 'light' ? '🌙' : '☀️'}</span>
+          {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
           <span>{theme === 'light' ? 'الوضع الليلي' : 'الوضع النهاري'}</span>
         </button>
         
@@ -68,7 +79,7 @@ export default function Sidebar() {
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-white/70 hover:bg-white/10 hover:text-white transition"
         >
-          <span>🚪</span>
+          <LogOut size={20} />
           <span>تسجيل الخروج</span>
         </button>
         

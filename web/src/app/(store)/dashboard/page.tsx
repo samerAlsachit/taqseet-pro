@@ -3,6 +3,17 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import {
+  Users,
+  Receipt,
+  Calendar,
+  AlertCircle,
+  DollarSign,
+  Plus,
+  Package,
+  CreditCard
+} from 'lucide-react';
 
 interface DashboardStats {
   total_customers: number;
@@ -88,21 +99,17 @@ export default function DashboardPage() {
   }, [router]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-bg">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric"></div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-bg">
+    <div className="min-h-screen bg-[#F0F2F5] dark:bg-[#0D1117]">
       {/* Header */}
-      <div className="bg-[var(--card-bg)] border-b border-[var(--border-color)] sticky top-0 z-10">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-navy dark:text-white">لوحة التحكم</h1>
-            <div className="text-[var(--text-primary)]">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">لوحة التحكم</h1>
+            <div className="bg-gray-50 dark:bg-[#1C2128]">
               مرحباً بك في {storeName}
             </div>
           </div>
@@ -111,14 +118,14 @@ export default function DashboardPage() {
 
       {/* تحذير الفترة التجريبية */}
       {isTrial && (
-        <div className={`rounded-lg p-4 mb-6 ${trialDaysLeft <= 3 ? 'bg-red-50 border border-danger' : 'bg-yellow-50 border border-warning'}`}>
+        <div className={`rounded-lg p-4 mb-6 ${trialDaysLeft <= 3 ? 'bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-600' : 'bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-600'}`}>
           <div className="flex justify-between items-center flex-wrap gap-4">
             <div>
-              <p className="font-bold text-warning">⚠️ فترة تجريبية</p>
-              <p className="text-[var(--text-primary)]">
+              <p className="font-bold text-yellow-600 dark:text-yellow-400">⚠️ فترة تجريبية</p>
+              <p className="text-gray-900 dark:text-gray-200">
                 أنت حالياً في الفترة التجريبية. متبقي <span className="font-bold">{trialDaysLeft}</span> يوم.
                 {trialDaysLeft <= 3 && (
-                  <span className="block text-danger font-medium mt-1">
+                  <span className="block text-red-600 dark:text-red-400 font-medium mt-1">
                     يرجى الاشتراك لتجنب انقطاع الخدمة!
                   </span>
                 )}
@@ -126,7 +133,7 @@ export default function DashboardPage() {
             </div>
             <Link
               href="/settings"
-              className="bg-electric text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
+              className="btn-primary"
             >
               اشتراك
             </Link>
@@ -136,16 +143,16 @@ export default function DashboardPage() {
 
       {/* تنبيه انتهاء الاشتراك */}
       {expiringWarning && (
-        <div className="bg-warning/20 border border-warning rounded-lg p-4 mb-6 flex justify-between items-center">
+        <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-600 rounded-lg p-4 mb-6 flex justify-between items-center">
           <div>
-            <p className="font-bold text-warning">⚠️ تنبيه هام</p>
-            <p className="text-[var(--text-primary)]">
+            <p className="font-bold text-yellow-600 dark:text-yellow-400">⚠️ تنبيه هام</p>
+            <p className="text-gray-900 dark:text-gray-200">
               اشتراكك على وشك الانتهاء خلال {daysRemaining} أيام. يرجى التواصل مع الدعم لتجديد الاشتراك.
             </p>
           </div>
           <button
             onClick={() => window.open('https://wa.me/966500000000', '_blank')}
-            className="bg-success text-white px-4 py-2 rounded-lg"
+            className="btn-success"
           >
             تواصل مع الدعم
           </button>
@@ -155,105 +162,114 @@ export default function DashboardPage() {
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {/* بطاقات الإحصائيات */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-electric">
-            <p className="text-[var(--text-primary)]/70 text-sm mb-1">إجمالي العملاء</p>
-            <p className="text-3xl font-bold text-[var(--text-navy)]">{stats.total_customers}</p>
-          </div>
-          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-success">
-            <p className="text-[var(--text-primary)]/70 text-sm mb-1">الأقساط النشطة</p>
-            <p className="text-3xl font-bold text-[var(--text-navy)]">{stats.active_installments}</p>
-          </div>
-          
-          {/* تحصيلات اليوم */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border-r-4 border-electric">
-            <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">تحصيلات اليوم</p>
+            <div className="flex items-center justify-between mb-2">
+              <Users className="text-electric" size={24} />
+              <p className="text-gray-500 dark:text-gray-400 text-sm">إجمالي العملاء</p>
+            </div>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.total_customers}</p>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border-r-4 border-success">
+            <div className="flex items-center justify-between mb-2">
+              <Receipt className="text-success" size={24} />
+              <p className="text-gray-500 dark:text-gray-400 text-sm">الأقساط النشطة</p>
+            </div>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.active_installments}</p>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border-r-4 border-electric">
+            <div className="flex items-center justify-between mb-2">
+              <DollarSign className="text-electric" size={24} />
+              <p className="text-gray-500 dark:text-gray-400 text-sm">تحصيلات اليوم</p>
+            </div>
             {stats?.today_collection?.IQD > 0 && (
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">
                 {stats.today_collection.IQD.toLocaleString()} IQD
               </p>
             )}
             {stats?.today_collection?.USD > 0 && (
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">
                 {stats.today_collection.USD.toLocaleString()} USD
               </p>
             )}
             {(!stats?.today_collection?.IQD && !stats?.today_collection?.USD) && (
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">0</p>
             )}
           </div>
-
-          {/* المستحقة اليوم */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border-r-4 border-warning">
-            <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">مستحقة اليوم</p>
+            <div className="flex items-center justify-between mb-2">
+              <Calendar className="text-warning" size={24} />
+              <p className="text-gray-500 dark:text-gray-400 text-sm">مستحقة اليوم</p>
+            </div>
             {stats?.due_today?.IQD > 0 && (
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">
                 {stats.due_today.IQD.toLocaleString()} IQD
               </p>
             )}
             {stats?.due_today?.USD > 0 && (
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">
                 {stats.due_today.USD.toLocaleString()} USD
               </p>
             )}
             {(!stats?.due_today?.IQD && !stats?.due_today?.USD) && (
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">0</p>
             )}
           </div>
-
-          {/* المتأخرات */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border-r-4 border-danger">
-            <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">متأخرات</p>
+            <div className="flex items-center justify-between mb-2">
+              <AlertCircle className="text-danger" size={24} />
+              <p className="text-gray-500 dark:text-gray-400 text-sm">متأخرات</p>
+            </div>
             {stats?.overdue?.IQD > 0 && (
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">
                 {stats.overdue.IQD.toLocaleString()} IQD
               </p>
             )}
             {stats?.overdue?.USD > 0 && (
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">
                 {stats.overdue.USD.toLocaleString()} USD
               </p>
             )}
             {(!stats?.overdue?.IQD && !stats?.overdue?.USD) && (
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">0</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">0</p>
             )}
           </div>
         </div>
 
         {/* قائمة سريعة */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <Link href="/customers/new" className="bg-[var(--card-bg)] hover:bg-gray-50 dark:hover:bg-gray-800 p-4 rounded-xl shadow-sm text-center transition">
-            <div className="text-2xl mb-2">👤+</div>
+          <Link href="/customers/new" className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 p-4 rounded-xl shadow-sm text-center transition">
+            <Plus className="mx-auto mb-2 text-electric" size={24} />
             <span className="text-[var(--text-primary)]">إضافة عميل</span>
           </Link>
-          <Link href="/installments/new" className="bg-[var(--card-bg)] hover:bg-gray-50 dark:hover:bg-gray-800 p-4 rounded-xl shadow-sm text-center transition">
-            <div className="text-2xl mb-2">💰+</div>
+          <Link href="/installments/new" className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 p-4 rounded-xl shadow-sm text-center transition">
+            <Receipt className="mx-auto mb-2 text-electric" size={24} />
             <span className="text-[var(--text-primary)]">قسط جديد</span>
           </Link>
-          <Link href="/products/new" className="bg-[var(--card-bg)] hover:bg-gray-50 dark:hover:bg-gray-800 p-4 rounded-xl shadow-sm text-center transition">
-            <div className="text-2xl mb-2">📦+</div>
+          <Link href="/products/new" className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 p-4 rounded-xl shadow-sm text-center transition">
+            <Package className="mx-auto mb-2 text-electric" size={24} />
             <span className="text-[var(--text-primary)]">منتج جديد</span>
           </Link>
-          <Link href="/payments/new" className="bg-[var(--card-bg)] hover:bg-gray-50 dark:hover:bg-gray-800 p-4 rounded-xl shadow-sm text-center transition">
-            <div className="text-2xl mb-2">💵+</div>
+          <Link href="/payments/new" className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 p-4 rounded-xl shadow-sm text-center transition">
+            <DollarSign className="mx-auto mb-2 text-electric" size={24} />
             <span className="text-[var(--text-primary)]">تسديد دفعة</span>
           </Link>
         </div>
 
         {/* آخر الأقساط */}
-        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
+        <div className="bg-white dark:bg-[#161B22] rounded-xl shadow-md border border-gray-100 dark:border-[#30363D] p-6 overflow-hidden">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-navy dark:text-white">آخر الأقساط</h2>
-            <Link href="/installments" className="text-electric hover:underline text-sm">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">آخر الأقساط</h2>
+            <Link href="/installments" className="text-blue-600 dark:text-blue-400 hover:underline text-sm">
               عرض الكل
             </Link>
           </div>
           {recentInstallments.length === 0 ? (
-            <p className="text-[var(--text-primary)] text-center py-8">لا توجد أقساط مسجلة</p>
+            <p className="text-gray-500 dark:text-gray-400 text-center py-8">لا توجد أقساط مسجلة</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-[var(--border-color)] bg-[var(--bg-primary)]">
+                  <tr className="border-t border-gray-100 dark:border-[#30363D] bg-gray-50 dark:bg-[#1C2128]">
                     <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">العميل</th>
                     <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">المنتج</th>
                     <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">المبلغ</th>
@@ -264,22 +280,22 @@ export default function DashboardPage() {
                 </thead>
                 <tbody>
                   {recentInstallments.map((item: any) => (
-                    <tr key={item.id} className="border-b border-[var(--border-color)] hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td className="py-3 px-4 text-[var(--text-primary)]">{item.customer_name}</td>
-                      <td className="py-3 px-4 text-[var(--text-primary)]">{item.product_name}</td>
-                      <td className="py-3 px-4 text-[var(--text-primary)]">{item.total_price?.toLocaleString()} IQD</td>
-                      <td className="py-3 px-4 text-[var(--text-primary)]">{item.remaining_amount?.toLocaleString()} IQD</td>
+                    <tr key={item.id} className="border-t border-gray-100 dark:border-[#30363D] hover:bg-gray-50 dark:hover:bg-[#1C2128]">
+                      <td className="py-3 px-4 text-gray-900 dark:text-white">{item.customer_name}</td>
+                      <td className="py-3 px-4 text-gray-900 dark:text-white">{item.product_name}</td>
+                      <td className="py-3 px-4 text-gray-900 dark:text-white">{item.total_price?.toLocaleString()} IQD</td>
+                      <td className="py-3 px-4 text-gray-900 dark:text-white">{item.remaining_amount?.toLocaleString()} IQD</td>
                       <td className="py-3 px-4">
                         <span className={`px-3 py-1 rounded-full text-sm ${
-                          item.status === 'active' ? 'bg-success/10 text-success' :
-                          item.status === 'completed' ? 'bg-electric/10 text-electric' :
-                          'bg-danger/10 text-danger'
+                          item.status === 'active' ? 'bg-green-100 text-green-600' :
+                          item.status === 'completed' ? 'bg-blue-100 text-blue-600' :
+                          'bg-red-100 text-red-600'
                         }`}>
                           {item.status === 'active' ? 'نشط' : item.status === 'completed' ? 'مكتمل' : 'متأخر'}
                         </span>
                       </td>
                       <td className="py-3 px-4">
-                        <Link href={`/installments/${item.id}`} className="text-electric hover:underline">
+                        <Link href={`/installments/${item.id}`} className="btn-outline">
                           تفاصيل
                         </Link>
                       </td>

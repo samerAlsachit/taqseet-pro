@@ -325,6 +325,13 @@ router.delete('/:id', auth, checkSubscription, async (req, res) => {
         .in('id', planIds);
     }
 
+    // جلب بيانات العميل قبل الحذف للتسجيل
+    const { data: customerToDelete } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('id', id)
+      .single();
+
     // 3. حذف العميل
     const { error } = await supabase
       .from('customers')
@@ -333,6 +340,9 @@ router.delete('/:id', auth, checkSubscription, async (req, res) => {
       .eq('store_id', storeId);
 
     if (error) throw error;
+
+    // بعد حذف العميل
+    await logAudit(req, 'DELETE', 'customers', id, customerToDelete, null);
 
     res.json({
       success: true,

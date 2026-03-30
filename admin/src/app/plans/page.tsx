@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
+import { Package, Plus, Edit, Trash2, Star, CheckCircle, Users, UserCheck } from 'lucide-react';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface Plan {
   id: string;
@@ -99,9 +101,7 @@ export default function PlansPage() {
   if (loading) {
     return (
       <AdminLayout>
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-[var(--border-color)] border-electric"></div>
-        </div>
+        <LoadingSpinner />
       </AdminLayout>
     );
   }
@@ -110,7 +110,10 @@ export default function PlansPage() {
     <AdminLayout>
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-[var(--navy-color)]">خطط الاشتراك</h1>
+          <div className="flex items-center gap-2">
+            <Package className="text-electric" size={28} />
+            <h1 className="text-2xl font-bold text-navy dark:text-white">خطط الاشتراك</h1>
+          </div>
           <button
             onClick={() => {
               setEditingPlan(null);
@@ -125,9 +128,10 @@ export default function PlansPage() {
               });
               setShowModal(true);
             }}
-            className="bg-electric text-white px-4 py-2 rounded-lg hover:bg-blue-600"
+            className="flex items-center gap-2 bg-electric hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition"
           >
-            + إضافة خطة جديدة
+            <Plus size={18} />
+            <span>إضافة خطة جديدة</span>
           </button>
         </div>
 
@@ -146,23 +150,37 @@ export default function PlansPage() {
             {plans.map((plan) => (
               <div key={plan.id} className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border relative">
                 {plan.name === 'سنوي' && (
-                  <span className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-electric text-white px-3 py-1 rounded-full text-sm">
-                    الأكثر طلباً
-                  </span>
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-electric text-white px-3 py-1 rounded-full text-sm flex items-center gap-1">
+                    <Star size={14} />
+                    <span>الأكثر طلباً</span>
+                  </div>
                 )}
                 <div className="flex justify-between items-start">
-                  <h2 className="text-xl font-bold text-[var(--navy-color)]">{plan.name}</h2>
-                  <span className={`px-2 py-1 rounded-full text-xs ${plan.is_active ? 'bg-green-100 text-green-600' : 'bg-[var(--bg-primary)] text-gray-500'}`}>
+                  <h2 className="text-xl font-bold text-navy dark:text-white">{plan.name}</h2>
+                  <span className={`px-2 py-1 rounded-full text-xs ${plan.is_active ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
                     {plan.is_active ? 'نشط' : 'غير نشط'}
                   </span>
                 </div>
                 <p className="text-2xl font-bold text-electric mt-2">{plan.price_iqd.toLocaleString()} IQD</p>
                 <p className="text-[var(--text-primary)] text-sm">{plan.duration_days} يوم</p>
                 <div className="mt-4 pt-4 border-t space-y-1">
-                  <p className="text-sm">👥 عملاء: حتى {plan.max_customers}</p>
-                  <p className="text-sm">👨‍💼 موظفين: حتى {plan.max_employees}</p>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Users size={14} className="text-[var(--text-primary)]" />
+                    <span>عملاء: حتى {plan.max_customers}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <UserCheck size={14} className="text-[var(--text-primary)]" />
+                    <span>موظفين: حتى {plan.max_employees}</span>
+                  </div>
                   {plan.features?.length > 0 && (
-                    <p className="text-sm">✨ {plan.features.join(' • ')}</p>
+                    <div className="space-y-1">
+                      {plan.features.map((feature: string, i: number) => (
+                        <div key={i} className="flex items-center gap-2 text-sm">
+                          <CheckCircle size={14} className="text-success" />
+                          <span>{feature}</span>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
                 <div className="flex gap-2 mt-4">
@@ -180,15 +198,17 @@ export default function PlansPage() {
                       });
                       setShowModal(true);
                     }}
-                    className="flex-1 text-electric border border-electric py-1 rounded-lg hover:bg-electric hover:text-white transition"
+                    className="flex-1 flex items-center justify-center gap-1 text-electric border border-electric py-1 rounded-lg hover:bg-electric hover:text-white transition"
                   >
-                    تعديل
+                    <Edit size={14} />
+                    <span>تعديل</span>
                   </button>
                   <button
                     onClick={() => handleDelete(plan.id)}
-                    className="flex-1 text-danger border border-danger py-1 rounded-lg hover:bg-danger hover:text-white transition"
+                    className="flex-1 flex items-center justify-center gap-1 text-danger border border-danger py-1 rounded-lg hover:bg-danger hover:text-white transition"
                   >
-                    حذف
+                    <Trash2 size={14} />
+                    <span>حذف</span>
                   </button>
                 </div>
               </div>

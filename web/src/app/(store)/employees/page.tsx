@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface Employee {
   id: string;
@@ -195,28 +196,24 @@ export default function EmployeesPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric"></div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-navy">إدارة الموظفين</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">إدارة الموظفين</h1>
         <button
           onClick={() => setShowModal(true)}
-          className="bg-electric hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition"
+          className="btn-primary"
         >
           + إضافة موظف جديد
         </button>
       </div>
 
       {/* معلومات الحد الأقصى */}
-      <div className="bg-gray-bg rounded-lg p-4 mb-6">
-        <p className="text-text-primary">
+      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-6">
+        <p className="text-gray-900 dark:text-gray-200">
           عدد الموظفين الحالي: <span className="font-bold">{limitInfo.current}</span> من <span className="font-bold">{limitInfo.max}</span>
         </p>
         {limitInfo.current >= limitInfo.max && (
@@ -228,36 +225,36 @@ export default function EmployeesPage() {
 
       {/* جدول الموظفين */}
       {employees.length === 0 ? (
-        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-12 text-center">
-          <p className="text-text-primary">لا يوجد موظفين</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-12 text-center">
+          <p className="text-gray-900 dark:text-gray-200">لا يوجد موظفين</p>
           <button
             onClick={() => setShowModal(true)}
-            className="mt-4 bg-electric text-white px-4 py-2 rounded-lg"
+            className="btn-primary"
           >
             إضافة أول موظف
           </button>
         </div>
       ) : (
-        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[var(--border-color)] bg-[var(--bg-primary)]">
-                  <th className="text-[var(--text-primary)]">الاسم</th>
-                  <th className="text-[var(--text-primary)]">اسم المستخدم</th>
-                  <th className="text-[var(--text-primary)]">الهاتف</th>
-                  <th className="text-[var(--text-primary)]">الدور</th>
-                  <th className="text-[var(--text-primary)]">الصلاحيات</th>
-                  <th className="text-[var(--text-primary)]"></th>
+                <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                  <th className="text-gray-600 dark:text-gray-400">الاسم</th>
+                  <th className="text-gray-600 dark:text-gray-400">اسم المستخدم</th>
+                  <th className="text-gray-600 dark:text-gray-400">الهاتف</th>
+                  <th className="text-gray-600 dark:text-gray-400">الدور</th>
+                  <th className="text-gray-600 dark:text-gray-400">الصلاحيات</th>
+                  <th className="text-gray-600 dark:text-gray-400"></th>
                  </tr>
               </thead>
               <tbody>
                 {employees.map((emp) => (
-                  <tr key={emp.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4">{emp.full_name}</td>
-                    <td className="py-3 px-4">{emp.username}</td>
-                    <td className="py-3 px-4">{emp.phone}</td>
-                    <td className="py-3 px-4">{getRoleName(emp.role)}</td>
+                  <tr key={emp.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <td className="py-3 px-4 text-gray-900 dark:text-gray-200">{emp.full_name}</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-gray-200">{emp.username}</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-gray-200">{emp.phone}</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-gray-200">{getRoleName(emp.role)}</td>
                     <td className="py-3 px-4">
                       <div className="flex gap-3">
                         <label className="flex items-center gap-1 text-sm">
@@ -292,13 +289,13 @@ export default function EmployeesPage() {
                     <td className="py-3 px-4">
                       <button
                         onClick={() => openEditModal(emp)}
-                        className="text-electric hover:underline ml-3"
+                        className="btn-outline"
                       >
                         تعديل
                       </button>
                       <button
                         onClick={() => handleDelete(emp.id)}
-                        className="text-danger hover:underline"
+                        className="btn-danger"
                       >
                         حذف
                       </button>
@@ -314,64 +311,64 @@ export default function EmployeesPage() {
       {/* Modal إضافة موظف */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[var(--card-bg)] rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold text-navy mb-4">إضافة موظف جديد</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">إضافة موظف جديد</h2>
             {error && (
               <div className="bg-red-50 text-danger p-3 rounded-lg mb-4">{error}</div>
             )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-text-primary mb-2">الاسم الكامل *</label>
+                <label className="block text-gray-500 dark:text-gray-400 mb-2">الاسم الكامل *</label>
                 <input
                   type="text"
                   required
                   value={formData.full_name}
                   onChange={(e) => setFormData({...formData, full_name: e.target.value})}
-                  className="w-full px-4 py-2 border rounded-lg"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
               </div>
               <div>
-                <label className="block text-text-primary mb-2">اسم المستخدم *</label>
+                <label className="block text-gray-500 dark:text-gray-400 mb-2">اسم المستخدم *</label>
                 <input
                   type="text"
                   required
                   value={formData.username}
                   onChange={(e) => setFormData({...formData, username: e.target.value})}
-                  className="w-full px-4 py-2 border rounded-lg"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
               </div>
               <div>
-                <label className="block text-text-primary mb-2">رقم الهاتف</label>
+                <label className="block text-gray-500 dark:text-gray-400 mb-2">رقم الهاتف</label>
                 <input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                  className="w-full px-4 py-2 border rounded-lg"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
               </div>
               <div>
-                <label className="block text-text-primary mb-2">كلمة المرور *</label>
+                <label className="block text-gray-500 dark:text-gray-400 mb-2">كلمة المرور *</label>
                 <input
                   type="password"
                   required
                   value={formData.password}
                   onChange={(e) => setFormData({...formData, password: e.target.value})}
-                  className="w-full px-4 py-2 border rounded-lg"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
               </div>
               <div>
-                <label className="block text-text-primary mb-2">الدور</label>
+                <label className="block text-gray-500 dark:text-gray-400 mb-2">الدور</label>
                 <select
                   value={formData.role}
                   onChange={(e) => setFormData({...formData, role: e.target.value})}
-                  className="w-full px-4 py-2 border rounded-lg"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 >
                   <option value="store_employee">موظف</option>
                   <option value="store_manager">مدير</option>
                 </select>
               </div>
               <div className="border-t pt-4">
-                <p className="font-medium mb-2">الصلاحيات</p>
+                <p className="font-medium text-gray-900 dark:text-gray-200 mb-2">الصلاحيات</p>
                 <div className="space-y-2">
                   <label className="flex items-center gap-2">
                     <input
@@ -403,14 +400,14 @@ export default function EmployeesPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 bg-electric text-white py-2 rounded-lg disabled:opacity-50"
+                  className="btn-primary"
                 >
                   {submitting ? 'جاري الإضافة...' : 'إضافة الموظف'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 border border-gray-300 text-text-primary py-2 rounded-lg"
+                  className="btn-outline"
                 >
                   إلغاء
                 </button>
@@ -423,10 +420,10 @@ export default function EmployeesPage() {
       {/* Modal تعديل الصلاحيات */}
       {editModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[var(--card-bg)] rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold text-navy mb-4">تعديل صلاحيات الموظف</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">تعديل صلاحيات الموظف</h2>
             <div className="mb-4">
-              <p className="text-text-primary">
+              <p className="text-gray-900 dark:text-gray-200">
                 الموظف: <span className="font-bold">{editingEmployee?.full_name}</span>
               </p>
             </div>
@@ -459,13 +456,13 @@ export default function EmployeesPage() {
             <div className="flex gap-3 pt-4">
               <button
                 onClick={savePermissions}
-                className="flex-1 bg-electric text-white py-2 rounded-lg hover:bg-blue-600 transition"
+                className="btn-primary"
               >
                 حفظ التغييرات
               </button>
               <button
                 onClick={() => setEditModalOpen(false)}
-                className="flex-1 border border-gray-300 text-text-primary py-2 rounded-lg hover:bg-gray-50 transition"
+                className="btn-outline"
               >
                 إلغاء
               </button>

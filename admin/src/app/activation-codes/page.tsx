@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
+import { Key, Plus, Copy, CheckCircle, XCircle, Search } from 'lucide-react';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface ActivationCode {
   id: string;
@@ -124,9 +126,19 @@ export default function ActivationCodesPage() {
 
   const getStatusBadge = (isUsed: boolean) => {
     if (isUsed) {
-      return <span className="px-3 py-1 rounded-full text-sm bg-success/10 text-success">مستخدم</span>;
+      return (
+        <span className="px-3 py-1 rounded-full text-sm bg-success/10 text-success flex items-center gap-1">
+          <CheckCircle size={16} />
+          مستخدم
+        </span>
+      );
     }
-    return <span className="px-3 py-1 rounded-full text-sm bg-warning/10 text-warning">غير مستخدم</span>;
+    return (
+      <span className="px-3 py-1 rounded-full text-sm bg-warning/10 text-warning flex items-center gap-1">
+        <XCircle size={16} />
+        غير مستخدم
+      </span>
+    );
   };
 
   const formatDate = (date: string | null) => {
@@ -137,12 +149,16 @@ export default function ActivationCodesPage() {
   return (
     <AdminLayout>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-[var(--navy-color)]">مرساة - كودات التفعيل</h1>
+        <div className="flex items-center gap-2">
+          <Key className="text-electric" size={28} />
+          <h1 className="text-2xl font-bold text-navy dark:text-white">كودات التفعيل</h1>
+        </div>
         <button
           onClick={() => setShowModal(true)}
-          className="bg-electric hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition"
+          className="flex items-center gap-2 bg-electric hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition"
         >
-          + إنشاء كود جديد
+          <Plus size={18} />
+          <span>إنشاء كود جديد</span>
         </button>
       </div>
 
@@ -178,9 +194,7 @@ export default function ActivationCodesPage() {
 
       {/* جدول الكودات */}
       {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric"></div>
-        </div>
+        <LoadingSpinner />
       ) : codes.length === 0 ? (
         <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-12 text-center">
           <p className="text-[var(--text-primary)]">لا توجد كودات تفعيل</p>
@@ -218,9 +232,10 @@ export default function ActivationCodesPage() {
                     <td className="py-3 px-4">
                       <button
                         onClick={() => copyToClipboard(code.code)}
-                        className="text-electric hover:text-blue-600"
+                        className="text-electric hover:text-blue-600 flex items-center gap-1"
                       >
-                        📋 نسخ
+                        <Copy size={14} />
+                        <span>نسخ</span>
                       </button>
                     </td>
                   </tr>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface AuditLog {
   id: string;
@@ -96,23 +97,19 @@ export default function AuditPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric"></div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-      <h1 className="text-2xl font-bold text-navy mb-6">سجل العمليات</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">سجل العمليات</h1>
 
       {/* فلتر */}
       <div className="flex gap-4 mb-6">
         <select
           value={filter}
           onChange={(e) => { setFilter(e.target.value); setPage(1); }}
-          className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-electric"
+          className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
         >
           <option value="">جميع العمليات</option>
           <option value="INSERT">إضافة</option>
@@ -122,38 +119,38 @@ export default function AuditPage() {
       </div>
 
       {logs.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-          <p className="text-text-primary">لا توجد سجلات</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-12 text-center">
+          <p className="text-gray-900 dark:text-gray-200">لا توجد سجلات</p>
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50">
-                    <th className="text-right py-3 px-4">التاريخ</th>
-                    <th className="text-right py-3 px-4">المستخدم</th>
-                    <th className="text-right py-3 px-4">العملية</th>
-                    <th className="text-right py-3 px-4">الجدول</th>
-                    <th className="text-right py-3 px-4">IP</th>
-                    <th className="text-right py-3 px-4"></th>
+                  <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400">التاريخ</th>
+                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400">المستخدم</th>
+                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400">العملية</th>
+                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400">الجدول</th>
+                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400">IP</th>
+                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400"></th>
                    </tr>
                 </thead>
                 <tbody>
                   {logs.map((log) => (
-                    <tr key={log.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 text-sm">
+                    <tr key={log.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <td className="py-3 px-4 text-sm text-gray-900 dark:text-gray-200">
                         {new Date(log.created_at).toLocaleString('ar-IQ')}
                       </td>
-                      <td className="py-3 px-4">{log.user_name}</td>
-                      <td className="py-3 px-4">{getActionBadge(log.action)}</td>
-                      <td className="py-3 px-4">{getTableName(log.table_name)}</td>
-                      <td className="py-3 px-4 text-sm font-mono">{log.ip_address || '-'}</td>
+                      <td className="py-3 px-4 text-gray-900 dark:text-gray-200">{log.user_name}</td>
+                      <td className="py-3 px-4 text-gray-900 dark:text-gray-200">{getActionBadge(log.action)}</td>
+                      <td className="py-3 px-4 text-gray-900 dark:text-gray-200">{getTableName(log.table_name)}</td>
+                      <td className="py-3 px-4 text-sm font-mono text-gray-900 dark:text-gray-200">{log.ip_address || '-'}</td>
                       <td className="py-3 px-4">
                         <button
                           onClick={() => fetchDetails(log.id)}
-                          className="text-electric hover:underline text-sm"
+                          className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
                           disabled={loadingDetails}
                         >
                           {loadingDetails ? 'جاري...' : 'تفاصيل'}
@@ -172,15 +169,15 @@ export default function AuditPage() {
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-4 py-2 rounded-lg border disabled:opacity-50"
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-200 disabled:opacity-50"
               >
                 السابق
               </button>
-              <span className="px-4 py-2">صفحة {page} من {totalPages}</span>
+              <span className="px-4 py-2 text-gray-900 dark:text-gray-200">صفحة {page} من {totalPages}</span>
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="px-4 py-2 rounded-lg border disabled:opacity-50"
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-200 disabled:opacity-50"
               >
                 التالي
               </button>
@@ -192,23 +189,23 @@ export default function AuditPage() {
       {/* Modal تفاصيل السجل */}
       {showDetails && details && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-auto">
-            <h2 className="text-xl font-bold text-navy mb-4">تفاصيل العملية</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-auto">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">تفاصيل العملية</h2>
             
             <div className="space-y-4">
               {/* معلومات أساسية */}
-              <div className="grid grid-cols-2 gap-4 p-3 bg-gray-bg rounded-lg">
+              <div className="grid grid-cols-2 gap-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                 <div>
-                  <p className="text-text-primary text-sm">العملية</p>
-                  <p className="font-medium">
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">العملية</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-200">
                     {details.action === 'INSERT' ? '➕ إضافة' : 
                      details.action === 'UPDATE' ? '✏️ تعديل' : 
                      '🗑️ حذف'}
                   </p>
                 </div>
                 <div>
-                  <p className="text-text-primary text-sm">الجدول</p>
-                  <p className="font-medium">
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">الجدول</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-200">
                     {details.table_name === 'customers' ? 'العملاء' :
                      details.table_name === 'products' ? 'المنتجات' :
                      details.table_name === 'installment_plans' ? 'الأقساط' :
@@ -218,31 +215,31 @@ export default function AuditPage() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-text-primary text-sm">المستخدم</p>
-                  <p className="font-medium">{details.user_name}</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">المستخدم</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-200">{details.user_name}</p>
                 </div>
                 <div>
-                  <p className="text-text-primary text-sm">التاريخ</p>
-                  <p className="font-medium">{new Date(details.created_at).toLocaleString('ar-IQ')}</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">التاريخ</p>
+                  <p className="font-medium text-gray-900 dark:text-gray-200">{new Date(details.created_at).toLocaleString('ar-IQ')}</p>
                 </div>
                 <div>
-                  <p className="text-text-primary text-sm">IP</p>
-                  <p className="font-mono text-sm">{details.ip_address || 'غير متوفر'}</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">IP</p>
+                  <p className="font-mono text-sm text-gray-900 dark:text-gray-200">{details.ip_address || 'غير متوفر'}</p>
                 </div>
                 <div>
-                  <p className="text-text-primary text-sm">رقم السجل</p>
-                  <p className="font-mono text-sm">{details.record_id?.slice(0, 8)}...</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">رقم السجل</p>
+                  <p className="font-mono text-sm text-gray-900 dark:text-gray-200">{details.record_id?.slice(0, 8)}...</p>
                 </div>
               </div>
               
               {/* البيانات القديمة */}
               {details.old_data && Object.keys(details.old_data).length > 0 && (
                 <div>
-                  <p className="font-bold text-navy mb-2 flex items-center gap-2">
+                  <p className="font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
                     <span>📄</span> البيانات القديمة
                   </p>
-                  <div className="bg-gray-100 p-3 rounded-lg overflow-auto max-h-60">
-                    <pre className="text-xs whitespace-pre-wrap">
+                  <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg overflow-auto max-h-60">
+                    <pre className="text-xs whitespace-pre-wrap text-gray-900 dark:text-gray-200">
                       {JSON.stringify(details.old_data, null, 2)}
                     </pre>
                   </div>
@@ -252,11 +249,11 @@ export default function AuditPage() {
               {/* البيانات الجديدة */}
               {details.new_data && Object.keys(details.new_data).length > 0 && (
                 <div>
-                  <p className="font-bold text-navy mb-2 flex items-center gap-2">
+                  <p className="font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
                     <span>🆕</span> البيانات الجديدة
                   </p>
-                  <div className="bg-gray-100 p-3 rounded-lg overflow-auto max-h-60">
-                    <pre className="text-xs whitespace-pre-wrap">
+                  <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg overflow-auto max-h-60">
+                    <pre className="text-xs whitespace-pre-wrap text-gray-900 dark:text-gray-200">
                       {JSON.stringify(details.new_data, null, 2)}
                     </pre>
                   </div>
@@ -267,7 +264,7 @@ export default function AuditPage() {
             <div className="flex justify-end mt-6">
               <button
                 onClick={() => setShowDetails(false)}
-                className="bg-gray-200 hover:bg-gray-300 text-text-primary px-4 py-2 rounded-lg transition"
+                className="bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-900 dark:text-white px-4 py-2 rounded-lg transition"
               >
                 إغلاق
               </button>

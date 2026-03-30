@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
+import { Search, Filter, MoreVertical, Edit, Trash2 } from 'lucide-react';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface Store {
   id: string;
@@ -107,34 +109,38 @@ export default function StoresPage() {
 
         {/* شريط البحث والفلتر - يبقى ثابت */}
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="flex-1">
+          <div className="flex-1 relative">
             <input
               type="text"
               placeholder="بحث باسم المحل، المالك، أو رقم الهاتف..."
               value={searchTerm}
               onChange={handleSearchChange}
-              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+              className="w-full pl-10 pr-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
             />
+            <Search size={18} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setPage(1);
-            }}
-            className="px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-[var(--card-bg)]"
-          >
-            <option value="all">جميع المحلات</option>
-            <option value="active">نشطة</option>
-            <option value="expired">منتهية</option>
-          </select>
+          <div className="flex items-center gap-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(1);
+              }}
+              className="px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-[var(--card-bg)]"
+            >
+              <option value="all">جميع المحلات</option>
+              <option value="active">نشطة</option>
+              <option value="expired">منتهية</option>
+            </select>
+            <button className="px-3 py-2 border border-[var(--border-color)] rounded-lg hover:bg-[var(--bg-primary)] transition">
+              <Filter size={18} />
+            </button>
+          </div>
         </div>
 
         {/* الجدول - يتغير فقط */}
         {loading ? (
-          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-12 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric mx-auto"></div>
-          </div>
+          <LoadingSpinner />
         ) : stores.length === 0 ? (
           <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-12 text-center">
             <p className="text-[var(--text-primary)]">لا توجد محلات</p>
@@ -177,16 +183,23 @@ export default function StoresPage() {
                           </span>
                         </td>
                         <td className="py-3 px-4">
-                          <button
-                            onClick={() => {
-                              setSelectedStore(store);
-                              setExtendDays(30);
-                              setShowExtendModal(true);
-                            }}
-                            className="text-electric hover:underline text-sm"
-                          >
-                            تمديد
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setSelectedStore(store);
+                                setExtendDays(30);
+                                setShowExtendModal(true);
+                              }}
+                              className="text-electric hover:underline text-sm flex items-center gap-1"
+                            >
+                              <Edit size={16} />
+                              تمديد
+                            </button>
+                            <button className="text-danger hover:underline text-sm flex items-center gap-1">
+                              <Trash2 size={16} />
+                              حذف
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

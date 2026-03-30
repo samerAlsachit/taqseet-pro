@@ -190,18 +190,25 @@ router.post('/calculate', auth, checkSubscription, async (req, res) => {
 router.post('/', auth, checkSubscription, async (req, res) => {
   try {
     const storeId = req.user.store_id;
-    const { customer_id, product_id, total_price, down_payment = 0, installment_amount, frequency, start_date, currency = 'IQD', notes } = req.body;
+    const { 
+      customer_id, 
+      products,  // مصفوفة من المنتجات [{product_id, quantity, price}]
+      total_price, 
+      down_payment = 0, 
+      installment_amount, 
+      frequency, 
+      start_date, 
+      currency = 'IQD', 
+      notes 
+    } = req.body;
 
-    if (!customer_id || !product_id || !total_price || !installment_amount || !frequency || !start_date) {
+    if (!customer_id || !products || products.length === 0 || !total_price || !installment_amount || !frequency || !start_date) {
       return res.status(400).json({
         success: false,
         error: 'جميع الحقول المطلوبة يجب أن توفر',
         code: 'VALIDATION_ERROR'
       });
     }
-
-    // جلب سعر الصرف (يمكن جعله من إعدادات المحل أو يدوياً)
-    const exchangeRate = currency === 'USD' ? (req.body.exchange_rate || 1300) : 1;
 
     // التحقق من العميل
     const { data: customer } = await supabase
@@ -219,22 +226,35 @@ router.post('/', auth, checkSubscription, async (req, res) => {
       });
     }
 
-    // التحقق من المنتج
-    const { data: product } = await supabase
-      .from('products')
-      .select('*')
-      .eq('id', product_id)
-      .eq('store_id', storeId)
-      .single();
+    // التحقق من المنتجات وتنقيص المخزون
+    const productDetails = [];
+    for (const item of products) {
+      const { data: product, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', item.product_id)
+        .eq('store_id', storeId)
+        .single();
 
-    if (!product || product.quantity <= 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'المنتج غير متوفر',
-        code: 'PRODUCT_NOT_AVAILABLE'
+      if (!product || product.quantity < item.quantity) {
+        return res.status(400).json({
+          success: false,
+          error: `المنتج ${product?.name || 'غير معروف'} غير متوفر بالكمية المطلوبة`,
+          code: 'PRODUCT_NOT_AVAILABLE'
+        });
+      }
+
+      productDetails.push({
+        product_id: product.id,
+        product_name: product.name,
+        quantity: item.quantity,
+        price: item.price,
+        currency: product.currency,
+        subtotal: item.price * item.quantity
       });
     }
 
+    // حساب جدول الأقساط
     const schedule = calculateInstallments({
       totalPrice: parseFloat(total_price),
       downPayment: parseFloat(down_payment),
@@ -246,6 +266,9 @@ router.post('/', auth, checkSubscription, async (req, res) => {
 
     const planId = uuidv4();
     const financedAmount = total_price - down_payment;
+    
+    // اسم المنتج الرئيسي (أول منتج)
+    const mainProduct = productDetails[0];
 
     // إنشاء خطة القسط
     const { data: plan, error: planError } = await supabase
@@ -254,16 +277,19 @@ router.post('/', auth, checkSubscription, async (req, res) => {
         id: planId,
         store_id: storeId,
         customer_id: customer_id,
-        product_id: product_id,
+        product_id: mainProduct.product_id,
         created_by: req.user.id,
-        product_name: product.name,
+        product_name: productDetails.length === 1 
+          ? mainProduct.product_name 
+          : `${productDetails.length} منتج`,
+        product_description: JSON.stringify(productDetails),
+        products: productDetails,
         total_price: total_price,
         down_payment: down_payment,
         financed_amount: financedAmount,
         remaining_amount: financedAmount,
         total_paid: 0,
         currency: currency,
-        exchange_rate: exchangeRate,
         frequency: frequency,
         start_date: start_date,
         end_date: schedule.endDate,
@@ -280,7 +306,11 @@ router.post('/', auth, checkSubscription, async (req, res) => {
 
     if (planError) {
       console.error('خطأ في إنشاء الخطة:', planError);
-      throw planError;
+      return res.status(500).json({
+        success: false,
+        error: 'فشل في إنشاء خطة القسط',
+        code: 'INTERNAL_ERROR'
+      });
     }
 
     // إنشاء جدول الأقساط
@@ -297,7 +327,21 @@ router.post('/', auth, checkSubscription, async (req, res) => {
 
     await supabase.from('payment_schedule').insert(scheduleInserts);
 
-    // إنشاء دفعة مقدمة إذا وجدت
+    // تنقيص المخزون لكل منتج
+    for (const item of productDetails) {
+      const { data: product } = await supabase
+        .from('products')
+        .select('quantity')
+        .eq('id', item.product_id)
+        .single();
+
+      await supabase
+        .from('products')
+        .update({ quantity: product.quantity - item.quantity })
+        .eq('id', item.product_id);
+    }
+
+    // تسجيل الدفعة المقدمة
     if (down_payment > 0) {
       const receiptNumber = `RCP-${storeId.slice(0, 8)}-${Date.now()}`;
       await supabase.from('payments').insert({
@@ -309,25 +353,16 @@ router.post('/', auth, checkSubscription, async (req, res) => {
         payment_date: new Date().toISOString().split('T')[0],
         is_early: true,
         receipt_number: receiptNumber,
-        notes: `دفعة مقدمة عن قسط ${product.name}`,
+        notes: `دفعة مقدمة عن قسط ${productDetails.length} منتج`,
         currency: currency
       });
     }
 
-    // تنقيص المخزون
-    await supabase
-      .from('products')
-      .update({ quantity: product.quantity - 1 })
-      .eq('id', product_id);
-
     res.status(201).json({
       success: true,
       data: plan,
-      message: 'تم إنشاء خطة الأقساط بنجاح'
+      message: `تم إنشاء خطة الأقساط لـ ${productDetails.length} منتج بنجاح` 
     });
-
-    // تسجيل العملية
-    await logAudit(req, 'INSERT', 'installment_plans', plan.id, null, plan);
   } catch (error) {
     console.error('خطأ في إنشاء القسط:', error);
     res.status(500).json({
@@ -348,8 +383,7 @@ router.get('/:id', auth, checkSubscription, async (req, res) => {
       .from('installment_plans')
       .select(`
         *,
-        customers:customer_id (full_name, phone),
-        products:product_id (name)
+        customers:customer_id (full_name, phone)
       `)
       .eq('id', id)
       .eq('store_id', storeId)
@@ -361,6 +395,13 @@ router.get('/:id', auth, checkSubscription, async (req, res) => {
         error: 'خطة القسط غير موجودة',
         code: 'NOT_FOUND'
       });
+    }
+
+    // تحويل products من JSONB إلى مصفوفة
+    if (plan.products) {
+      plan.products = typeof plan.products === 'string' 
+        ? JSON.parse(plan.products) 
+        : plan.products;
     }
 
     const { data: schedule } = await supabase
@@ -382,7 +423,7 @@ router.get('/:id', auth, checkSubscription, async (req, res) => {
           ...plan,
           customer_name: plan.customers?.full_name,
           customer_phone: plan.customers?.phone,
-          product_name: plan.products?.name
+          products: plan.products // إرجاع قائمة المنتجات الكاملة
         },
         installments: schedule || [],
         payments: payments || []

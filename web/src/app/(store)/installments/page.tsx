@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Eye } from 'lucide-react';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface InstallmentPlan {
   id: string;
@@ -70,17 +72,17 @@ export default function InstallmentsPage() {
       case 'overdue':
         return <span className="px-2 py-1 rounded-full text-sm bg-danger/10 text-danger">متأخر</span>;
       default:
-        return <span className="px-2 py-1 rounded-full text-sm bg-gray-100 text-[var(--text-primary)]">{status}</span>;
+        return <span className="px-2 py-1 rounded-full text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-200">{status}</span>;
     }
   };
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">الأقساط</h1>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]">الأقساط</h1>
         <Link
           href="/installments/new"
-          className="bg-electric hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition text-center"
+          className="btn-primary"
         >
           + إضافة قسط جديد
         </Link>
@@ -95,7 +97,7 @@ export default function InstallmentsPage() {
             setSearch(e.target.value);
             setPage(1);
           }}
-          className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+          className="flex-1 px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[var(--card-bg)] text-[var(--text-primary)]"
         />
         <select
           value={statusFilter}
@@ -103,7 +105,7 @@ export default function InstallmentsPage() {
             setStatusFilter(e.target.value);
             setPage(1);
           }}
-          className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-[var(--card-bg)]"
+          className="px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[var(--card-bg)] text-[var(--text-primary)]"
         >
           <option value="all">جميع الأقساط</option>
           <option value="active">نشطة</option>
@@ -113,81 +115,80 @@ export default function InstallmentsPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric"></div>
-        </div>
+        <LoadingSpinner />
       ) : !plans || plans.length === 0 ? (
-        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-12 text-center">
-          <p className="text-[var(--text-primary)] mb-4">لا توجد أقساط</p>
-          <Link
-            href="/installments/new"
-            className="bg-electric text-white px-4 py-2 rounded-lg inline-block"
-          >
-            إضافة قسط جديد
-          </Link>
-        </div>
+      <div className="bg-white dark:bg-[#161B22] rounded-xl shadow-md border border-gray-100 dark:border-[#30363D] p-12 text-center">
+        <p className="text-gray-900 dark:text-white mb-4">لا توجد أقساط</p>
+        <Link
+          href="/installments/new"
+          className="btn-primary"
+        >
+          إضافة قسط جديد
+        </Link>
+      </div>
       ) : (
         <>
-          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-[var(--border-color)] bg-[var(--bg-primary)]">
-                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">العميل</th>
-                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">المنتج</th>
-                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">المبلغ الكلي</th>
-                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">المتبقي</th>
-                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">التقدم</th>
-                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">الحالة</th>
-                    <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold"></th>
+      <div className="bg-white dark:bg-[#161B22] rounded-xl shadow-md border border-gray-100 dark:border-[#30363D] overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-t border-gray-100 dark:border-[#30363D] bg-gray-50 dark:bg-[#1C2128]">
+                <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">العميل</th>
+                <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">المنتج</th>
+                <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">المبلغ الكلي</th>
+                <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">المتبقي</th>
+                <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">التقدم</th>
+                <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold">الحالة</th>
+                <th className="text-right py-3 px-4 text-gray-600 dark:text-gray-400 font-semibold"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {plans.map((plan) => {
+                const progress = ((plan.paid_count || 0) / (plan.total_count || 1)) * 100;
+                return (
+                  <tr key={plan.id} className="border-t border-gray-100 dark:border-[#30363D] hover:bg-gray-50 dark:hover:bg-[#1C2128]">
+                    <td className="py-3 px-4">
+                      <div className="font-medium text-gray-900 dark:text-white">{plan.customer_name}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{plan.customer_phone}</div>
+                    </td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">{plan.product_name}</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">{plan.total_price.toLocaleString()} IQD</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">{plan.remaining_amount.toLocaleString()} IQD</td>
+                    <td className="py-3 px-4">
+                      <div className="w-24 bg-gray-100 dark:bg-[#30363D] rounded-full h-2">
+                        <div
+                          className="bg-blue-600 rounded-full h-2"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {plan.paid_count || 0}/{plan.total_count}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4">{getStatusBadge(plan.status)}</td>
+                    <td className="py-3 px-4">
+                      <Link
+                        href={`/installments/${plan.id}`}
+                        className="text-[#3A86FF] hover:underline text-sm"
+                      >
+                        <Eye size={16} className="inline ml-1" />
+                        تفاصيل
+                      </Link>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {plans.map((plan) => {
-                    const progress = ((plan.paid_count || 0) / (plan.total_count || 1)) * 100;
-                    return (
-                      <tr key={plan.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <td className="py-3 px-4">
-                          <div className="font-medium text-[var(--text-primary)]">{plan.customer_name}</div>
-                          <div className="text-sm text-[var(--text-primary)]/70">{plan.customer_phone}</div>
-                        </td>
-                        <td className="py-3 px-4 text-[var(--text-primary)]">{plan.product_name}</td>
-                        <td className="py-3 px-4 text-[var(--text-primary)]">{plan.total_price.toLocaleString()} IQD</td>
-                        <td className="py-3 px-4 text-[var(--text-primary)]">{plan.remaining_amount.toLocaleString()} IQD</td>
-                        <td className="py-3 px-4">
-                          <div className="w-24 bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-electric rounded-full h-2"
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
-                          <span className="text-xs text-[var(--text-primary)] mt-1">
-                            {plan.paid_count || 0}/{plan.total_count}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">{getStatusBadge(plan.status)}</td>
-                        <td className="py-3 px-4">
-                          <Link
-                            href={`/installments/${plan.id}`}
-                            className="text-electric hover:underline"
-                          >
-                            تفاصيل
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
           {totalPages > 1 && (
             <div className="flex justify-center gap-2 mt-6">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg border border-[var(--border-color)] disabled:opacity-50"
               >
                 السابق
               </button>
@@ -195,7 +196,7 @@ export default function InstallmentsPage() {
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg border border-[var(--border-color)] disabled:opacity-50"
               >
                 التالي
               </button>

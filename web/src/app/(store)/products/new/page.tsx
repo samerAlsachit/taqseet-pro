@@ -75,37 +75,37 @@ export default function NewProductPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+    <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8 bg-[#F0F2F5] dark:bg-[#0D1117]">
       <div className="flex items-center gap-4 mb-6">
-        <Link href="/products" className="text-electric hover:underline">
+        <Link href="/products" className="text-blue-600 dark:text-blue-400 hover:underline">
           ← العودة إلى المخزن
         </Link>
-        <h1 className="text-2xl font-bold text-navy">إضافة منتج جديد</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">إضافة منتج جديد</h1>
       </div>
 
       {error && (
-        <div className="bg-red-50 text-danger border border-danger/20 rounded-lg p-3 mb-6">
+        <div className="bg-red-50 text-red-600 border border-red-200 rounded-lg p-3 mb-6">
           {error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
+      <form onSubmit={handleSubmit} className="bg-white dark:bg-[#161B22] rounded-xl shadow-md border border-gray-100 dark:border-[#30363D] p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* اسم المنتج */}
           <div className="md:col-span-2">
-            <label className="block text-text-primary mb-2">اسم المنتج *</label>
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">اسم المنتج *</label>
             <input
               type="text"
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+              className="w-full px-4 py-2 bg-white dark:bg-[#1C2128] border border-gray-300 dark:border-[#30363D] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3A86FF] focus:border-transparent transition-colors duration-200"
             />
           </div>
 
           {/* اختيار العملة */}
           <div className="md:col-span-2">
-            <label className="block text-text-primary mb-2">عملة المنتج *</label>
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">عملة المنتج *</label>
             <div className="flex gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -113,9 +113,9 @@ export default function NewProductPage() {
                   value="IQD"
                   checked={currency === 'IQD'}
                   onChange={(e) => setCurrency(e.target.value)}
-                  className="w-4 h-4 text-electric"
+                  className="w-4 h-4 text-blue-600"
                 />
-                <span>دينار عراقي (IQD)</span>
+                <span className="text-[var(--text-primary)]">دينار عراقي (IQD)</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -123,46 +123,46 @@ export default function NewProductPage() {
                   value="USD"
                   checked={currency === 'USD'}
                   onChange={(e) => setCurrency(e.target.value)}
-                  className="w-4 h-4 text-electric"
+                  className="w-4 h-4 text-blue-600"
                 />
-                <span>دولار أمريكي (USD)</span>
+                <span className="text-[var(--text-primary)]">دولار أمريكي (USD)</span>
               </label>
             </div>
           </div>
 
           {/* الفئة */}
           <div>
-            <label className="block text-text-primary mb-2">الفئة</label>
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">الفئة</label>
             <input
               type="text"
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+              className="w-full px-4 py-2 bg-white dark:bg-[#1C2128] border border-gray-300 dark:border-[#30363D] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3A86FF] focus:border-transparent transition-colors duration-200"
             />
           </div>
 
           {/* الكمية */}
           <div>
-            <label className="block text-text-primary mb-2">الكمية المتوفرة *</label>
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">الكمية المتوفرة *</label>
             <input
               type="number"
               required
               min="0"
               value={formData.quantity}
               onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
-              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+              className="w-full px-4 py-2 bg-white dark:bg-[#1C2128] border border-gray-300 dark:border-[#30363D] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3A86FF] focus:border-transparent transition-colors duration-200"
             />
           </div>
 
           {/* حد التنبيه */}
           <div>
-            <label className="block text-text-primary mb-2">حد التنبيه للمخزون المنخفض</label>
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">حد التنبيه للمخزون المنخفض</label>
             <input
               type="number"
               min="0"
               value={formData.low_stock_alert}
               onChange={(e) => setFormData({ ...formData, low_stock_alert: parseInt(e.target.value) || 0 })}
-              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+              className="w-full px-4 py-2 bg-white dark:bg-[#1C2128] border border-gray-300 dark:border-[#30363D] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3A86FF] focus:border-transparent transition-colors duration-200"
             />
           </div>
 
@@ -170,70 +170,70 @@ export default function NewProductPage() {
           {currency === 'IQD' ? (
             <>
               <div>
-                <label className="block text-text-primary mb-2">سعر الشراء (دينار)</label>
+                <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">سعر الشراء (دينار)</label>
                 <input
                   type="number"
                   min="0"
                   value={formData.cost_price}
                   onChange={(e) => setFormData({ ...formData, cost_price: parseInt(e.target.value) || 0 })}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg"
+                  className="w-full px-4 py-2 bg-white dark:bg-[#1C2128] border border-gray-300 dark:border-[#30363D] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3A86FF] focus:border-transparent transition-colors duration-200"
                 />
               </div>
               <div>
-                <label className="block text-text-primary mb-2">سعر البيع نقداً (دينار) *</label>
+                <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">سعر البيع نقداً (دينار) *</label>
                 <input
                   type="number"
                   required
                   min="0"
                   value={formData.sell_price_cash}
                   onChange={(e) => setFormData({ ...formData, sell_price_cash: parseInt(e.target.value) || 0 })}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg"
+                  className="w-full px-4 py-2 bg-white dark:bg-[#1C2128] border border-gray-300 dark:border-[#30363D] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3A86FF] focus:border-transparent transition-colors duration-200"
                 />
               </div>
               <div>
-                <label className="block text-text-primary mb-2">سعر البيع بالقسط (دينار) *</label>
+                <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">سعر البيع بالقسط (دينار) *</label>
                 <input
                   type="number"
                   required
                   min="0"
                   value={formData.sell_price_install}
                   onChange={(e) => setFormData({ ...formData, sell_price_install: parseInt(e.target.value) || 0 })}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg"
+                  className="w-full px-4 py-2 bg-white dark:bg-[#1C2128] border border-gray-300 dark:border-[#30363D] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3A86FF] focus:border-transparent transition-colors duration-200"
                 />
               </div>
             </>
           ) : (
             <>
               <div>
-                <label className="block text-text-primary mb-2">سعر الشراء (دولار)</label>
+                <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">سعر الشراء (دولار)</label>
                 <input
                   type="number"
                   min="0"
                   value={formData.cost_price}
                   onChange={(e) => setFormData({ ...formData, cost_price: parseInt(e.target.value) || 0 })}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg"
+                  className="w-full px-4 py-2 bg-white dark:bg-[#1C2128] border border-gray-300 dark:border-[#30363D] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3A86FF] focus:border-transparent transition-colors duration-200"
                 />
               </div>
               <div>
-                <label className="block text-text-primary mb-2">سعر البيع نقداً (دولار) *</label>
+                <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">سعر البيع نقداً (دولار) *</label>
                 <input
                   type="number"
                   required
                   min="0"
                   value={formData.sell_price_cash}
                   onChange={(e) => setFormData({ ...formData, sell_price_cash: parseInt(e.target.value) || 0 })}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg"
+                  className="w-full px-4 py-2 bg-white dark:bg-[#1C2128] border border-gray-300 dark:border-[#30363D] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3A86FF] focus:border-transparent transition-colors duration-200"
                 />
               </div>
               <div>
-                <label className="block text-text-primary mb-2">سعر البيع بالقسط (دولار) *</label>
+                <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">سعر البيع بالقسط (دولار) *</label>
                 <input
                   type="number"
                   required
                   min="0"
                   value={formData.sell_price_install}
                   onChange={(e) => setFormData({ ...formData, sell_price_install: parseInt(e.target.value) || 0 })}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg"
+                  className="w-full px-4 py-2 bg-white dark:bg-[#1C2128] border border-gray-300 dark:border-[#30363D] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3A86FF] focus:border-transparent transition-colors duration-200"
                 />
               </div>
             </>
@@ -241,12 +241,12 @@ export default function NewProductPage() {
 
           {/* وصف المنتج */}
           <div className="md:col-span-2">
-            <label className="block text-text-primary mb-2">وصف المنتج</label>
+            <label className="block text-gray-700 dark:text-gray-300 font-medium mb-2">وصف المنتج</label>
             <textarea
               rows={3}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg"
+              className="w-full px-4 py-2 bg-white dark:bg-[#1C2128] border border-gray-300 dark:border-[#30363D] text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3A86FF] focus:border-transparent transition-colors duration-200"
             />
           </div>
         </div>
@@ -255,13 +255,13 @@ export default function NewProductPage() {
           <button
             type="submit"
             disabled={loading}
-            className="bg-electric hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition disabled:opacity-50"
+              className="bg-[#3A86FF] hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition disabled:opacity-50"
           >
             {loading ? 'جاري الحفظ...' : 'حفظ المنتج'}
           </button>
           <Link
             href="/products"
-            className="border border-[var(--border-color)] text-text-primary hover:bg-[var(--bg-primary)] px-6 py-2 rounded-lg transition"
+            className="border border-gray-300 dark:border-[#30363D] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1C2128] px-6 py-2 rounded-lg transition"
           >
             إلغاء
           </Link>

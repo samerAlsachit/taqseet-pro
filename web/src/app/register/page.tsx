@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Anchor } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function RegisterPage() {
   const [formData, setFormData] = useState({
     store_name: '',
     owner_name: '',
+    email: '',
     phone: '',
     address: '',
     city: '',
@@ -51,6 +53,7 @@ export default function RegisterPage() {
         body: JSON.stringify({
           store_name: formData.store_name,
           owner_name: formData.owner_name,
+          email: formData.email,
           phone: formData.phone,
           address: formData.address,
           city: formData.city,
@@ -76,13 +79,13 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)] p-4">
-      <div className="bg-[var(--card-bg)] rounded-xl shadow-lg p-8 w-full max-w-md border border-[var(--border-color)]">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-navy mb-4">
-            <span className="text-3xl">⚓</span>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 w-full max-w-md border border-gray-200 dark:border-gray-700">
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-navy mb-3">
+            <Anchor className="text-white" size={32} />
           </div>
           <h1 className="text-3xl font-bold text-navy dark:text-white">مرساة</h1>
-          <p className="text-[var(--text-primary)]/70 mt-2">فترة تجريبية مجانية لمدة 14 يوم</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">فترة تجريبية مجانية لمدة 14 يوم</p>
         </div>
 
         {error && (
@@ -93,64 +96,74 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
-            <div>
-              <label className="block text-[var(--text-primary)] mb-2">اسم المحل *</label>
+            <div className="mb-4">
+              <label className="block text-gray-900 dark:text-white mb-2">اسم المحل *</label>
               <input
                 type="text"
                 required
                 value={formData.store_name}
                 onChange={(e) => setFormData({...formData, store_name: e.target.value})}
-                className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-[var(--card-bg)] text-[var(--text-primary)]"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
               />
             </div>
-            <div>
-              <label className="block text-[var(--text-primary)] mb-2">اسم المالك *</label>
+            <div className="mb-4">
+              <label className="block text-gray-900 dark:text-white mb-2">اسم المالك *</label>
               <input
                 type="text"
                 required
                 value={formData.owner_name}
                 onChange={(e) => setFormData({...formData, owner_name: e.target.value})}
-                className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-[var(--card-bg)] text-[var(--text-primary)]"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
               />
             </div>
-            <div>
-              <label className="block text-[var(--text-primary)] mb-2">رقم الهاتف *</label>
+            <div className="mb-4">
+              <label className="block text-gray-900 dark:text-white mb-2">البريد الإلكتروني *</label>
+              <input
+                type="email"
+                required
+                value={formData.email}
+                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-900 dark:text-white mb-2">رقم الهاتف *</label>
               <input
                 type="tel"
                 required
                 value={formData.phone}
                 onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-[var(--card-bg)] text-[var(--text-primary)]"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
               />
             </div>
-            <div>
-              <label className="block text-[var(--text-primary)] mb-2">اسم المستخدم *</label>
+            <div className="mb-4">
+              <label className="block text-gray-900 dark:text-white mb-2">اسم المستخدم *</label>
               <input
                 type="text"
                 required
                 value={formData.username}
                 onChange={(e) => setFormData({...formData, username: e.target.value})}
-                className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-[var(--card-bg)] text-[var(--text-primary)]"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
               />
             </div>
-            <div>
-              <label className="block text-[var(--text-primary)] mb-2">كلمة المرور *</label>
+            <div className="mb-4">
+              <label className="block text-gray-900 dark:text-white mb-2">كلمة المرور *</label>
               <input
                 type="password"
                 required
                 value={formData.password}
                 onChange={(e) => setFormData({...formData, password: e.target.value})}
-                className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-[var(--card-bg)] text-[var(--text-primary)]"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
               />
             </div>
-            <div>
-              <label className="block text-[var(--text-primary)] mb-2">تأكيد كلمة المرور *</label>
+            <div className="mb-6">
+              <label className="block text-gray-900 dark:text-white mb-2">تأكيد كلمة المرور *</label>
               <input
                 type="password"
                 required
                 value={formData.confirm_password}
                 onChange={(e) => setFormData({...formData, confirm_password: e.target.value})}
-                className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-[var(--card-bg)] text-[var(--text-primary)]"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
               />
             </div>
           </div>
@@ -158,17 +171,15 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-electric hover:bg-blue-600 text-white py-2 rounded-lg mt-6 transition disabled:opacity-50"
+            className="w-full bg-electric hover:bg-blue-600 text-white py-2 rounded-lg transition disabled:opacity-50 mt-2"
           >
             {loading ? 'جاري إنشاء الحساب...' : 'ابدأ التجربة المجانية'}
           </button>
         </form>
 
-        <p className="text-center text-[var(--text-primary)]/70 text-sm mt-6">
+        <p className="text-center text-gray-500 dark:text-gray-400 text-sm mt-6">
           لديك حساب؟{' '}
-          <Link href="/login" className="text-electric hover:underline">
-            تسجيل الدخول
-          </Link>
+          <Link href="/login" className="text-electric hover:underline">تسجيل الدخول</Link>
         </p>
       </div>
     </div>

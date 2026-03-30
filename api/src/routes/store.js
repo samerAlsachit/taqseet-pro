@@ -241,6 +241,13 @@ router.delete('/employees/:id', auth, async (req, res) => {
   const { id } = req.params;
   const storeId = req.user.store_id;
   
+  // جلب بيانات الموظف قبل الحذف للتسجيل
+  const { data: employeeToDelete } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', id)
+    .single();
+  
   const { error } = await supabase
     .from('users')
     .delete()
@@ -248,6 +255,9 @@ router.delete('/employees/:id', auth, async (req, res) => {
     .eq('store_id', storeId);
   
   if (error) throw error;
+  
+  // تسجيل عملية الحذف
+  await logAudit(req, 'DELETE', 'users', id, employeeToDelete, null);
   
   res.json({ success: true, message: 'تم حذف الموظف بنجاح' });
 });

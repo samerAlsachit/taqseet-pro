@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import AdminLayout from '@/components/layout/AdminLayout';
+import { FileText, Search, Filter, Eye, PlusCircle, Edit, Trash2 } from 'lucide-react';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface AuditLog {
   id: string;
@@ -51,9 +53,24 @@ export default function AuditPage() {
 
   const getActionBadge = (action: string) => {
     switch (action) {
-      case 'INSERT': return <span className="bg-success/10 text-success px-2 py-1 rounded-full text-xs">إضافة</span>;
-      case 'UPDATE': return <span className="bg-warning/10 text-warning px-2 py-1 rounded-full text-xs">تعديل</span>;
-      case 'DELETE': return <span className="bg-danger/10 text-danger px-2 py-1 rounded-full text-xs">حذف</span>;
+      case 'INSERT': return (
+        <span className="bg-success/10 text-success px-2 py-1 rounded-full text-xs flex items-center gap-1">
+          <PlusCircle size={14} className="inline ml-1" />
+          إضافة
+        </span>
+      );
+      case 'UPDATE': return (
+        <span className="bg-warning/10 text-warning px-2 py-1 rounded-full text-xs flex items-center gap-1">
+          <Edit size={14} className="inline ml-1" />
+          تعديل
+        </span>
+      );
+      case 'DELETE': return (
+        <span className="bg-danger/10 text-danger px-2 py-1 rounded-full text-xs flex items-center gap-1">
+          <Trash2 size={14} className="inline ml-1" />
+          حذف
+        </span>
+      );
       default: return <span className="bg-[var(--bg-primary)] px-2 py-1 rounded-full text-xs">{action}</span>;
     }
   };
@@ -82,7 +99,10 @@ export default function AuditPage() {
   return (
     <AdminLayout>
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-[var(--navy-color)] mb-6">سجل العمليات</h1>
+        <div className="flex items-center gap-2 mb-6">
+          <FileText className="text-electric" size={28} />
+          <h1 className="text-2xl font-bold text-navy dark:text-white">سجل العمليات</h1>
+        </div>
 
         {/* فلتر */}
         <div className="flex gap-4 mb-6">
@@ -99,9 +119,7 @@ export default function AuditPage() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric"></div>
-          </div>
+          <LoadingSpinner />
         ) : logs.length === 0 ? (
           <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-12 text-center">
             <p className="text-[var(--text-primary)]">لا توجد سجلات</p>
@@ -136,9 +154,10 @@ export default function AuditPage() {
                         <td className="py-3 px-4">
                           <button
                             onClick={() => fetchDetails(log.id)}
-                            className="text-electric hover:underline text-sm"
+                            className="text-electric hover:underline text-sm flex items-center gap-1"
                           >
-                            🔍 تفاصيل
+                            <Eye size={14} />
+                            <span>تفاصيل</span>
                           </button>
                         </td>
                       </tr>

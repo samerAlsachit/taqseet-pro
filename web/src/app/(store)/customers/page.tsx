@@ -3,6 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
+import Swal from 'sweetalert2';
+import { Eye, Trash2 } from 'lucide-react';
+import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface Customer {
   id: string;
@@ -53,8 +57,18 @@ export default function CustomersPage() {
   }, [page, search]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('هل أنت متأكد من حذف هذا العميل؟')) return;
+  const result = await Swal.fire({
+    title: 'هل أنت متأكد؟',
+    text: 'لن تتمكن من استعادة هذا العميل!',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#DC3545',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: 'نعم، احذف',
+    cancelButtonText: 'إلغاء'
+  });
 
+  if (result.isConfirmed) {
     const token = localStorage.getItem('token');
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/customers/${id}`, {
@@ -63,23 +77,25 @@ export default function CustomersPage() {
       });
       const data = await res.json();
       if (data.success) {
+        toast.success('تم حذف العميل بنجاح');
         fetchCustomers();
       } else {
-        alert(data.error || 'فشل في حذف العميل');
+        toast.error(data.error || 'فشل في حذف العميل');
       }
     } catch (error) {
-      alert('حدث خطأ في الاتصال بالخادم');
+      toast.error('حدث خطأ في الاتصال بالخادم');
     }
-  };
+  }
+};
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className="text-2xl font-bold text-navy">العملاء</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">العملاء</h1>
         <Link
           href="/customers/new"
-          className="bg-electric hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition text-center"
+          className="bg-[#3A86FF] hover:bg-[#2563EB] text-white px-4 py-2 rounded-lg transition"
         >
           + إضافة عميل جديد
         </Link>
@@ -95,49 +111,47 @@ export default function CustomersPage() {
             setSearch(e.target.value);
             setPage(1);
           }}
-          className="w-full max-w-md px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+          className="w-full max-w-md px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
         />
       </div>
 
       {/* Table */}
       {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-electric"></div>
-        </div>
+        <LoadingSpinner />
       ) : customers.length === 0 ? (
-        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-12 text-center">
-          <p className="text-[var(--text-primary)] mb-4">لا يوجد عملاء</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-12 text-center">
+          <p className="text-gray-900 dark:text-white mb-4">لا يوجد عملاء</p>
           <Link
             href="/customers/new"
-            className="bg-electric text-white px-4 py-2 rounded-lg inline-block"
+            className="bg-[#3A86FF] hover:bg-[#2563EB] text-white px-4 py-2 rounded-lg transition"
           >
             أضف أول عميل
           </Link>
         </div>
       ) : (
         <>
-          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-[var(--border-color)] bg-[var(--bg-primary)]">
-                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">الاسم</th>
-                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">رقم الهاتف</th>
-                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">العنوان</th>
-                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">الرقم الوطني</th>
-                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">أقساط نشطة</th>
-                    <th className="text-right py-3 px-4 text-[var(--text-primary)]/70 font-semibold">إجراءات</th>
+                  <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                    <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">الاسم</th>
+                    <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">رقم الهاتف</th>
+                    <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">العنوان</th>
+                    <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">الرقم الوطني</th>
+                    <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">أقساط نشطة</th>
+                    <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">إجراءات</th>
                    </tr>
                 </thead>
                 <tbody>
                   {customers.map((customer) => (
-                    <tr key={customer.id} className="border-b border-[var(--border-color)] hover:bg-[var(--hover-bg)]">
-                      <td className="py-3 px-4 text-[var(--text-primary)]">{customer.full_name}</td>
-                      <td className="py-3 px-4 text-[var(--text-primary)]">{customer.phone}</td>
-                      <td className="py-3 px-4 text-[var(--text-primary)]">{customer.address || '-'}</td>
-                      <td className="py-3 px-4 text-[var(--text-primary)]">{customer.national_id || '-'}</td>
+                    <tr key={customer.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <td className="py-3 px-4 text-gray-900 dark:text-white">{customer.full_name}</td>
+                      <td className="py-3 px-4 text-gray-900 dark:text-white">{customer.phone}</td>
+                      <td className="py-3 px-4 text-gray-900 dark:text-white">{customer.address || '-'}</td>
+                      <td className="py-3 px-4 text-gray-900 dark:text-white">{customer.national_id || '-'}</td>
                       <td className="py-3 px-4">
-                        <span className="px-2 py-1 rounded-full text-sm bg-electric/10 text-electric">
+                        <span className="px-2 py-1 rounded-full text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
                           {customer.active_installments_count || 0}
                         </span>
                       </td>
@@ -145,14 +159,16 @@ export default function CustomersPage() {
                         <div className="flex gap-2">
                           <Link
                             href={`/customers/${customer.id}`}
-                            className="text-electric hover:underline"
+                            className="text-[#3A86FF] hover:underline text-sm"
                           >
+                            <Eye size={16} className="inline ml-1" />
                             تفاصيل
                           </Link>
                           <button
                             onClick={() => handleDelete(customer.id)}
-                            className="text-danger hover:underline"
+                            className="text-[#DC3545] hover:underline text-sm"
                           >
+                            <Trash2 size={16} className="inline ml-1" />
                             حذف
                           </button>
                         </div>
@@ -170,17 +186,17 @@ export default function CustomersPage() {
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white disabled:opacity-50"
               >
                 السابق
               </button>
-              <span className="px-4 py-2 text-[var(--text-primary)]">
+              <span className="px-4 py-2 text-gray-900 dark:text-white">
                 صفحة {page} من {totalPages}
               </span>
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white disabled:opacity-50"
               >
                 التالي
               </button>
