@@ -8,30 +8,45 @@
   --color-danger: #DC3545;
 }
 
-:root {
-  --bg-primary: #F8F9FA;
-  --text-primary: #333333;
-  --card-bg: #FFFFFF;
-  --border-color: #E5E7EB;
-  --navy-color: #0A192F;
-  --hover-color: #F9FAFB;
-}
-
-.dark {
-  --bg-primary: #111827;
-  --text-primary: #F3F4F6;
-  --card-bg: #1F2937;
-  --border-color: #374151;
-  --navy-color: #0A192F;
-  --hover-color: #1F2937;
-}
+@custom-variant dark (&:where(.dark, .dark *));
 
 body {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+  background-color: #F3F4F6;
 }
 
-.card {
-  background-color: var(--card-bg);
-  border-color: var(--border-color);
+.dark body {
+  background-color: #111827;
+}
+
+/* فئات مساعدة */
+.bg-card {
+  background-color: #FFFFFF;
+}
+
+.dark .bg-card {
+  background-color: #1F2937;
+}
+
+.text-primary {
+  color: #111827;
+}
+
+.dark .text-primary {
+  color: #F9FAFB;
+}
+
+.text-secondary {
+  color: #6B7280;
+}
+
+.dark .text-secondary {
+  color: #9CA3AF;
+}
+
+.border-card {
+  border-color: #E5E7EB;
+}
+
+.dark .border-card {
+  border-color: #374151;
 }

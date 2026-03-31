@@ -26,6 +26,7 @@ export default function ProductsPage() {
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isStoreActive, setIsStoreActive] = useState(true);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -41,12 +42,26 @@ export default function ProductsPage() {
 
     setLoading(true);
     try {
-      let url = `${process.env.NEXT_PUBLIC_API_URL}/products?search=${search}&page=${page}&limit=${limit}`;
-    if (showLowStock) {
-      url += `&low_stock=true`;
-    }
+      // جلب بيانات المستخدم والمحل
+      const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const meData = await meRes.json();
       
-      const res = await fetch(url, {
+      if (meData.success) {
+        const store = meData.data.store;
+        if (store && !store.is_active) {
+          setIsStoreActive(false);
+          alert('حساب المحل غير نشط. يرجى التواصل مع الدعم.');
+        }
+      }
+
+      let url = `${process.env.NEXT_PUBLIC_API_URL}/products?search=${search}&page=${page}&limit=${limit}`;
+      if (showLowStock) {
+        url += `&low_stock=true`;
+      }
+        
+        const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -66,6 +81,11 @@ export default function ProductsPage() {
   }, [page, search, showLowStock]);
 
   const handleDelete = async (id: string) => {
+    if (!isStoreActive) {
+      alert('حساب المحل غير نشط. لا يمكن إجراء عمليات.');
+      return;
+    }
+
     if (!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
 
     const token = localStorage.getItem('token');
@@ -98,12 +118,32 @@ export default function ProductsPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+      {/* تحذير المحل غير النشط */}
+      {!isStoreActive && (
+        <div className="bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg p-4 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="text-red-600 dark:text-red-400 text-xl">⚠️</div>
+            <div>
+              <p className="font-bold text-red-700 dark:text-red-400">حساب المحل غير نشط</p>
+              <p className="text-red-600 dark:text-red-300 text-sm">
+                حسابك غير نشط حالياً. يرجى التواصل مع الدعم لتفعيله.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">المخزن</h1>
         <Link
           href="/products/new"
-          className="btn-primary"
+          className={`px-4 py-2 rounded-lg transition ${
+            isStoreActive
+              ? 'bg-[#3A86FF] hover:bg-[#2563EB] text-white'
+              : 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed opacity-50'
+          }`}
+          onClick={(e) => !isStoreActive && e.preventDefault()}
         >
           + إضافة منتج جديد
         </Link>

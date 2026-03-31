@@ -75,4 +75,7 @@ app.listen(PORT, () => {
 // تشغيل Cron Job للتنبيهات
 require('./cron/expiryNotifications');
 
+// تشغيل Cron Job للنسخ الاحتياطي
+require('./cron/backupScheduler');
+
 module.exports = app;

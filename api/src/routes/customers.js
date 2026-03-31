@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { auth } = require('../middleware/auth');
+const { auth, authReadOnly } = require('../middleware/auth');
 const { checkSubscription, checkCustomerLimit } = require('../middleware/checkSubscription');
 const { logAudit } = require('../middleware/audit');
 const { supabase } = require('../config/supabase');
 const { v4: uuidv4 } = require('uuid');
 
-// GET /api/customers - قائمة العملاء
-router.get('/', auth, checkSubscription, async (req, res) => {
+// GET /api/customers - قائمة العملاء (قراءة فقط)
+router.get('/', authReadOnly, checkSubscription, async (req, res) => {
   try {
     const storeId = req.user.store_id;
     const page = parseInt(req.query.page) || 1;

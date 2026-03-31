@@ -27,6 +27,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [storeName, setStoreName] = useState('');
+  const [isStoreActive, setIsStoreActive] = useState(true);
   const [expiringWarning, setExpiringWarning] = useState(false);
   const [daysRemaining, setDaysRemaining] = useState(0);
   const [isTrial, setIsTrial] = useState(false);
@@ -47,6 +48,27 @@ export default function DashboardPage() {
       return;
     }
 
+    const checkStoreStatus = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        
+        if (data.success && data.data.store) {
+          if (!data.data.store.is_active) {
+            setIsStoreActive(false);
+            alert('المحل غير نشط. يرجى التواصل مع الدعم.');
+            // لا نقوم بتسجيل الخروج تلقائياً، فقط نعرض التحذير
+          }
+        }
+      } catch (error) {
+        console.error('خطأ في التحقق', error);
+      }
+    };
+    
+    checkStoreStatus();
+
     const fetchData = async () => {
       try {
         // جلب بيانات المحل والمستخدم
@@ -54,8 +76,14 @@ export default function DashboardPage() {
           headers: { Authorization: `Bearer ${token}` }
         });
         const meData = await meRes.json();
+        console.log('meData:', meData);
+        console.log('store status:', meData.data?.store?.is_active);
         if (meData.success) {
-          setStoreName(meData.data.store?.name || 'المحل');
+          const store = meData.data.store;
+          if (store && !store.is_active) {
+            setIsStoreActive(false);
+          }
+          setStoreName(store?.name || 'المحل');
           
           // التحقق من الفترة التجريبية
           if (meData.data.subscription?.is_trial) {
@@ -98,6 +126,35 @@ export default function DashboardPage() {
     fetchData();
   }, [router]);
 
+  // التحقق الفوري من حالة المحل
+  useEffect(() => {
+    const checkStoreStatus = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success && data.data.store && !data.data.store.is_active) {
+          setIsStoreActive(false);
+          alert('المحل غير نشط. سيتم تسجيل الخروج.');
+          setTimeout(() => {
+            localStorage.removeItem('token');
+            router.push('/login');
+          }, 3000);
+        }
+      } catch (error) {
+        console.error('خطأ في التحقق من حالة المحل', error);
+      }
+    };
+    
+    checkStoreStatus();
+    const interval = setInterval(checkStoreStatus, 30000); // كل 30 ثانية
+    return () => clearInterval(interval);
+  }, [router]);
+
   if (loading) {
     return <LoadingSpinner />;
   }
@@ -115,6 +172,21 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* تحذير المحل غير النشط */}
+      {!isStoreActive && (
+        <div className="bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg p-4 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="text-red-600 dark:text-red-400 text-xl">⚠️</div>
+            <div>
+              <p className="font-bold text-red-700 dark:text-red-400">حساب المحل غير نشط</p>
+              <p className="text-red-600 dark:text-red-300 text-sm">
+                حسابك غير نشط حالياً. لا يمكنك إجراء أي عمليات. يرجى التواصل مع الدعم.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* تحذير الفترة التجريبية */}
       {isTrial && (
@@ -237,21 +309,53 @@ export default function DashboardPage() {
 
         {/* قائمة سريعة */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <Link href="/customers/new" className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 p-4 rounded-xl shadow-sm text-center transition">
+          <Link
+            href="/customers/new"
+            className={`p-4 rounded-xl shadow-sm text-center transition ${
+              isStoreActive
+                ? 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'
+                : 'bg-gray-100 dark:bg-gray-800/50 cursor-not-allowed opacity-50'
+            }`}
+            onClick={(e) => !isStoreActive && e.preventDefault()}
+          >
             <Plus className="mx-auto mb-2 text-electric" size={24} />
-            <span className="text-[var(--text-primary)]">إضافة عميل</span>
+            <span className="text-gray-900 dark:text-white">إضافة عميل</span>
           </Link>
-          <Link href="/installments/new" className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 p-4 rounded-xl shadow-sm text-center transition">
+          <Link
+            href="/installments/new"
+            className={`p-4 rounded-xl shadow-sm text-center transition ${
+              isStoreActive
+                ? 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'
+                : 'bg-gray-100 dark:bg-gray-800/50 cursor-not-allowed opacity-50'
+            }`}
+            onClick={(e) => !isStoreActive && e.preventDefault()}
+          >
             <Receipt className="mx-auto mb-2 text-electric" size={24} />
-            <span className="text-[var(--text-primary)]">قسط جديد</span>
+            <span className="text-gray-900 dark:text-white">قسط جديد</span>
           </Link>
-          <Link href="/products/new" className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 p-4 rounded-xl shadow-sm text-center transition">
+          <Link
+            href="/products/new"
+            className={`p-4 rounded-xl shadow-sm text-center transition ${
+              isStoreActive
+                ? 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'
+                : 'bg-gray-100 dark:bg-gray-800/50 cursor-not-allowed opacity-50'
+            }`}
+            onClick={(e) => !isStoreActive && e.preventDefault()}
+          >
             <Package className="mx-auto mb-2 text-electric" size={24} />
-            <span className="text-[var(--text-primary)]">منتج جديد</span>
+            <span className="text-gray-900 dark:text-white">منتج جديد</span>
           </Link>
-          <Link href="/payments/new" className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 p-4 rounded-xl shadow-sm text-center transition">
+          <Link
+            href="/payments/new"
+            className={`p-4 rounded-xl shadow-sm text-center transition ${
+              isStoreActive
+                ? 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'
+                : 'bg-gray-100 dark:bg-gray-800/50 cursor-not-allowed opacity-50'
+            }`}
+            onClick={(e) => !isStoreActive && e.preventDefault()}
+          >
             <DollarSign className="mx-auto mb-2 text-electric" size={24} />
-            <span className="text-[var(--text-primary)]">تسديد دفعة</span>
+            <span className="text-gray-900 dark:text-white">تسديد دفعة</span>
           </Link>
         </div>
 

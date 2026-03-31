@@ -22,6 +22,7 @@ export default function CustomersPage() {
   const router = useRouter();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isStoreActive, setIsStoreActive] = useState(true);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -36,6 +37,20 @@ export default function CustomersPage() {
 
     setLoading(true);
     try {
+      // جلب بيانات المستخدم والمحل
+      const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const meData = await meRes.json();
+      
+      if (meData.success) {
+        const store = meData.data.store;
+        if (store && !store.is_active) {
+          setIsStoreActive(false);
+          alert('حساب المحل غير نشط. يرجى التواصل مع الدعم.');
+        }
+      }
+
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/customers?search=${search}&page=${page}&limit=${limit}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -57,6 +72,11 @@ export default function CustomersPage() {
   }, [page, search]);
 
   const handleDelete = async (id: string) => {
+    if (!isStoreActive) {
+      alert('حساب المحل غير نشط. لا يمكن إجراء عمليات.');
+      return;
+    }
+
   const result = await Swal.fire({
     title: 'هل أنت متأكد؟',
     text: 'لن تتمكن من استعادة هذا العميل!',
@@ -90,12 +110,32 @@ export default function CustomersPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+      {/* تحذير المحل غير النشط */}
+      {!isStoreActive && (
+        <div className="bg-red-50 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg p-4 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="text-red-600 dark:text-red-400 text-xl">⚠️</div>
+            <div>
+              <p className="font-bold text-red-700 dark:text-red-400">حساب المحل غير نشط</p>
+              <p className="text-red-600 dark:text-red-300 text-sm">
+                حسابك غير نشط حالياً. يرجى التواصل مع الدعم لتفعيله.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">العملاء</h1>
         <Link
           href="/customers/new"
-          className="bg-[#3A86FF] hover:bg-[#2563EB] text-white px-4 py-2 rounded-lg transition"
+          className={`px-4 py-2 rounded-lg transition ${
+            isStoreActive
+              ? 'bg-[#3A86FF] hover:bg-[#2563EB] text-white'
+              : 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed opacity-50'
+          }`}
+          onClick={(e) => !isStoreActive && e.preventDefault()}
         >
           + إضافة عميل جديد
         </Link>

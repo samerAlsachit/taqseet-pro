@@ -69,6 +69,30 @@ export default function StoresPage() {
     setPage(1); // إعادة تعيين الصفحة إلى 1 عند تغيير البحث
   };
 
+  // دالة تبديل حالة المحل
+  const toggleStoreStatus = async (storeId: string, currentStatus: boolean) => {
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/stores/${storeId}/toggle-status`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({ is_active: !currentStatus })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`تم ${!currentStatus ? 'تفعيل' : 'تعطيل'} المحل بنجاح`);
+        fetchStores();
+      } else {
+        alert(data.error || 'فشل في تغيير حالة المحل');
+      }
+    } catch {
+      alert('حدث خطأ في الاتصال بالخادم');
+    }
+  };
+
   // دالة تمديد الاشتراك
   const handleExtend = async () => {
     if (!selectedStore) return;
@@ -105,19 +129,19 @@ export default function StoresPage() {
   return (
     <AdminLayout>
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-bold text-[var(--navy-color)] mb-6">مرساة - إدارة المحلات</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">مرساة - إدارة المحلات</h1>
 
         {/* شريط البحث والفلتر - يبقى ثابت */}
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="flex-1 relative">
+          <div className="relative flex-1">
+            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
             <input
               type="text"
               placeholder="بحث باسم المحل، المالك، أو رقم الهاتف..."
               value={searchTerm}
-              onChange={handleSearchChange}
-              className="w-full pl-10 pr-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric"
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
             />
-            <Search size={18} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           </div>
           <div className="flex items-center gap-2">
             <select
@@ -126,13 +150,13 @@ export default function StoresPage() {
                 setStatusFilter(e.target.value);
                 setPage(1);
               }}
-              className="px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-[var(--card-bg)]"
+              className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
             >
               <option value="all">جميع المحلات</option>
               <option value="active">نشطة</option>
               <option value="expired">منتهية</option>
             </select>
-            <button className="px-3 py-2 border border-[var(--border-color)] rounded-lg hover:bg-[var(--bg-primary)] transition">
+            <button className="px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900 transition">
               <Filter size={18} />
             </button>
           </div>
@@ -142,35 +166,35 @@ export default function StoresPage() {
         {loading ? (
           <LoadingSpinner />
         ) : stores.length === 0 ? (
-          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-12 text-center">
-            <p className="text-[var(--text-primary)]">لا توجد محلات</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-12 text-center">
+            <p className="text-gray-500 dark:text-gray-400">لا توجد محلات</p>
           </div>
         ) : (
           <>
-            <div className="bg-[var(--card-bg)] rounded-xl shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-[var(--border-color)] bg-[var(--bg-primary)]">
-                      <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">اسم المحل</th>
-                      <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">المالك</th>
-                      <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">الهاتف</th>
-                      <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">المدينة</th>
-                      <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">الخطة</th>
-                      <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">تاريخ الانتهاء</th>
-                      <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">الحالة</th>
-                      <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">إجراءات</th>
+                    <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+                      <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">اسم المحل</th>
+                      <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">المالك</th>
+                      <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">الهاتف</th>
+                      <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">المدينة</th>
+                      <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">الخطة</th>
+                      <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">تاريخ الانتهاء</th>
+                      <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">الحالة</th>
+                      <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">إجراءات</th>
                      </tr>
                   </thead>
                   <tbody>
                     {stores.map((store) => (
-                      <tr key={store.id} className="border-b border-[var(--border-color)] hover:bg-[var(--bg-primary)]">
-                        <td className="py-3 px-4 text-[var(--text-primary)]">{store.name}</td>
-                        <td className="py-3 px-4 text-[var(--text-primary)]">{store.owner_name}</td>
-                        <td className="py-3 px-4 text-[var(--text-primary)]">{store.phone}</td>
-                        <td className="py-3 px-4 text-[var(--text-primary)]">{store.city || '-'}</td>
-                        <td className="py-3 px-4 text-[var(--text-primary)]">{store.plan_name || '-'}</td>
-                        <td className="py-3 px-4 text-[var(--text-primary)]">
+                      <tr key={store.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-900">
+                        <td className="py-3 px-4 text-gray-900 dark:text-white">{store.name}</td>
+                        <td className="py-3 px-4 text-gray-900 dark:text-white">{store.owner_name}</td>
+                        <td className="py-3 px-4 text-gray-900 dark:text-white">{store.phone}</td>
+                        <td className="py-3 px-4 text-gray-900 dark:text-white">{store.city || '-'}</td>
+                        <td className="py-3 px-4 text-gray-900 dark:text-white">{store.plan_name || '-'}</td>
+                        <td className="py-3 px-4 text-gray-900 dark:text-white">
                           {new Date(store.subscription_end).toLocaleDateString('ar-IQ')}
                         </td>
                         <td className="py-3 px-4">
@@ -195,9 +219,15 @@ export default function StoresPage() {
                               <Edit size={16} />
                               تمديد
                             </button>
-                            <button className="text-danger hover:underline text-sm flex items-center gap-1">
-                              <Trash2 size={16} />
-                              حذف
+                            <button
+                              onClick={() => toggleStoreStatus(store.id, store.is_active)}
+                              className={`flex items-center gap-1 px-3 py-1 rounded-lg text-sm transition ${
+                                store.is_active
+                                  ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                                  : 'bg-green-100 text-green-700 hover:bg-green-200'
+                              }`}
+                            >
+                              {store.is_active ? 'تعطيل' : 'تفعيل'}
                             </button>
                           </div>
                         </td>
@@ -214,17 +244,17 @@ export default function StoresPage() {
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="px-4 py-2 rounded-lg border border-[var(--border-color)] disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
                 >
                   السابق
                 </button>
-                <span className="px-4 py-2 text-[var(--text-primary)]">
+                <span className="px-4 py-2 text-gray-900 dark:text-white">
                   صفحة {page} من {totalPages}
                 </span>
                 <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="px-4 py-2 rounded-lg border border-[var(--border-color)] disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
                 >
                   التالي
                 </button>
@@ -236,34 +266,34 @@ export default function StoresPage() {
         {/* Modal تمديد الاشتراك */}
         {showExtendModal && selectedStore && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-[var(--card-bg)] rounded-xl p-6 w-full max-w-md border border-[var(--border-color)]">
-              <h2 className="text-xl font-bold text-[var(--navy-color)] mb-4">تمديد الاشتراك</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md border border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">تمديد الاشتراك</h2>
               
               <div className="space-y-4">
                 <div>
-                  <p className="text-[var(--text-primary)]">المحل: <span className="font-medium">{selectedStore.name}</span></p>
-                  <p className="text-[var(--text-primary)] mt-1">المالك: {selectedStore.owner_name}</p>
-                  <p className="text-[var(--text-primary)] mt-1">تاريخ الانتهاء الحالي: {new Date(selectedStore.subscription_end).toLocaleDateString('ar-IQ')}</p>
+                  <p className="text-gray-900 dark:text-white">المحل: <span className="font-medium">{selectedStore.name}</span></p>
+                  <p className="text-gray-900 dark:text-white mt-1">المالك: {selectedStore.owner_name}</p>
+                  <p className="text-gray-900 dark:text-white mt-1">تاريخ الانتهاء الحالي: {new Date(selectedStore.subscription_end).toLocaleDateString('ar-IQ')}</p>
                 </div>
                 
                 <div>
-                  <label className="block text-[var(--text-primary)] mb-2">عدد أيام التمديد</label>
+                  <label className="block text-gray-900 dark:text-white mb-2">عدد أيام التمديد</label>
                   <div className="flex gap-2 mb-2">
                     <button
                       onClick={() => setExtendDays(30)}
-                      className={`px-4 py-2 rounded-lg border ${extendDays === 30 ? 'bg-electric text-white border-electric' : 'border-[var(--border-color)] text-[var(--text-primary)]'}`}
+                      className={`px-4 py-2 rounded-lg border ${extendDays === 30 ? 'bg-electric text-white border-electric' : 'border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white'}`}
                     >
                       30 يوم
                     </button>
                     <button
                       onClick={() => setExtendDays(90)}
-                      className={`px-4 py-2 rounded-lg border ${extendDays === 90 ? 'bg-electric text-white border-electric' : 'border-[var(--border-color)] text-[var(--text-primary)]'}`}
+                      className={`px-4 py-2 rounded-lg border ${extendDays === 90 ? 'bg-electric text-white border-electric' : 'border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white'}`}
                     >
                       90 يوم
                     </button>
                     <button
                       onClick={() => setExtendDays(365)}
-                      className={`px-4 py-2 rounded-lg border ${extendDays === 365 ? 'bg-electric text-white border-electric' : 'border-[var(--border-color)] text-[var(--text-primary)]'}`}
+                      className={`px-4 py-2 rounded-lg border ${extendDays === 365 ? 'bg-electric text-white border-electric' : 'border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white'}`}
                     >
                       365 يوم
                     </button>
@@ -273,7 +303,7 @@ export default function StoresPage() {
                     min="1"
                     value={extendDays}
                     onChange={(e) => setExtendDays(parseInt(e.target.value) || 0)}
-                    className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-[var(--card-bg)] text-[var(--text-primary)]"
+                    className="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   />
                 </div>
               </div>
@@ -288,7 +318,7 @@ export default function StoresPage() {
                 </button>
                 <button
                   onClick={() => setShowExtendModal(false)}
-                  className="flex-1 border border-[var(--border-color)] text-[var(--text-primary)] py-2 rounded-lg"
+                  className="flex-1 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white py-2 rounded-lg"
                 >
                   إلغاء
                 </button>

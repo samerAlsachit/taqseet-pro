@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Tajawal } from "next/font/google";
-import { ThemeProvider } from '../context/ThemeContext';
+import { ThemeProvider } from '@/context/ThemeContext';
 import "./globals.css";
 
 const inter = Inter({ 
@@ -25,8 +25,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl">
-      <body className={`${inter.variable} ${tajawal.variable} antialiased bg-[var(--bg-primary)] text-[var(--text-primary)]`}>
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
+      <body className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
         <ThemeProvider>
           {children}
         </ThemeProvider>

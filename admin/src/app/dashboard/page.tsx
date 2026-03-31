@@ -162,78 +162,78 @@ export default function DashboardPage() {
 
   return (
     <AdminLayout>
-      <h1 className="text-2xl font-bold text-[var(--navy-color)] mb-6">مرساة - لوحة التحكم</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">مرساة - لوحة التحكم</h1>
 
       {/* بطاقات الإحصائيات */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-[var(--electric-color)]">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border-r-4 border-electric">
           <div className="flex items-center justify-between mb-2">
-            <Store className="text-[var(--electric-color)]" size={24} />
-            <p className="text-[var(--text-primary)]/70 text-sm">إجمالي المحلات</p>
+            <Store className="text-electric" size={24} />
+            <p className="text-gray-500 dark:text-gray-400 text-sm">إجمالي المحلات</p>
           </div>
-          <p className="text-3xl font-bold text-[var(--text-primary)]">{stats?.total_stores || 0}</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.total_stores || 0}</p>
         </div>
-        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-[var(--success-color)]">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border-r-4 border-success">
           <div className="flex items-center justify-between mb-2">
-            <Users className="text-[var(--success-color)]" size={24} />
-            <p className="text-[var(--text-primary)]/70 text-sm">المحلات النشطة</p>
+            <Users className="text-success" size={24} />
+            <p className="text-gray-500 dark:text-gray-400 text-sm">المحلات النشطة</p>
           </div>
-          <p className="text-3xl font-bold text-[var(--text-primary)]">{stats?.active_stores || 0}</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.active_stores || 0}</p>
         </div>
-        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-[var(--warning-color)]">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border-r-4 border-warning">
           <div className="flex items-center justify-between mb-2">
-            <AlertCircle className="text-[var(--warning-color)]" size={24} />
-            <p className="text-[var(--text-primary)]/70 text-sm">تنتهي خلال 7 أيام</p>
+            <AlertCircle className="text-warning" size={24} />
+            <p className="text-gray-500 dark:text-gray-400 text-sm">تنتهي خلال 7 أيام</p>
           </div>
-          <p className="text-3xl font-bold text-[var(--text-primary)]">{stats?.expiring_soon || 0}</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.expiring_soon || 0}</p>
         </div>
-        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border-r-4 border-[var(--electric-color)]">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border-r-4 border-electric">
           <div className="flex items-center justify-between mb-2">
-            <Calendar className="text-[var(--electric-color)]" size={24} />
-            <p className="text-[var(--text-primary)]/70 text-sm">محلات جديدة هذا الشهر</p>
+            <Calendar className="text-electric" size={24} />
+            <p className="text-gray-500 dark:text-gray-400 text-sm">محلات جديدة هذا الشهر</p>
           </div>
-          <p className="text-3xl font-bold text-[var(--text-primary)]">{stats?.new_stores_this_month || 0}</p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.new_stores_this_month || 0}</p>
         </div>
       </div>
 
       {/* المحلات المنتهية قريباً */}
       {expiringStores.length > 0 && (
-        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 mb-8">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-8">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-[var(--warning-color)] flex items-center gap-2">
+            <h2 className="text-xl font-bold text-warning flex items-center gap-2">
               <AlertTriangle size={20} />
               محلات على وشك انتهاء الاشتراك
             </h2>
-            <Link href="/stores?status=expiring" className="text-[var(--electric-color)] hover:underline text-sm">
+            <Link href="/stores?status=expiring" className="text-electric hover:underline text-sm">
               عرض الكل
             </Link>
           </div>
           <div className="space-y-3">
             {expiringStores.map((store) => (
-              <div key={store.id} className="flex justify-between items-center p-3 bg-[var(--warning-bg)] rounded-lg border border-[var(--warning-color)]">
+              <div key={store.id} className="flex justify-between items-center p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-warning">
                 <div>
-                  <p className="font-medium text-[var(--navy-color)]">{store.name}</p>
-                  <p className="text-sm text-[var(--text-primary)]">المالك: {store.owner_name} | الهاتف: {store.phone}</p>
-                  <p className="text-sm text-[var(--warning-color)]">ينتهي خلال {store.days_left} أيام</p>
+                  <p className="font-medium text-gray-900 dark:text-white">{store.name}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">المالك: {store.owner_name} | الهاتف: {store.phone}</p>
+                  <p className="text-sm text-warning">ينتهي خلال {store.days_left} أيام</p>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleSendWhatsApp(store)}
-                    className="bg-[var(--success-color)] text-white px-3 py-1 rounded-lg text-sm"
+                    className="bg-success text-white px-3 py-1 rounded-lg text-sm"
                   >
                     <MessageCircle size={16} className="inline ml-1" />
                     واتساب
                   </button>
                   <button
                     onClick={() => handleSendEmail(store)}
-                    className="bg-[var(--electric-color)] text-white px-3 py-1 rounded-lg text-sm"
+                    className="bg-electric text-white px-3 py-1 rounded-lg text-sm"
                   >
                     <Mail size={16} className="inline ml-1" />
                     إيميل
                   </button>
                   <button
                     onClick={() => router.push(`/stores?extend=${store.id}`)}
-                    className="bg-[var(--warning-color)] text-white px-3 py-1 rounded-lg text-sm"
+                    className="bg-warning text-white px-3 py-1 rounded-lg text-sm"
                   >
                     <Clock size={16} className="inline ml-1" />
                     تمديد
@@ -246,31 +246,31 @@ export default function DashboardPage() {
       )}
 
       {/* أحدث المحلات */}
-      <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
-        <h2 className="text-xl font-bold text-[var(--navy-color)] mb-4">أحدث المحلات</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">أحدث المحلات</h2>
         {stores.length === 0 ? (
-          <p className="text-[var(--text-primary)] text-center py-8">لا توجد محلات مسجلة</p>
+          <p className="text-gray-500 dark:text-gray-400 text-center py-8">لا توجد محلات مسجلة</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[var(--border-color)] bg-[var(--bg-primary)]">
-                  <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">اسم المحل</th>
-                  <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">المالك</th>
-                  <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">الهاتف</th>
-                  <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">المدينة</th>
-                  <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">تاريخ الانتهاء</th>
-                  <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">الحالة</th>
+                <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+                  <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">اسم المحل</th>
+                  <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">المالك</th>
+                  <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">الهاتف</th>
+                  <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">المدينة</th>
+                  <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">تاريخ الانتهاء</th>
+                  <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">الحالة</th>
                 </tr>
               </thead>
               <tbody>
                 {stores.map((store) => (
-                  <tr key={store.id} className="border-b border-[var(--border-color)] hover:bg-[var(--bg-primary)]">
-                    <td className="py-3 px-4 text-[var(--text-primary)]">{store.name}</td>
-                    <td className="py-3 px-4 text-[var(--text-primary)]">{store.owner_name}</td>
-                    <td className="py-3 px-4 text-[var(--text-primary)]">{store.phone}</td>
-                    <td className="py-3 px-4 text-[var(--text-primary)]">{store.city || '-'}</td>
-                    <td className="py-3 px-4 text-[var(--text-primary)]">
+                  <tr key={store.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-900">
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">{store.name}</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">{store.owner_name}</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">{store.phone}</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">{store.city || '-'}</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">
                       {new Date(store.subscription_end).toLocaleDateString('ar-IQ')}
                     </td>
                     <td className="py-3 px-4">

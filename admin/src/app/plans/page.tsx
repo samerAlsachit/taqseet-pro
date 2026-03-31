@@ -112,7 +112,7 @@ export default function PlansPage() {
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2">
             <Package className="text-electric" size={28} />
-            <h1 className="text-2xl font-bold text-navy dark:text-white">خطط الاشتراك</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">خطط الاشتراك</h1>
           </div>
           <button
             onClick={() => {
@@ -136,8 +136,8 @@ export default function PlansPage() {
         </div>
 
         {plans.length === 0 ? (
-          <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-12 text-center">
-            <p className="text-[var(--text-primary)]">لا توجد خطط اشتراك</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-12 text-center">
+            <p className="text-gray-500 dark:text-gray-400">لا توجد خطط اشتراك</p>
             <button
               onClick={() => setShowModal(true)}
               className="mt-4 bg-electric text-white px-4 py-2 rounded-lg"
@@ -148,7 +148,7 @@ export default function PlansPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {plans.map((plan) => (
-              <div key={plan.id} className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6 border relative">
+              <div key={plan.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700 relative">
                 {plan.name === 'سنوي' && (
                   <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-electric text-white px-3 py-1 rounded-full text-sm flex items-center gap-1">
                     <Star size={14} />
@@ -156,20 +156,20 @@ export default function PlansPage() {
                   </div>
                 )}
                 <div className="flex justify-between items-start">
-                  <h2 className="text-xl font-bold text-navy dark:text-white">{plan.name}</h2>
-                  <span className={`px-2 py-1 rounded-full text-xs ${plan.is_active ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">{plan.name}</h2>
+                  <span className={`px-2 py-1 rounded-full text-xs ${plan.is_active ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
                     {plan.is_active ? 'نشط' : 'غير نشط'}
                   </span>
                 </div>
                 <p className="text-2xl font-bold text-electric mt-2">{plan.price_iqd.toLocaleString()} IQD</p>
-                <p className="text-[var(--text-primary)] text-sm">{plan.duration_days} يوم</p>
-                <div className="mt-4 pt-4 border-t space-y-1">
+                <p className="text-gray-500 dark:text-gray-400 text-sm">{plan.duration_days} يوم</p>
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-1">
                   <div className="flex items-center gap-2 text-sm">
-                    <Users size={14} className="text-[var(--text-primary)]" />
+                    <Users size={14} className="text-gray-500 dark:text-gray-400" />
                     <span>عملاء: حتى {plan.max_customers}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
-                    <UserCheck size={14} className="text-[var(--text-primary)]" />
+                    <UserCheck size={14} className="text-gray-500 dark:text-gray-400" />
                     <span>موظفين: حتى {plan.max_employees}</span>
                   </div>
                   {plan.features?.length > 0 && (
@@ -220,64 +220,64 @@ export default function PlansPage() {
       {/* Modal إضافة/تعديل */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[var(--card-bg)] rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto border border-[var(--border-color)]">
-            <h2 className="text-xl font-bold text-[var(--navy-color)] mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
               {editingPlan ? 'تعديل الخطة' : 'إضافة خطة جديدة'}
             </h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-[var(--text-primary)] mb-2">اسم الخطة *</label>
+                <label className="block text-gray-900 dark:text-white mb-2">اسم الخطة *</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:ring-2 focus:ring-electric bg-[var(--card-bg)] text-[var(--text-primary)]"
+                  className="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-electric bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   required
                 />
               </div>
               <div>
-                <label className="block text-[var(--text-primary)] mb-2">المدة (أيام)</label>
+                <label className="block text-gray-900 dark:text-white mb-2">المدة (أيام)</label>
                 <input
                   type="number"
                   value={formData.duration_days}
                   onChange={(e) => setFormData({...formData, duration_days: parseInt(e.target.value)})}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--card-bg)] text-[var(--text-primary)]"
+                  className="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
               </div>
               <div>
-                <label className="block text-[var(--text-primary)] mb-2">السعر (دينار)</label>
+                <label className="block text-gray-900 dark:text-white mb-2">السعر (دينار)</label>
                 <input
                   type="number"
                   value={formData.price_iqd}
                   onChange={(e) => setFormData({...formData, price_iqd: parseInt(e.target.value)})}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--card-bg)] text-[var(--text-primary)]"
+                  className="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
               </div>
               <div>
-                <label className="block text-[var(--text-primary)] mb-2">حد العملاء</label>
+                <label className="block text-gray-900 dark:text-white mb-2">حد العملاء</label>
                 <input
                   type="number"
                   value={formData.max_customers}
                   onChange={(e) => setFormData({...formData, max_customers: parseInt(e.target.value)})}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--card-bg)] text-[var(--text-primary)]"
+                  className="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
               </div>
               <div>
-                <label className="block text-[var(--text-primary)] mb-2">حد الموظفين</label>
+                <label className="block text-gray-900 dark:text-white mb-2">حد الموظفين</label>
                 <input
                   type="number"
                   value={formData.max_employees}
                   onChange={(e) => setFormData({...formData, max_employees: parseInt(e.target.value)})}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--card-bg)] text-[var(--text-primary)]"
+                  className="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
               </div>
               <div>
-                <label className="block text-[var(--text-primary)] mb-2">المميزات (افصل بينها بفاصلة)</label>
+                <label className="block text-gray-900 dark:text-white mb-2">المميزات (افصل بينها بفاصلة)</label>
                 <textarea
                   value={formData.features}
                   onChange={(e) => setFormData({...formData, features: e.target.value})}
                   rows={3}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--card-bg)] text-[var(--text-primary)]"
+                  className="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   placeholder="دعم فني, تحديثات مجانية, ..."
                 />
               </div>
@@ -289,7 +289,7 @@ export default function PlansPage() {
                   onChange={(e) => setFormData({...formData, is_active: e.target.checked})}
                   className="w-4 h-4 text-electric border-gray-300 rounded focus:ring-electric"
                 />
-                <label htmlFor="is_active" className="text-[var(--text-primary)]">نشط</label>
+                <label htmlFor="is_active" className="text-gray-900 dark:text-white">نشط</label>
               </div>
             </div>
             <div className="flex gap-3 mt-6">
@@ -301,7 +301,7 @@ export default function PlansPage() {
               </button>
               <button
                 onClick={() => setShowModal(false)}
-                className="flex-1 border border-[var(--border-color)] text-[var(--text-primary)] py-2 rounded-lg hover:bg-[var(--hover-color)]"
+                className="flex-1 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900"
               >
                 إلغاء
               </button>

@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const { supabase, supabaseAdmin } = require('../config/supabase');
-const { auth } = require('../middleware/auth');
+const { auth, authReadOnly } = require('../middleware/auth');
 const { ERROR_CODES, ERROR_MESSAGES } = require('../config/constants');
 const { sendPasswordResetEmail, sendUsernameReminder } = require('../services/emailService');
 
@@ -42,6 +42,23 @@ router.post('/login', async (req, res) => {
         error: 'اسم المستخدم أو كلمة المرور غلط',
         code: 'UNAUTHORIZED'
       });
+    }
+
+    // التحقق من حالة المحل
+    if (user.store_id) {
+      const { data: store } = await supabase
+        .from('stores')
+        .select('is_active')
+        .eq('id', user.store_id)
+        .single();
+      
+      if (store && !store.is_active) {
+        return res.status(403).json({
+          success: false,
+          error: 'المحل غير نشط، يرجى التواصل مع الدعم',
+          code: 'STORE_INACTIVE'
+        });
+      }
     }
 
     const token = jwt.sign(
@@ -296,7 +313,7 @@ router.post('/activate', async (req, res) => {
 });
 
 // GET /api/auth/me
-router.get('/me', auth, async (req, res) => {
+router.get('/me', authReadOnly, async (req, res) => {
   try {
     const userId = req.user.id || req.user.user_id;
     const storeId = req.user.store_id;
@@ -324,26 +341,19 @@ router.get('/me', auth, async (req, res) => {
     }
 
     let store = null;
+    let isStoreActive = false;
+    
     if (storeId) {
       const { data: storeData } = await supabase
         .from('stores')
-        .select('id, name, owner_name, phone, address, city, logo_url, receipt_header, receipt_footer, default_currency, subscription_start, subscription_end, is_active, trial_end, plan_id')
+        .select('id, name, owner_name, phone, address, city, logo_url, receipt_header, receipt_footer, default_currency, subscription_start, subscription_end, is_active')
         .eq('id', storeId)
         .single();
       store = storeData;
+      isStoreActive = storeData?.is_active || false;
     }
 
-    // حساب أيام الفترة التجريبية المتبقية
-    let trialDaysRemaining = null;
-    let isTrial = false;
-    
-    if (store && !store.plan_id && store.trial_end) {
-      isTrial = true;
-      const trialEnd = new Date(store.trial_end);
-      const today = new Date();
-      trialDaysRemaining = Math.ceil((trialEnd.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    }
-
+    // إذا كان المحل غير نشط، نرسل البيانات مع تحذير
     res.json({
       success: true,
       data: {
@@ -352,12 +362,11 @@ router.get('/me', auth, async (req, res) => {
         subscription: {
           days_remaining: store?.subscription_end ? Math.ceil((new Date(store.subscription_end).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : null,
           expires_at: store?.subscription_end,
-          is_active: store?.is_active,
-          is_trial: isTrial,
-          trial_days_remaining: trialDaysRemaining
-        }
+          is_active: isStoreActive
+        },
+        store_active: isStoreActive
       },
-      message: 'تم جلب البيانات بنجاح'
+      message: isStoreActive ? 'تم جلب البيانات بنجاح' : 'المحل غير نشط، يرجى التواصل مع الدعم'
     });
   } catch (error) {
     console.error('خطأ في جلب بيانات المستخدم:', error);

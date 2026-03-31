@@ -151,7 +151,7 @@ export default function ActivationCodesPage() {
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-2">
           <Key className="text-electric" size={28} />
-          <h1 className="text-2xl font-bold text-navy dark:text-white">كودات التفعيل</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">كودات التفعيل</h1>
         </div>
         <button
           onClick={() => setShowModal(true)}
@@ -163,23 +163,23 @@ export default function ActivationCodesPage() {
       </div>
 
       {/* فلتر */}
-      <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-4 mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 mb-6">
         <div className="flex gap-4">
           <button
             onClick={() => { setFilter('all'); setPage(1); }}
-            className={`px-4 py-2 rounded-lg transition ${filter === 'all' ? 'bg-electric text-white' : 'bg-[var(--bg-primary)] text-[var(--text-primary)] hover:bg-gray-200'}`}
+            className={`px-4 py-2 rounded-lg transition ${filter === 'all' ? 'bg-electric text-white' : 'bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
           >
             الكل
           </button>
           <button
             onClick={() => { setFilter('unused'); setPage(1); }}
-            className={`px-4 py-2 rounded-lg transition ${filter === 'unused' ? 'bg-electric text-white' : 'bg-[var(--bg-primary)] text-[var(--text-primary)] hover:bg-gray-200'}`}
+            className={`px-4 py-2 rounded-lg transition ${filter === 'unused' ? 'bg-electric text-white' : 'bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
           >
             غير مستخدم
           </button>
           <button
             onClick={() => { setFilter('used'); setPage(1); }}
-            className={`px-4 py-2 rounded-lg transition ${filter === 'used' ? 'bg-electric text-white' : 'bg-[var(--bg-primary)] text-[var(--text-primary)] hover:bg-gray-200'}`}
+            className={`px-4 py-2 rounded-lg transition ${filter === 'used' ? 'bg-electric text-white' : 'bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
           >
             مستخدم
           </button>
@@ -196,8 +196,8 @@ export default function ActivationCodesPage() {
       {loading ? (
         <LoadingSpinner />
       ) : codes.length === 0 ? (
-        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-12 text-center">
-          <p className="text-[var(--text-primary)]">لا توجد كودات تفعيل</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-12 text-center">
+          <p className="text-gray-500 dark:text-gray-400">لا توجد كودات تفعيل</p>
           <button
             onClick={() => setShowModal(true)}
             className="mt-4 bg-electric text-white px-4 py-2 rounded-lg"
@@ -206,29 +206,29 @@ export default function ActivationCodesPage() {
           </button>
         </div>
       ) : (
-        <div className="bg-[var(--card-bg)] rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[var(--border-color)]">
-                  <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">الكود</th>
-                  <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">الخطة</th>
-                  <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">المدة</th>
-                  <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">الحالة</th>
-                  <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">تاريخ الاستخدام</th>
-                  <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">المحل المستخدم</th>
-                  <th className="text-right py-3 px-4 text-[var(--text-primary)] font-semibold">نسخ</th>
+                <tr className="border-b border-gray-200 dark:border-gray-700">
+                  <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">الكود</th>
+                  <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">الخطة</th>
+                  <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">المدة</th>
+                  <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">الحالة</th>
+                  <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">تاريخ الاستخدام</th>
+                  <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">المحل المستخدم</th>
+                  <th className="text-right py-3 px-4 text-gray-500 dark:text-gray-400 font-semibold">نسخ</th>
                 </tr>
               </thead>
               <tbody>
                 {codes.map((code) => (
-                  <tr key={code.id} className="border-b border-[var(--border-color)] hover:bg-[var(--bg-primary)]">
-                    <td className="py-3 px-4 font-mono text-sm">{code.code}</td>
-                    <td className="py-3 px-4">{code.plan_name || '-'}</td>
-                    <td className="py-3 px-4">{code.duration_days} يوم</td>
-                    <td className="py-3 px-4">{getStatusBadge(code.is_used)}</td>
-                    <td className="py-3 px-4">{formatDate(code.used_at)}</td>
-                    <td className="py-3 px-4">{code.store_name || '-'}</td>
+                  <tr key={code.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-900">
+                    <td className="py-3 px-4 font-mono text-sm text-gray-900 dark:text-white">{code.code}</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">{code.plan_name || '-'}</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">{code.duration_days} يوم</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">{getStatusBadge(code.is_used)}</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">{formatDate(code.used_at)}</td>
+                    <td className="py-3 px-4 text-gray-900 dark:text-white">{code.store_name || '-'}</td>
                     <td className="py-3 px-4">
                       <button
                         onClick={() => copyToClipboard(code.code)}
@@ -246,21 +246,21 @@ export default function ActivationCodesPage() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex justify-center gap-2 py-4 border-t">
+            <div className="flex justify-center gap-2 py-4 border-t border-gray-200 dark:border-gray-700">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-3 py-1 rounded border disabled:opacity-50"
+                className="px-3 py-1 rounded border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
               >
                 السابق
               </button>
-              <span className="px-3 py-1">
+              <span className="px-3 py-1 text-gray-900 dark:text-white">
                 صفحة {page} من {totalPages}
               </span>
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="px-3 py-1 rounded border disabled:opacity-50"
+                className="px-3 py-1 rounded border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white disabled:opacity-50"
               >
                 التالي
               </button>
@@ -272,16 +272,16 @@ export default function ActivationCodesPage() {
       {/* Modal إنشاء كود */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-[var(--card-bg)] rounded-xl shadow-xl w-full max-w-md p-6 border border-[var(--border-color)]">
-            <h2 className="text-xl font-bold text-[var(--navy-color)] mb-4">إنشاء كود تفعيل جديد</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6 border border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">إنشاء كود تفعيل جديد</h2>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-[var(--text-primary)] mb-2">الخطة</label>
+                <label className="block text-gray-900 dark:text-white mb-2">الخطة</label>
                 <select
                   value={selectedPlan}
                   onChange={(e) => setSelectedPlan(e.target.value)}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-[var(--card-bg)] text-[var(--text-primary)]"
+                  className="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 >
                   {plans.map((plan) => (
                     <option key={plan.id} value={plan.id}>
@@ -299,17 +299,17 @@ export default function ActivationCodesPage() {
                   max="100"
                   value={quantity}
                   onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-[var(--card-bg)] text-[var(--text-primary)]"
+                  className="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
               </div>
 
               <div>
-                <label className="block text-[var(--text-primary)] mb-2">ملاحظات (اختياري)</label>
+                <label className="block text-gray-900 dark:text-white mb-2">ملاحظات (اختياري)</label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={3}
-                  className="w-full px-4 py-2 border border-[var(--border-color)] rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-[var(--card-bg)] text-[var(--text-primary)]"
+                  className="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-electric bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   placeholder="رقم الإيصال، اسم المشتري..."
                 />
               </div>
@@ -325,7 +325,7 @@ export default function ActivationCodesPage() {
               </button>
               <button
                 onClick={() => setShowModal(false)}
-                className="flex-1 bg-gray-200 hover:bg-gray-300 text-[var(--text-primary)] py-2 rounded-lg transition"
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-900 dark:text-white py-2 rounded-lg transition"
               >
                 إلغاء
               </button>

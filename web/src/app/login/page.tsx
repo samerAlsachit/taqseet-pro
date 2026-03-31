@@ -32,6 +32,11 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (data.success) {
+        const store = data.data.store;
+        if (store && !store.is_active) {
+          toast.error('هذا المحل غير نشط. يرجى التواصل مع الدعم.');
+          return;
+        }
         localStorage.setItem('token', data.data.token);
         toast.success('تم تسجيل الدخول بنجاح');
         router.push('/dashboard');
