@@ -1,9 +1,9 @@
 {
   "pages": {
-    "/(store)/dashboard/page": [
+    "/(store)/reports/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(store)/dashboard/page.js"
+      "static/chunks/app/(store)/reports/page.js"
     ],
     "/(store)/layout": [
       "static/chunks/webpack.js",
@@ -15,6 +15,21 @@
       "static/chunks/main-app.js",
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
+    ],
+    "/(store)/dashboard/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(store)/dashboard/page.js"
+    ],
+    "/(store)/cash-sales/new/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(store)/cash-sales/new/page.js"
+    ],
+    "/(store)/payments/new/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(store)/payments/new/page.js"
     ]
   }
 }

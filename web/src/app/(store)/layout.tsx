@@ -17,7 +17,8 @@ import {
   Sun,
   Anchor,
   Menu,
-  Bell
+  Bell,
+  DollarSign
 } from 'lucide-react';
 
 // تعريف navItems خارج المكون
@@ -26,6 +27,8 @@ const navItems = [
   { name: 'العملاء', path: '/customers', icon: Users, roles: ['store_owner', 'store_manager', 'store_employee'] },
   { name: 'المخزن', path: '/products', icon: Package, roles: ['store_owner', 'store_manager', 'store_employee'] },
   { name: 'الأقساط', path: '/installments', icon: Receipt, roles: ['store_owner', 'store_manager', 'store_employee'] },
+  { name: 'بيع نقدي', path: '/cash-sales/new', icon: DollarSign, roles: ['store_owner', 'store_manager', 'store_employee'] },
+  { name: 'المبيعات النقدية', path: '/cash-sales', icon: DollarSign, roles: ['store_owner', 'store_manager', 'store_employee'] },
   { name: 'التقارير', path: '/reports', icon: FileText, roles: ['store_owner', 'store_manager', 'store_employee'], requiresPermission: 'can_view_reports' },
   { name: 'الموظفين', path: '/employees', icon: Users2, roles: ['store_owner'] },
   { name: 'سجل العمليات', path: '/audit', icon: FileText, roles: ['store_owner'] },

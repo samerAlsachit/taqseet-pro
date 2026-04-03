@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { connectToBluetoothPrinter } from '@/lib/bluetoothPrint';
 import { Settings, User, Store, CreditCard, FileText, Save, X, Users, CheckCircle, Star, Rocket, Calendar, Zap, Phone, Mail, MessageCircle, Bell } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import toast from 'react-hot-toast';
 
 interface StoreSettings {
   id: string;
@@ -56,6 +57,13 @@ export default function SettingsPage() {
     telegram_chat_id: '',
     telegram_enabled: false,
     customer_notifications: false,
+  });
+  const [notificationSettings, setNotificationSettings] = useState({
+    telegram_enabled: true,
+    email_enabled: true,
+    whatsapp_enabled: true,
+    reminder_days: [1, 0],
+    overdue_days: 3
   });
 
   useEffect(() => {
@@ -115,12 +123,33 @@ export default function SettingsPage() {
     fetchStore();
   }, [router]);
 
+  // دالة لجلب الإعدادات
+  const fetchNotificationSettings = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/store/notification-settings`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNotificationSettings(data.data);
+      }
+    } catch (error) {
+      console.error('خطأ في جلب إعدادات الإشعارات', error);
+    }
+  };
+
   useEffect(() => {
     const tab = searchParams.get('tab');
     if (tab === 'subscription') {
       setActiveTab('subscription');
     }
   }, [searchParams]);
+
+  // استدعاء الدالة في useEffect
+  useEffect(() => {
+    fetchNotificationSettings();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,6 +185,29 @@ export default function SettingsPage() {
       setError('حدث خطأ في الاتصال بالخادم');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // دالة حفظ الإعدادات
+  const saveNotificationSettings = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/store/notification-settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify(notificationSettings)
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('تم حفظ إعدادات الإشعارات');
+      } else {
+        toast.error(data.error || 'فشل في الحفظ');
+      }
+    } catch {
+      toast.error('حدث خطأ في الاتصال بالخادم');
     }
   };
 
@@ -477,25 +529,40 @@ export default function SettingsPage() {
               <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                 <div>
                   <p className="font-medium text-gray-900 dark:text-white">إشعارات تلجرام</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">استقبال إشعارات انتهاء الاشتراك والأقساط المستحقة</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">استقبال إشعارات انتهاء الاشتراك</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" checked={settings.telegram_enabled} onChange={(e) => setFormData({ ...formData, telegram_enabled: e.target.checked })} />
+                  <input type="checkbox" className="sr-only peer" checked={notificationSettings.telegram_enabled} onChange={(e) => setNotificationSettings({...notificationSettings, telegram_enabled: e.target.checked})} />
                   <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-electric"></div>
                 </label>
               </div>
 
               <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-white">إشعارات الزبائن</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">إرسال تذكير للزبائن قبل موعد القسط</p>
+                  <p className="font-medium text-gray-900 dark:text-white">إشعارات إيميل</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">استقبال إشعارات انتهاء الاشتراك عبر البريد</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
-                  <input type="checkbox" className="sr-only peer" checked={settings.customer_notifications} onChange={(e) => setFormData({ ...formData, customer_notifications: e.target.checked })} />
+                  <input type="checkbox" className="sr-only peer" checked={notificationSettings.email_enabled} onChange={(e) => setNotificationSettings({...notificationSettings, email_enabled: e.target.checked})} />
+                  <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-electric"></div>
+                </label>
+              </div>
+
+              <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">إشعارات واتساب</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">استقبال إشعارات انتهاء الاشتراك عبر واتساب</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" className="sr-only peer" checked={notificationSettings.whatsapp_enabled} onChange={(e) => setNotificationSettings({...notificationSettings, whatsapp_enabled: e.target.checked})} />
                   <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-electric"></div>
                 </label>
               </div>
             </div>
+
+            <button onClick={saveNotificationSettings} className="mt-6 bg-electric text-white px-4 py-2 rounded-lg">
+              حفظ إعدادات الإشعارات
+            </button>
           </div>
         )}
 

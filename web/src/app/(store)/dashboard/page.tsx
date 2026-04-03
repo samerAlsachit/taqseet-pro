@@ -308,54 +308,30 @@ export default function DashboardPage() {
         </div>
 
         {/* قائمة سريعة */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <Link
-            href="/customers/new"
-            className={`p-4 rounded-xl shadow-sm text-center transition ${
-              isStoreActive
-                ? 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'
-                : 'bg-gray-100 dark:bg-gray-800/50 cursor-not-allowed opacity-50'
-            }`}
-            onClick={(e) => !isStoreActive && e.preventDefault()}
-          >
-            <Plus className="mx-auto mb-2 text-electric" size={24} />
-            <span className="text-gray-900 dark:text-white">إضافة عميل</span>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+          <Link href="/customers/new" className="group bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 dark:from-blue-600 dark:to-blue-700 p-4 rounded-xl shadow-md text-center transition-all duration-200 transform hover:scale-105">
+            <Plus className="mx-auto mb-2 text-white" size={24} />
+            <span className="text-white font-medium">إضافة عميل</span>
           </Link>
-          <Link
-            href="/installments/new"
-            className={`p-4 rounded-xl shadow-sm text-center transition ${
-              isStoreActive
-                ? 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'
-                : 'bg-gray-100 dark:bg-gray-800/50 cursor-not-allowed opacity-50'
-            }`}
-            onClick={(e) => !isStoreActive && e.preventDefault()}
-          >
-            <Receipt className="mx-auto mb-2 text-electric" size={24} />
-            <span className="text-gray-900 dark:text-white">قسط جديد</span>
+
+          <Link href="/installments/new" className="group bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 dark:from-purple-600 dark:to-purple-700 p-4 rounded-xl shadow-md text-center transition-all duration-200 transform hover:scale-105">
+            <Receipt className="mx-auto mb-2 text-white" size={24} />
+            <span className="text-white font-medium">قسط جديد</span>
           </Link>
-          <Link
-            href="/products/new"
-            className={`p-4 rounded-xl shadow-sm text-center transition ${
-              isStoreActive
-                ? 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'
-                : 'bg-gray-100 dark:bg-gray-800/50 cursor-not-allowed opacity-50'
-            }`}
-            onClick={(e) => !isStoreActive && e.preventDefault()}
-          >
-            <Package className="mx-auto mb-2 text-electric" size={24} />
-            <span className="text-gray-900 dark:text-white">منتج جديد</span>
+
+          <Link href="/products/new" className="group bg-gradient-to-br from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 dark:from-teal-600 dark:to-teal-700 p-4 rounded-xl shadow-md text-center transition-all duration-200 transform hover:scale-105">
+            <Package className="mx-auto mb-2 text-white" size={24} />
+            <span className="text-white font-medium">منتج جديد</span>
           </Link>
-          <Link
-            href="/payments/new"
-            className={`p-4 rounded-xl shadow-sm text-center transition ${
-              isStoreActive
-                ? 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700'
-                : 'bg-gray-100 dark:bg-gray-800/50 cursor-not-allowed opacity-50'
-            }`}
-            onClick={(e) => !isStoreActive && e.preventDefault()}
-          >
-            <DollarSign className="mx-auto mb-2 text-electric" size={24} />
-            <span className="text-gray-900 dark:text-white">تسديد دفعة</span>
+
+          <Link href="/cash-sales/new" className="group bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 dark:from-emerald-600 dark:to-emerald-700 p-4 rounded-xl shadow-md text-center transition-all duration-200 transform hover:scale-105">
+            <DollarSign className="mx-auto mb-2 text-white" size={24} />
+            <span className="text-white font-medium">بيع نقدي</span>
+          </Link>
+
+          <Link href="/payments/new" className="group bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 dark:from-amber-600 dark:to-amber-700 p-4 rounded-xl shadow-md text-center transition-all duration-200 transform hover:scale-105">
+            <CreditCard className="mx-auto mb-2 text-white" size={24} />
+            <span className="text-white font-medium">تسديد دفعة</span>
           </Link>
         </div>
 

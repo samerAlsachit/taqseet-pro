@@ -15,7 +15,8 @@ import {
   Sun,
   Anchor,
   Shield,
-  Database
+  Database,
+  Bell
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -35,6 +36,7 @@ export default function Sidebar() {
     { name: 'كودات التفعيل', path: '/activation-codes', icon: Key },
     { name: 'خطط الاشتراك', path: '/plans', icon: Package },
     { name: 'السوبر أدمن', path: '/super-admins', icon: Shield },
+    { name: 'الإشعارات', path: '/notifications', icon: Bell },
     { name: 'النسخ الاحتياطي', path: '/backup', icon: Database },
     { name: 'سجل العمليات', path: '/audit', icon: FileText },
   ];

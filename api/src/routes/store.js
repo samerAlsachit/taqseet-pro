@@ -388,17 +388,53 @@ router.get('/notification-settings', auth, async (req, res) => {
 
 // PUT /api/store/notification-settings
 router.put('/notification-settings', auth, async (req, res) => {
-  const { notification_settings } = req.body;
-  
-  const { data, error } = await supabase
-    .from('stores')
-    .update({ notification_settings })
-    .eq('id', req.user.store_id)
-    .select()
-    .single();
-  
-  if (error) throw error;
-  res.json({ success: true, data: data?.notification_settings });
+  try {
+    const storeId = req.user.store_id;
+    const { telegram_enabled, email_enabled, whatsapp_enabled, customer_notifications } = req.body;
+
+    // جلب الإعدادات الحالية
+    const { data: currentStore } = await supabase
+      .from('stores')
+      .select('notification_settings')
+      .eq('id', storeId)
+      .single();
+
+    const currentSettings = currentStore?.notification_settings || {};
+    
+    // دمج الإعدادات الجديدة مع القديمة
+    const newSettings = {
+      ...currentSettings,
+      telegram_enabled: telegram_enabled !== undefined ? telegram_enabled : currentSettings.telegram_enabled,
+      email_enabled: email_enabled !== undefined ? email_enabled : currentSettings.email_enabled,
+      whatsapp_enabled: whatsapp_enabled !== undefined ? whatsapp_enabled : currentSettings.whatsapp_enabled,
+      customer_notifications: customer_notifications !== undefined ? customer_notifications : currentSettings.customer_notifications
+    };
+
+    const { data, error } = await supabase
+      .from('stores')
+      .update({ 
+        notification_settings: newSettings,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', storeId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data.notification_settings,
+      message: 'تم حفظ إعدادات الإشعارات بنجاح'
+    });
+  } catch (error) {
+    console.error('خطأ في حفظ إعدادات الإشعارات:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
 });
 
 module.exports = router;

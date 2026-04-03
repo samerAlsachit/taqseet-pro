@@ -228,6 +228,8 @@ router.post('/', auth, checkSubscription, async (req, res) => {
 
     // التحقق من المنتجات وتنقيص المخزون
     const productDetails = [];
+    let totalCostPrice = 0;
+    
     for (const item of products) {
       const { data: product, error } = await supabase
         .from('products')
@@ -244,6 +246,10 @@ router.post('/', auth, checkSubscription, async (req, res) => {
         });
       }
 
+      // حساب سعر الشراء للمنتج
+      const costPrice = currency === 'IQD' ? product.cost_price_iqd : product.cost_price_usd;
+      totalCostPrice += costPrice * item.quantity;
+
       productDetails.push({
         product_id: product.id,
         product_name: product.name,
@@ -253,6 +259,9 @@ router.post('/', auth, checkSubscription, async (req, res) => {
         subtotal: item.price * item.quantity
       });
     }
+
+    // حساب الربح
+    const profit = parseFloat(total_price) - totalCostPrice;
 
     // حساب جدول الأقساط
     const schedule = calculateInstallments({
@@ -297,6 +306,7 @@ router.post('/', auth, checkSubscription, async (req, res) => {
         installments_count: schedule.installmentsCount,
         installment_amount: schedule.installmentAmount,
         last_installment_amount: schedule.lastInstallmentAmount,
+        profit: profit,
         notes: notes || '',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()

@@ -2,6 +2,25 @@ const cron = require('node-cron');
 const { supabase } = require('../config/supabase');
 const { sendWhatsAppNotification, sendEmailNotification } = require('../services/notificationService');
 const { sendExpiryNotification } = require('../services/telegramService');
+const { getNotificationText } = require('../services/templateService');
+
+// دالة مساعدة لإنشاء رسالة انتهاء الاشتراك
+const generateExpiryMessage = (storeName, daysLeft) => {
+  return `
+🔔 <b>تنبيه انتهاء اشتراك</b>
+
+مرحباً،
+نود إعلامكم بأن اشتراك محل <b>${storeName}</b> على وشك الانتهاء خلال <b>${daysLeft} أيام</b>.
+
+يرجى التواصل مع الدعم لتجديد الاشتراك.
+
+📞 هاتف: 077XXXXXXXX
+📧 بريد: support@marsat.com
+
+شكراً لثقتكم بنا
+<b>مرساة</b>
+  `.trim();
+};
 
 // دالة مساعدة لإرسال رسالة إلى تاجر بناءً على رقم هاتفه
 const sendTelegramByPhone = async (phone, message) => {
@@ -25,7 +44,7 @@ const sendTelegramByPhone = async (phone, message) => {
 
 // وظيفة إرسال التنبيهات
 const sendExpiryNotifications = async () => {
-  console.log('� [CRON] بدء إرسال تنبيهات انتهاء الاشتراك...', new Date().toISOString());
+  console.log('🕐 [CRON] بدء إرسال تنبيهات انتهاء الاشتراك...', new Date().toISOString());
 
   try {
     const today = new Date();
@@ -35,18 +54,15 @@ const sendExpiryNotifications = async () => {
     const todayStr = today.toISOString().split('T')[0];
     const nextWeekStr = nextWeek.toISOString().split('T')[0];
 
-    // جلب المحلات التي تنتهي خلال 7 أيام
+    // جلب المحلات مع إعدادات الإشعارات
     const { data: stores, error } = await supabase
       .from('stores')
-      .select('id, name, owner_name, phone, email, subscription_end, telegram_chat_id')
+      .select('id, name, owner_name, phone, email, subscription_end, notification_settings')
       .lt('subscription_end', nextWeekStr)
       .gte('subscription_end', todayStr)
       .eq('is_active', true);
 
-    if (error) {
-      console.error('خطأ في جلب المحلات:', error);
-      return;
-    }
+    if (error) throw error;
 
     if (!stores || stores.length === 0) {
       console.log('لا توجد محلات على وشك الانتهاء');
@@ -55,71 +71,47 @@ const sendExpiryNotifications = async () => {
 
     console.log(`📋 تم العثور على ${stores.length} محل على وشك الانتهاء`);
 
-    let whatsappSent = 0;
-    let emailSent = 0;
-    let telegramSent = 0;
-    let failed = 0;
-
     for (const store of stores) {
       const daysLeft = Math.ceil(
         (new Date(store.subscription_end).getTime() - today.getTime()) / 
         (1000 * 60 * 60 * 24)
       );
 
-      console.log(`� معالجة محل: ${store.name} (ينتهي خلال ${daysLeft} أيام)`);
-
-      // إرسال إشعار واتساب (تسجيل الرابط فقط)
-      if (store.phone) {
-        const whatsappUrl = sendWhatsAppNotification(store.phone, store.name, daysLeft);
-        console.log(`   📱 واتساب: ${whatsappUrl}`);
-        whatsappSent++;
+      // التحقق من إعدادات الإشعارات
+      const settings = store.notification_settings || {};
+      
+      // إرسال إشعار تلجرام إذا كان مفعلاً
+      if (settings.telegram_enabled !== false && store.phone) {
+        const message = await getNotificationText('expiry', {
+          store_name: store.name,
+          days_left: daysLeft
+        });
+        await sendTelegramByPhone(store.phone, message);
+        console.log(`   📱 تم إرسال إشعار تلجرام إلى ${store.name}`);
       }
-
-      // إرسال إشعار إيميل
-      if (store.email) {
-        const result = await sendEmailNotification(store.email, store.name, store.owner_name, daysLeft);
+      
+      // إرسال إشعار واتساب إذا كان مفعلاً
+      if (settings.whatsapp_enabled && store.phone) {
+        const message = await getNotificationText('expiry', {
+          store_name: store.name,
+          days_left: daysLeft
+        });
+        const whatsappUrl = sendWhatsAppNotification(store.phone, message);
+        console.log(`   📱 واتساب: ${whatsappUrl}`);
+      }
+      
+      // إرسال إشعار إيميل إذا كان مفعلاً
+      if (settings.email_enabled !== false && store.email) {
+        const message = await getNotificationText('expiry', {
+          store_name: store.name,
+          days_left: daysLeft
+        });
+        const result = await sendEmailNotification(store.email, message);
         if (result.success) {
           console.log(`   📧 إيميل: تم الإرسال إلى ${store.email}`);
-          emailSent++;
-        } else {
-          console.log(`   ❌ إيميل: فشل الإرسال إلى ${store.email}`);
-          failed++;
         }
       }
-
-      // إرسال إشعار تلجرام
-      if (store.phone) {
-        const message = `
-🔔 <b>تنبيه انتهاء اشتراك</b>
-
-مرحباً،
-نود إعلامكم بأن اشتراك محل <b>${store.name}</b> على وشك الانتهاء خلال <b>${daysLeft} أيام</b>.
-
-يرجى التواصل مع الدعم لتجديد الاشتراك.
-
-📞 هاتف: 077XXXXXXXX
-📧 بريد: support@marsat.com
-
-شكراً لثقتكم بنا
-<b>مرساة</b>
-  `;
-        await sendTelegramByPhone(store.phone, message);
-      }
-
-      // تسجيل التنبيه في قاعدة البيانات
-      await supabase
-        .from('expiry_notifications')
-        .insert({
-          store_id: store.id,
-          days_left: daysLeft,
-          sent_at: new Date().toISOString(),
-          whatsapp_sent: !!store.phone,
-          email_sent: !!store.email && result?.success,
-          telegram_sent: !!store.phone // تم تغيير للتحقق من وجود رقم الهاتف
-        });
     }
-
-    console.log(`✅ [CRON] اكتمل الإرسال: واتساب=${whatsappSent}, إيميل=${emailSent}, تلجرام=${telegramSent}, فشل=${failed}`);
   } catch (error) {
     console.error('❌ خطأ في إرسال التنبيهات:', error);
   }

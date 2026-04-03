@@ -5,6 +5,8 @@ const { checkSubscription } = require('../middleware/checkSubscription');
 const { logAudit } = require('../middleware/audit');
 const { supabase } = require('../config/supabase');
 const { v4: uuidv4 } = require('uuid');
+const { getNotificationText } = require('../services/templateService');
+const { sendTelegramMessage } = require('../services/telegramService');
 
 // POST /api/payments
 router.post('/', auth, checkSubscription, async (req, res) => {
@@ -131,6 +133,34 @@ router.post('/', auth, checkSubscription, async (req, res) => {
 
     if (updatePlanError) {
       console.error('خطأ في تحديث خطة الأقساط:', updatePlanError);
+    }
+
+    // 10. إرسال إشعار وصل الدفع باستخدام القالب
+    try {
+      // جلب بيانات العميل
+      const { data: customerData } = await supabase
+        .from('customers')
+        .select('full_name, telegram_chat_id')
+        .eq('id', plan.customer_id)
+        .single();
+
+      if (customerData) {
+        const message = await getNotificationText('payment_receipt', {
+          customer_name: customerData.full_name,
+          amount: amount_paid,
+          currency: plan.currency,
+          receipt_no: receiptNumber,
+          remaining: newRemainingAmount
+        });
+
+        // إرسال إلى تلجرام إذا كان الزبون لديه chat_id
+        if (customerData.telegram_chat_id) {
+          await sendTelegramMessage(customerData.telegram_chat_id, message);
+          console.log(`📱 تم إرسال إشعار وصل الدفع إلى ${customerData.full_name}`);
+        }
+      }
+    } catch (notificationError) {
+      console.error('خطأ في إرسال إشعار الوصل:', notificationError);
     }
 
     // 10. التحقق إذا اكتملت الخطة
@@ -311,25 +341,57 @@ if (amount_paid < requiredAmount) {
 const finalAmount = amount_paid;
 
     // 5. إنشاء دفعة واحدة لكل قسط
-    const paymentsToInsert = pendingSchedules.map(schedule => ({
-      id: uuidv4(),
-      schedule_id: schedule.id,
-      plan_id: plan_id,
-      store_id: storeId,
-      received_by: req.user.id,
-      amount_paid: schedule.amount, // كل قسط بمبلغه الأصلي
-      payment_date: payment_date || new Date().toISOString().split('T')[0],
-      is_early: true,
-      receipt_number: `RCP-${storeId.slice(0, 8)}-${Date.now()}-${schedule.installment_no}`,
-      notes: notes || (discountAmount > 0 ? `تسديد كامل مع تخفيض ${discountAmount.toLocaleString()} ${plan.currency}` : 'تسديد كامل المبلغ'),
-      currency: plan.currency,
-      created_at: new Date().toISOString()
-    }));
+    const paymentsToInsert = pendingSchedules.map(async (schedule) => {
+      const payment = {
+        id: uuidv4(),
+        schedule_id: schedule.id,
+        plan_id: plan_id,
+        store_id: storeId,
+        received_by: req.user.id,
+        amount_paid: schedule.amount, // كل قسط بمبلغه الأصلي
+        payment_date: payment_date || new Date().toISOString().split('T')[0],
+        is_early: true,
+        receipt_number: `RCP-${storeId.slice(0, 8)}-${Date.now()}-${schedule.installment_no}`,
+        notes: notes || (discountAmount > 0 ? `تسديد كامل مع تخفيض ${discountAmount.toLocaleString()} ${plan.currency}` : 'تسديد كامل المبلغ'),
+        currency: plan.currency,
+        created_at: new Date().toISOString()
+      };
+
+      // إرسال إشعار وصل الدفع باستخدام القالب
+      try {
+        // جلب بيانات العميل
+        const { data: customerData } = await supabase
+          .from('customers')
+          .select('full_name, telegram_chat_id')
+          .eq('id', plan.customer_id)
+          .single();
+
+        if (customerData) {
+          const message = await getNotificationText('payment_receipt', {
+            customer_name: customerData.full_name,
+            amount: schedule.amount,
+            currency: plan.currency,
+            receipt_no: payment.receipt_number,
+            remaining: 0 // في حالة التسديد الكامل
+          });
+
+          // إرسال إلى تلجرام إذا كان الزبون لديه chat_id
+          if (customerData.telegram_chat_id) {
+            await sendTelegramMessage(customerData.telegram_chat_id, message);
+            console.log(`📱 تم إرسال إشعار وصل الدفع إلى ${customerData.full_name}`);
+          }
+        }
+      } catch (notificationError) {
+        console.error('خطأ في إرسال إشعار الوصل:', notificationError);
+      }
+
+      return payment;
+    });
 
     // إدراج جميع الدفعات دفعة واحدة
     const { error: paymentsError } = await supabase
       .from('payments')
-      .insert(paymentsToInsert);
+      .insert(await Promise.all(paymentsToInsert));
 
     if (paymentsError) {
       console.error('خطأ في إدراج الدفعات:', paymentsError);
