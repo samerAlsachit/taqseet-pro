@@ -73,7 +73,7 @@ router.get('/stats', auth, requireSuperAdmin, async (req, res) => {
         active_stores: activeStores || 0,
         expiring_soon: expiringSoon || 0,
         new_stores_this_month: newStoresThisMonth || 0,
-        total_revenue: 0 // سنحسبها لاحقاً
+        total_revenue: 0
       },
       message: 'تم جلب الإحصائيات بنجاح'
     });
@@ -102,19 +102,16 @@ router.get('/stores', async (req, res) => {
         subscription_plans!stores_plan_id_fkey (name)
       `, { count: 'exact' });
 
-    // بحث
     if (search) {
       query = query.or(`name.ilike.%${search}%,owner_name.ilike.%${search}%,phone.ilike.%${search}%`);
     }
 
-    // فلترة حسب الحالة
     if (status === 'active') {
       query = query.eq('is_active', true);
     } else if (status === 'expired') {
       query = query.lt('subscription_end', new Date().toISOString());
     }
 
-    // جلب البيانات مع Pagination
     const { data: stores, error, count } = await query
       .range(offset, offset + limit - 1)
       .order('created_at', { ascending: false });
@@ -124,7 +121,6 @@ router.get('/stores', async (req, res) => {
       throw error;
     }
 
-    // تنسيق البيانات
     const formattedStores = stores.map(store => ({
       id: store.id,
       name: store.name,
@@ -169,14 +165,12 @@ router.get('/activation-codes', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
-    const status = req.query.status || 'all'; // all, used, unused
+    const status = req.query.status || 'all';
 
-    // بناء الـ query بدون joins معقدة
     let query = supabase
       .from('activation_codes')
       .select('*', { count: 'exact' });
 
-    // فلترة حسب الحالة
     if (status === 'used') {
       query = query.eq('is_used', true);
     } else if (status === 'unused') {
@@ -189,12 +183,10 @@ router.get('/activation-codes', async (req, res) => {
 
     if (error) throw error;
 
-    // جلب بيانات الخطة والمحل لكل كود على حدة
     const formattedCodes = await Promise.all((codes || []).map(async (code) => {
       let planName = null;
       let storeName = null;
 
-      // جلب اسم الخطة
       if (code.plan_id) {
         const { data: plan } = await supabase
           .from('subscription_plans')
@@ -204,7 +196,6 @@ router.get('/activation-codes', async (req, res) => {
         planName = plan?.name;
       }
 
-      // جلب اسم المحل
       if (code.store_id) {
         const { data: store } = await supabase
           .from('stores')
@@ -297,7 +288,6 @@ router.post('/activation-codes', async (req, res) => {
       });
     }
 
-    // جلب تفاصيل الخطة
     const { data: plan, error: planError } = await supabase
       .from('subscription_plans')
       .select('duration_days, name')
@@ -345,7 +335,7 @@ router.post('/activation-codes', async (req, res) => {
     res.json({
       success: true,
       data: insertedCodes,
-      message: `تم إنشاء ${quantity} كود بنجاح` 
+      message: `تم إنشاء ${quantity} كود بنجاح`
     });
   } catch (error) {
     console.error('خطأ في إنشاء الكودات:', error);
@@ -374,10 +364,9 @@ router.post('/stores/:id/extend', async (req, res) => {
       });
     }
 
-    // جلب المحل الحالي
     const { data: store, error: storeError } = await supabase
       .from('stores')
-      .select('subscription_end, plan_id')
+      .select('subscription_end, plan_id, name')
       .eq('id', id)
       .single();
 
@@ -389,17 +378,22 @@ router.post('/stores/:id/extend', async (req, res) => {
       });
     }
 
-    let newEndDate = new Date(store.subscription_end);
+    let currentEndDate = new Date(store.subscription_end);
+    const today = new Date();
+    if (currentEndDate < today) {
+      currentEndDate = today;
+    }
+
+    let newEndDate = new Date(currentEndDate);
     let newPlanId = store.plan_id;
 
-    // إذا تم تحديد خطة جديدة
     if (plan_id) {
       const { data: plan } = await supabase
         .from('subscription_plans')
         .select('duration_days')
         .eq('id', plan_id)
         .single();
-      
+
       if (plan) {
         newEndDate = new Date();
         newEndDate.setDate(newEndDate.getDate() + plan.duration_days);
@@ -407,98 +401,22 @@ router.post('/stores/:id/extend', async (req, res) => {
       }
     }
 
-    // إضافة أيام إضافية
     if (additional_days) {
-      newEndDate.setDate(newEndDate.getDate() + additional_days);
+      newEndDate.setDate(newEndDate.getDate() + parseInt(additional_days));
     }
 
-    // تحديث المحل
     const { error: updateError } = await supabase
       .from('stores')
       .update({
         subscription_end: newEndDate.toISOString().split('T')[0],
         plan_id: newPlanId,
+        is_active: true,
         updated_at: new Date().toISOString()
       })
       .eq('id', id);
 
     if (updateError) throw updateError;
 
-    res.json({
-      success: true,
-      data: {
-        subscription_end: newEndDate.toISOString().split('T')[0],
-        plan_id: newPlanId
-      },
-      message: 'تم تمديد الاشتراك بنجاح'
-    });
-  } catch (error) {
-    console.error('خطأ في تمديد الاشتراك:', error);
-    res.status(500).json({
-      success: false,
-      error: ERROR_MESSAGES[ERROR_CODES.INTERNAL_ERROR],
-      code: ERROR_CODES.INTERNAL_ERROR
-    });
-  }
-});
-
-// POST /api/admin/stores/:id/extend
-router.post('/stores/:id/extend', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { additional_days } = req.body;
-
-    if (!additional_days || additional_days <= 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'عدد الأيام المطلوبة للتمديد غير صحيح',
-        code: 'VALIDATION_ERROR'
-      });
-    }
-
-    // جلب المحل الحالي
-    const { data: store, error: storeError } = await supabase
-      .from('stores')
-      .select('subscription_end, name')
-      .eq('id', id)
-      .single();
-
-    if (storeError || !store) {
-      return res.status(404).json({
-        success: false,
-        error: 'المحل غير موجود',
-        code: 'NOT_FOUND'
-      });
-    }
-
-    // حساب تاريخ الانتهاء الجديد
-    let currentEndDate = new Date(store.subscription_end);
-    const today = new Date();
-    
-    // إذا كان الاشتراك منتهياً، نبدأ من اليوم
-    if (currentEndDate < today) {
-      currentEndDate = today;
-    }
-    
-    const newEndDate = new Date(currentEndDate);
-    newEndDate.setDate(newEndDate.getDate() + additional_days);
-
-    // تحديث المحل
-    const { error: updateError } = await supabase
-      .from('stores')
-      .update({
-        subscription_end: newEndDate.toISOString().split('T')[0],
-        updated_at: new Date().toISOString(),
-        is_active: true
-      })
-      .eq('id', id);
-
-    if (updateError) {
-      console.error('خطأ في تمديد الاشتراك:', updateError);
-      throw updateError;
-    }
-
-    // تسجيل في سجل التدقيق
     await supabase
       .from('audit_logs')
       .insert({
@@ -524,7 +442,7 @@ router.post('/stores/:id/extend', async (req, res) => {
         new_end_date: newEndDate.toISOString().split('T')[0],
         additional_days
       },
-      message: `تم تمديد اشتراك المحل ${store.name} بمقدار ${additional_days} يوم` 
+      message: `تم تمديد اشتراك المحل ${store.name} بمقدار ${additional_days} يوم`
     });
   } catch (error) {
     console.error('خطأ في تمديد الاشتراك:', error);
@@ -556,7 +474,7 @@ router.post('/stores/:id/toggle-status', requireSuperAdmin, async (req, res) => 
     res.json({
       success: true,
       data,
-      message: `تم ${is_active ? 'تفعيل' : 'تعطيل'} المحل بنجاح` 
+      message: `تم ${is_active ? 'تفعيل' : 'تعطيل'} المحل بنجاح`
     });
   } catch (error) {
     console.error('خطأ في تغيير حالة المحل:', error);
@@ -589,11 +507,7 @@ router.get('/stores/expiring', async (req, res) => {
       const endDate = new Date(store.subscription_end);
       const todayDate = new Date();
       const daysLeft = Math.ceil((endDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
-      
-      return {
-        ...store,
-        days_left: daysLeft
-      };
+      return { ...store, days_left: daysLeft };
     });
 
     res.json({
@@ -629,9 +543,9 @@ router.get('/plans', requireSuperAdmin, async (req, res) => {
       .from('subscription_plans')
       .select('*')
       .order('duration_days');
-    
+
     if (error) throw error;
-    
+
     res.json({ success: true, data: data || [] });
   } catch (error) {
     console.error('خطأ في جلب الخطط:', error);
@@ -645,29 +559,37 @@ router.get('/plans', requireSuperAdmin, async (req, res) => {
 
 // POST /api/admin/plans
 router.post('/plans', requireSuperAdmin, async (req, res) => {
-  const { name, duration_days, price_iqd, max_customers, max_employees, features, is_active } = req.body;
-  
-  const { data, error } = await supabase
-    .from('subscription_plans')
-    .insert({
-      id: uuidv4(),
-      name,
-      duration_days,
-      price_iqd,
-      max_customers: max_customers || 0,
-      max_employees: max_employees || 0,
-      features: features || [],
-      is_active: is_active !== false
-    })
-    .select()
-    .single();
-  
-  if (error) throw error;
-  
-  // تسجيل العملية
-  await logAudit(req, 'INSERT', 'subscription_plans', data.id, null, data);
-  
-  res.json({ success: true, data });
+  try {
+    const { name, duration_days, price_iqd, max_customers, max_employees, features, is_active } = req.body;
+
+    const { data, error } = await supabase
+      .from('subscription_plans')
+      .insert({
+        id: uuidv4(),
+        name,
+        duration_days,
+        price_iqd,
+        max_customers: max_customers || 0,
+        max_employees: max_employees || 0,
+        features: features || [],
+        is_active: is_active !== false
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    await logAudit(req, 'INSERT', 'subscription_plans', data.id, null, data);
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('خطأ في إنشاء الخطة:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
 });
 
 // PUT /api/admin/plans/:id
@@ -700,11 +622,7 @@ router.put('/plans/:id', requireSuperAdmin, async (req, res) => {
       });
     }
 
-    res.json({
-      success: true,
-      data,
-      message: 'تم تحديث الخطة بنجاح'
-    });
+    res.json({ success: true, data, message: 'تم تحديث الخطة بنجاح' });
   } catch (error) {
     console.error('خطأ في تحديث الخطة:', error);
     res.status(500).json({
@@ -717,18 +635,28 @@ router.put('/plans/:id', requireSuperAdmin, async (req, res) => {
 
 // DELETE /api/admin/plans/:id
 router.delete('/plans/:id', requireSuperAdmin, async (req, res) => {
-  const { id } = req.params;
-  
-  const { error } = await supabase
-    .from('subscription_plans')
-    .delete()
-    .eq('id', id);
-  
-  if (error) throw error;
-  res.json({ success: true, message: 'تم حذف الخطة بنجاح' });
+  try {
+    const { id } = req.params;
+
+    const { error } = await supabase
+      .from('subscription_plans')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    res.json({ success: true, message: 'تم حذف الخطة بنجاح' });
+  } catch (error) {
+    console.error('خطأ في حذف الخطة:', error);
+    res.status(500).json({
+      success: false,
+      error: 'حدث خطأ في الخادم',
+      code: 'INTERNAL_ERROR'
+    });
+  }
 });
 
-// POST /api/admin/stores/:id/users - إضافة موظف جديد للمحل
+// POST /api/admin/stores/:id/users
 router.post('/stores/:id/users', requireSuperAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -742,16 +670,6 @@ router.post('/stores/:id/users', requireSuperAdmin, async (req, res) => {
       });
     }
 
-    // التحقق من حد الموظفين
-    // if (!await checkEmployeeLimit(id)) {
-    //   return res.status(403).json({
-    //     success: false,
-    //     error: 'لقد تجاوزت الحد المسموح به من الموظفين حسب خطتك',
-    //     code: 'LIMIT_EXCEEDED'
-    //   });
-    // }
-
-    // التحقق من عدم وجود اسم مستخدم مكرر
     const { data: existingUser } = await supabase
       .from('users')
       .select('id')
@@ -766,11 +684,8 @@ router.post('/stores/:id/users', requireSuperAdmin, async (req, res) => {
       });
     }
 
-    // تشفير كلمة المرور
-    const bcrypt = require('bcrypt');
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // إنشاء الموظف
     const { data: newUser, error } = await supabase
       .from('users')
       .insert({
@@ -791,7 +706,6 @@ router.post('/stores/:id/users', requireSuperAdmin, async (req, res) => {
 
     if (error) throw error;
 
-    // تسجيل العملية
     await supabaseAdmin
       .from('audit_logs')
       .insert({
@@ -800,22 +714,13 @@ router.post('/stores/:id/users', requireSuperAdmin, async (req, res) => {
         action: 'create_user',
         entity_type: 'user',
         entity_id: newUser.id,
-        new_data: {
-          username,
-          full_name,
-          role,
-          store_id: id
-        },
+        new_data: { username, full_name, role, store_id: id },
         ip_address: req.ip,
         user_agent: req.get('User-Agent'),
         created_at: new Date().toISOString()
       });
 
-    res.json({
-      success: true,
-      data: newUser,
-      message: 'تم إضافة الموظف بنجاح'
-    });
+    res.json({ success: true, data: newUser, message: 'تم إضافة الموظف بنجاح' });
   } catch (error) {
     console.error('خطأ في إضافة الموظف:', error);
     res.status(500).json({
@@ -946,10 +851,7 @@ router.get('/super-admins', requireSuperAdmin, async (req, res) => {
 
     if (error) throw error;
 
-    res.json({
-      success: true,
-      data: data || []
-    });
+    res.json({ success: true, data: data || [] });
   } catch (error) {
     console.error('خطأ في جلب السوبر أدمن:', error);
     res.status(500).json({
@@ -973,7 +875,6 @@ router.post('/super-admins', requireSuperAdmin, async (req, res) => {
       });
     }
 
-    // التحقق من عدم وجود اسم مستخدم مكرر
     const { data: existingUser } = await supabase
       .from('users')
       .select('id')
@@ -988,7 +889,6 @@ router.post('/super-admins', requireSuperAdmin, async (req, res) => {
       });
     }
 
-    const bcrypt = require('bcrypt');
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const { data, error } = await supabase
@@ -1012,11 +912,7 @@ router.post('/super-admins', requireSuperAdmin, async (req, res) => {
 
     await logAudit(req, 'INSERT', 'users', data.id, null, { username, full_name, role: 'super_admin' });
 
-    res.json({
-      success: true,
-      data,
-      message: 'تم إضافة السوبر أدمن بنجاح'
-    });
+    res.json({ success: true, data, message: 'تم إضافة السوبر أدمن بنجاح' });
   } catch (error) {
     console.error('خطأ في إضافة السوبر أدمن:', error);
     res.status(500).json({
@@ -1032,7 +928,6 @@ router.delete('/super-admins/:id', requireSuperAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // التحقق من عدم وجود سوبر أدمن واحد فقط
     const { count } = await supabase
       .from('users')
       .select('*', { count: 'exact', head: true })
@@ -1046,7 +941,6 @@ router.delete('/super-admins/:id', requireSuperAdmin, async (req, res) => {
       });
     }
 
-    // جلب البيانات قبل الحذف للتسجيل
     const { data: adminToDelete } = await supabase
       .from('users')
       .select('username, full_name')
@@ -1062,10 +956,7 @@ router.delete('/super-admins/:id', requireSuperAdmin, async (req, res) => {
 
     await logAudit(req, 'DELETE', 'users', id, adminToDelete, null);
 
-    res.json({
-      success: true,
-      message: 'تم حذف السوبر أدمن بنجاح'
-    });
+    res.json({ success: true, message: 'تم حذف السوبر أدمن بنجاح' });
   } catch (error) {
     console.error('خطأ في حذف السوبر أدمن:', error);
     res.status(500).json({
@@ -1076,32 +967,28 @@ router.delete('/super-admins/:id', requireSuperAdmin, async (req, res) => {
   }
 });
 
-// GET /api/admin/backups - جلب قائمة النسخ الاحتياطية
+// ============================================================
+// BACKUP ENDPOINTS - Supabase Storage
+// ============================================================
+
+// GET /api/admin/backups - جلب قائمة النسخ الاحتياطية من Supabase Storage
 router.get('/backups', requireSuperAdmin, async (req, res) => {
   try {
-    const fs = require('fs');
-    const path = require('path');
-    const backupsDir = path.join(__dirname, '../../../backups');
-    
-    // إنشاء المجلد إذا لم يكن موجوداً
-    if (!fs.existsSync(backupsDir)) {
-      fs.mkdirSync(backupsDir, { recursive: true });
-      return res.json({ success: true, data: [] });
-    }
-    
-    const files = fs.readdirSync(backupsDir);
-    const backups = files
-      .filter(file => file.endsWith('.json') || file.endsWith('.sql'))
-      .map(file => {
-        const stats = fs.statSync(path.join(backupsDir, file));
-        return {
-          name: file,
-          size: stats.size,
-          created_at: stats.birthtime || stats.ctime
-        };
-      })
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    
+    const { data: files, error } = await supabaseAdmin
+      .storage
+      .from('backups')
+      .list('', { sortBy: { column: 'created_at', order: 'desc' } });
+
+    if (error) throw error;
+
+    const backups = (files || [])
+      .filter(f => f.name.endsWith('.json'))
+      .map(f => ({
+        name: f.name,
+        size: f.metadata?.size || 0,
+        created_at: f.created_at
+      }));
+
     res.json({ success: true, data: backups });
   } catch (error) {
     console.error('خطأ في جلب النسخ الاحتياطية:', error);
@@ -1109,100 +996,288 @@ router.get('/backups', requireSuperAdmin, async (req, res) => {
   }
 });
 
-// POST /api/admin/backups - إنشاء نسخة احتياطية
+// POST /api/admin/backups - إنشاء نسخة احتياطية ورفعها إلى Supabase Storage
 router.post('/backups', requireSuperAdmin, async (req, res) => {
   try {
-    const fs = require('fs');
-    const path = require('path');
-    const { supabase } = require('../config/supabase');
-    
-    const backupsDir = path.join(__dirname, '../../../backups');
-    if (!fs.existsSync(backupsDir)) {
-      fs.mkdirSync(backupsDir, { recursive: true });
-    }
-    
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `backup_${timestamp}.json`;
-    const filepath = path.join(backupsDir, filename);
-    
-    // جلب جميع البيانات
+    const filename = `backup_manual_${timestamp}.json`;
+
+    console.log('📦 بدء إنشاء نسخة احتياطية...');
+
+    // جلب البيانات من جميع الجداول
     const tables = ['customers', 'products', 'installment_plans', 'payment_schedule', 'payments', 'users', 'stores'];
     const backupData = {};
-    
+
     for (const table of tables) {
+      console.log(`  📥 جلب جدول: ${table}`);
       const { data, error } = await supabase.from(table).select('*');
       if (!error) {
         backupData[table] = data;
+        console.log(`     ✅ ${data?.length || 0} سجل`);
+      } else {
+        console.warn(`     ⚠️ فشل جلب ${table}:`, error.message);
       }
     }
-    
-    // حفظ كـ JSON
-    fs.writeFileSync(filepath, JSON.stringify(backupData, null, 2));
-    
-    // حذف النسخ القديمة (الاحتفاظ بآخر 30)
-    const files = fs.readdirSync(backupsDir);
-    const backups = files
-      .filter(file => file.endsWith('.json'))
-      .map(file => ({ name: file, path: path.join(backupsDir, file) }))
-      .sort((a, b) => fs.statSync(b.path).birthtimeMs - fs.statSync(a.path).birthtimeMs);
-    
-    for (let i = 30; i < backups.length; i++) {
-      fs.unlinkSync(backups[i].path);
+
+    const fileContent = JSON.stringify(backupData, null, 2);
+    console.log(`📄 حجم الملف: ${(fileContent.length / 1024).toFixed(2)} KB`);
+    console.log(`📤 رفع إلى Supabase Storage...`);
+
+    // رفع مباشرة إلى Supabase Storage
+    const { data, error } = await supabaseAdmin
+      .storage
+      .from('backups')
+      .upload(filename, fileContent, {
+        contentType: 'application/json',
+        upsert: false
+      });
+
+    if (error) {
+      console.error('❌ فشل الرفع:', error);
+      throw error;
     }
-    
-    await logAudit(req, 'INSERT', 'backup', null, null, { filename });
-    
+
+    console.log('✅ تم الرفع بنجاح:', data.path);
+
+    // حذف النسخ القديمة (الاحتفاظ بآخر 30)
+    try {
+      const { data: allFiles } = await supabaseAdmin
+        .storage
+        .from('backups')
+        .list('', { sortBy: { column: 'created_at', order: 'desc' } });
+
+      const oldFiles = (allFiles || [])
+        .filter(f => f.name.endsWith('.json'))
+        .slice(30);
+
+      if (oldFiles.length > 0) {
+        await supabaseAdmin
+          .storage
+          .from('backups')
+          .remove(oldFiles.map(f => f.name));
+        console.log(`🗑️ تم حذف ${oldFiles.length} نسخة قديمة`);
+      }
+    } catch (cleanupError) {
+      console.warn('⚠️ خطأ في تنظيف النسخ القديمة:', cleanupError.message);
+    }
+
+    await logAudit(req, 'CREATE_BACKUP', 'system', null, null, { filename });
+
     res.json({
       success: true,
-      data: { filename, size: fs.statSync(filepath).size },
+      data: { filename, size: fileContent.length },
       message: 'تم إنشاء النسخة الاحتياطية بنجاح'
     });
+
   } catch (error) {
-    console.error('خطأ في إنشاء النسخة الاحتياطية:', error);
-    res.status(500).json({ success: false, error: 'حدث خطأ في الخادم' });
+    console.error('❌ خطأ في إنشاء النسخة الاحتياطية:', error);
+    res.status(500).json({ success: false, error: error.message || 'حدث خطأ في الخادم' });
   }
 });
 
-// GET /api/admin/backups/:filename - تحميل نسخة
+// GET /api/admin/backups/:filename - تحميل نسخة من Supabase Storage
 router.get('/backups/:filename', requireSuperAdmin, async (req, res) => {
   try {
-    const fs = require('fs');
-    const path = require('path');
     const { filename } = req.params;
-    const filepath = path.join(__dirname, '../../../backups', filename);
-    
-    if (!fs.existsSync(filepath)) {
-      return res.status(404).json({ success: false, error: 'الملف غير موجود' });
-    }
-    
-    res.download(filepath, filename);
+
+    const { data, error } = await supabaseAdmin
+      .storage
+      .from('backups')
+      .download(filename);
+
+    if (error) throw error;
+
+    const text = await data.text();
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/json');
+    res.send(text);
   } catch (error) {
     console.error('خطأ في تحميل النسخة:', error);
     res.status(500).json({ success: false, error: 'حدث خطأ في الخادم' });
   }
 });
 
-// DELETE /api/admin/backups/:filename - حذف نسخة
+// DELETE /api/admin/backups/:filename - حذف نسخة من Supabase Storage
 router.delete('/backups/:filename', requireSuperAdmin, async (req, res) => {
   try {
-    const fs = require('fs');
-    const path = require('path');
     const { filename } = req.params;
-    const filepath = path.join(__dirname, '../../../backups', filename);
-    
-    if (!fs.existsSync(filepath)) {
-      return res.status(404).json({ success: false, error: 'الملف غير موجود' });
-    }
-    
-    fs.unlinkSync(filepath);
-    
-    await logAudit(req, 'DELETE', 'backup', null, { filename }, null);
-    
+
+    const { error } = await supabaseAdmin
+      .storage
+      .from('backups')
+      .remove([filename]);
+
+    if (error) throw error;
+
+    await logAudit(req, 'DELETE_BACKUP', 'system', null, { filename }, null);
+
     res.json({ success: true, message: 'تم حذف النسخة بنجاح' });
   } catch (error) {
     console.error('خطأ في حذف النسخة:', error);
     res.status(500).json({ success: false, error: 'حدث خطأ في الخادم' });
   }
+});
+
+// POST /api/admin/backups/restore
+router.post('/backups/restore', requireSuperAdmin, async (req, res) => {
+  try {
+    const { filename, store_id } = req.body;
+    
+    console.log('🚀 بدء استعادة النسخة:', filename);
+    console.log('📦 فلتر للمحل:', store_id || 'جميع المحلات');
+    
+    if (!filename) {
+      return res.status(400).json({ success: false, error: 'اسم الملف مطلوب' });
+    }
+    
+    // تحميل الملف من Storage
+    const { data: fileData, error: downloadError } = await supabaseAdmin
+      .storage
+      .from('backups')
+      .download(filename);
+    
+    if (downloadError) {
+      console.error('❌ خطأ في تحميل الملف:', downloadError);
+      return res.status(404).json({ success: false, error: 'الملف غير موجود' });
+    }
+    
+    const backupData = JSON.parse(await fileData.text());
+    console.log('✅ تم تحميل الملف، البيانات:', Object.keys(backupData));
+    
+    const results = { restored: [], failed: [] };
+    
+    // ترتيب الحذف (من الأقل اعتماداً إلى الأكثر)
+    const deleteOrder = ['payments', 'payment_schedule', 'installment_plans', 'products', 'customers'];
+    
+    // حذف البيانات الحالية
+    for (const table of deleteOrder) {
+      if (!backupData[table]) continue;
+      
+      let query = supabase.from(table).delete();
+      if (store_id) {
+        query = query.eq('store_id', store_id);
+      }
+      
+      const { error } = await query;
+      if (error) {
+        console.error(`⚠️ خطأ في حذف جدول ${table}:`, error.message);
+      } else {
+        console.log(`🗑️ تم حذف بيانات جدول ${table}`);
+      }
+    }
+    
+    // ترتيب الإدراج (من الأقل اعتماداً إلى الأكثر)
+    const insertOrder = ['customers', 'products', 'installment_plans', 'payment_schedule', 'payments'];
+    
+    // إدراج البيانات الجديدة
+    for (const table of insertOrder) {
+      if (!backupData[table]) {
+        console.log(`⚠️ جدول ${table} غير موجود في النسخة`);
+        continue;
+      }
+      
+      let dataToRestore = backupData[table];
+      if (store_id) {
+        dataToRestore = dataToRestore.filter(row => row.store_id === store_id);
+      }
+      
+      if (dataToRestore.length === 0) {
+        console.log(`⚠️ لا توجد بيانات لجدول ${table} بعد الفلترة`);
+        continue;
+      }
+      
+      console.log(`📥 استعادة جدول ${table}: ${dataToRestore.length} سجل`);
+      
+      // إدراج على دفعات (batch insert)
+      const batchSize = 100;
+      for (let i = 0; i < dataToRestore.length; i += batchSize) {
+        const batch = dataToRestore.slice(i, i + batchSize);
+        const { error } = await supabase
+          .from(table)
+          .insert(batch);
+        
+        if (error) {
+          console.error(`❌ خطأ في استعادة جدول ${table}:`, error.message);
+          results.failed.push({ table, error: error.message });
+          break;
+        }
+      }
+      
+      if (!results.failed.some(f => f.table === table)) {
+        results.restored.push({ table, count: dataToRestore.length });
+        console.log(`✅ تم استعادة جدول ${table}: ${dataToRestore.length} سجل`);
+      }
+    }
+    
+    await logAudit(req, 'RESTORE', 'backup', null, null, { filename, store_id, results });
+    
+    console.log('🎉 انتهت عملية الاستعادة:', results);
+    
+    res.json({
+      success: true,
+      data: results,
+      message: `تم استعادة ${results.restored.length} جدول بنجاح` 
+    });
+  } catch (error) {
+    console.error('❌ خطأ في استعادة النسخة:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ========== Admin Routes (للسوبر أدمن) ==========
+
+// GET /api/admin/notification-templates
+router.get('/notification-templates', requireSuperAdmin, async (req, res) => {
+  const { data, error } = await supabase
+    .from('notification_templates')
+    .select('*')
+    .order('type');
+  
+  if (error) throw error;
+  res.json({ success: true, data });
+});
+
+// PUT /api/admin/notification-templates/:id
+router.put('/notification-templates/:id', requireSuperAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { body, subject, is_active } = req.body;
+  
+  const { data, error } = await supabase
+    .from('notification_templates')
+    .update({ body, subject, is_active, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  res.json({ success: true, data });
+});
+
+// POST /api/admin/notification-templates/reset
+router.post('/notification-templates/reset', requireSuperAdmin, async (req, res) => {
+  // إعادة تعيين القوالب إلى الوضع الافتراضي
+  const { data, error } = await supabase
+    .from('notification_templates')
+    .update({ is_active: false })
+    .neq('type', 'default');
+  
+  if (error) throw error;
+  
+  const { data: defaultTemplates, error: defaultError } = await supabase
+    .from('notification_templates')
+    .update({ is_active: true })
+    .eq('type', 'default');
+  
+  if (defaultError) throw defaultError;
+  
+  res.json({ success: true, message: 'تم إعادة تعيين القوالب إلى الوضع الافتراضي' });
+});
+
+// GET /api/admin/test-telegram
+router.get('/test-telegram', requireSuperAdmin, async (req, res) => {
+  const { sendMessage } = require('../services/telegramService');
+  await sendMessage(process.env.TELEGRAM_CHAT_ID, '🔄 رسالة تجريبية من نظام مرساة');
+  res.json({ success: true, message: 'تم إرسال رسالة تجريبية' });
 });
 
 module.exports = router;

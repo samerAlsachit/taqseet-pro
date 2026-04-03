@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { connectToBluetoothPrinter } from '@/lib/bluetoothPrint';
-import { Settings, User, Store, CreditCard, FileText, Save, X, Users, CheckCircle, Star, Rocket, Calendar, Zap, Phone, Mail, MessageCircle } from 'lucide-react';
+import { Settings, User, Store, CreditCard, FileText, Save, X, Users, CheckCircle, Star, Rocket, Calendar, Zap, Phone, Mail, MessageCircle, Bell } from 'lucide-react';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface StoreSettings {
@@ -17,8 +17,11 @@ interface StoreSettings {
   receipt_header: string;
   receipt_footer: string;
   default_currency: string;
+  telegram_chat_id?: string;
   plan_id?: string;
   subscription_end?: string;
+  telegram_enabled?: boolean;
+  customer_notifications?: boolean;
 }
 
 interface SubscriptionData {
@@ -39,7 +42,7 @@ export default function SettingsPage() {
   const [store, setStore] = useState<StoreSettings | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
   const [plans, setPlans] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'info' | 'subscription'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'subscription' | 'notifications'>('info');
   const [bluetoothPrinter, setBluetoothPrinter] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -50,6 +53,9 @@ export default function SettingsPage() {
     receipt_header: '',
     receipt_footer: '',
     default_currency: 'IQD',
+    telegram_chat_id: '',
+    telegram_enabled: false,
+    customer_notifications: false,
   });
 
   useEffect(() => {
@@ -92,6 +98,9 @@ export default function SettingsPage() {
             receipt_header: storeData.receipt_header || '',
             receipt_footer: storeData.receipt_footer || '',
             default_currency: storeData.default_currency || 'IQD',
+            telegram_chat_id: storeData.telegram_chat_id || '',
+            telegram_enabled: storeData.telegram_enabled || false,
+            customer_notifications: storeData.customer_notifications || false,
           });
         } else {
           setError(data.error || 'فشل في جلب بيانات المحل');
@@ -199,6 +208,16 @@ export default function SettingsPage() {
               <CreditCard size={18} />
               <span>الاشتراك</span>
             </button>
+            {/* تبويب الإشعارات */}
+            <button
+              onClick={() => setActiveTab('notifications')}
+              className={`flex items-center gap-2 pb-2 px-4 ${
+                activeTab === 'notifications' ? 'border-b-2 border-electric text-electric' : 'text-text-primary'
+              }`}
+            >
+              <Bell size={18} />
+              <span>الإشعارات</span>
+            </button>
           </nav>
         </div>
 
@@ -247,6 +266,19 @@ export default function SettingsPage() {
                   onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
+              </div>
+              <div>
+                <label className="block text-text-primary mb-2">معرف تلجرام (Chat ID)</label>
+                <input
+                  type="text"
+                  value={formData.telegram_chat_id}
+                  onChange={(e) => setFormData({...formData, telegram_chat_id: e.target.value})}
+                  placeholder="أدخل معرف التلجرام لتلقي الإشعارات"
+                  className="w-full px-4 py-2 border border-border rounded-lg"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  للحصول على Chat ID، ابحث عن @MarsatBot في تلجرام وأرسل /start
+                </p>
               </div>
               <div className="md:col-span-2">
                 <label className="block text-gray-500 dark:text-gray-400 mb-2">العنوان</label>
@@ -431,6 +463,37 @@ export default function SettingsPage() {
                   <MessageCircle size={16} className="text-success" />
                   <span>واتساب</span>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* تبويب الإشعارات */}
+        {activeTab === 'notifications' && (
+          <div className="p-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">إعدادات الإشعارات</h2>
+            
+            <div className="space-y-4">
+              <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">إشعارات تلجرام</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">استقبال إشعارات انتهاء الاشتراك والأقساط المستحقة</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" className="sr-only peer" checked={settings.telegram_enabled} onChange={(e) => setFormData({ ...formData, telegram_enabled: e.target.checked })} />
+                  <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-electric"></div>
+                </label>
+              </div>
+
+              <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">إشعارات الزبائن</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">إرسال تذكير للزبائن قبل موعد القسط</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" className="sr-only peer" checked={settings.customer_notifications} onChange={(e) => setFormData({ ...formData, customer_notifications: e.target.checked })} />
+                  <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-electric"></div>
+                </label>
               </div>
             </div>
           </div>

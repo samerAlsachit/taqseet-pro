@@ -20,7 +20,7 @@ router.get('/settings', auth, async (req, res) => {
 
     const { data: store, error } = await supabase
       .from('stores')
-      .select('id, name, owner_name, phone, address, city, logo_url, receipt_header, receipt_footer, default_currency, subscription_start, subscription_end, is_active')
+      .select('id, name, owner_name, phone, address, city, logo_url, receipt_header, receipt_footer, default_currency, subscription_start, subscription_end, is_active, telegram_chat_id')
       .eq('id', storeId)
       .single();
 
@@ -51,7 +51,7 @@ router.get('/settings', auth, async (req, res) => {
 router.put('/settings', auth, async (req, res) => {
   try {
     const storeId = req.user.store_id;
-    const { name, owner_name, phone, address, city, receipt_header, receipt_footer, default_currency } = req.body;
+    const { name, owner_name, phone, address, city, receipt_header, receipt_footer, default_currency, telegram_chat_id } = req.body;
 
     if (!storeId) {
       return res.status(400).json({
@@ -79,6 +79,7 @@ router.put('/settings', auth, async (req, res) => {
         receipt_header: receipt_header || '',
         receipt_footer: receipt_footer || '',
         default_currency: req.body.default_currency || 'IQD',
+        telegram_chat_id: telegram_chat_id || '',
         updated_at: new Date().toISOString()
       })
       .eq('id', storeId)
@@ -369,6 +370,35 @@ router.get('/audit/:id', auth, async (req, res) => {
       code: 'INTERNAL_ERROR'
     });
   }
+});
+
+// ========== Store Routes (للتاجر) ==========
+
+// GET /api/store/notification-settings
+router.get('/notification-settings', auth, async (req, res) => {
+  const { data, error } = await supabase
+    .from('stores')
+    .select('notification_settings')
+    .eq('id', req.user.store_id)
+    .single();
+  
+  if (error) throw error;
+  res.json({ success: true, data: data?.notification_settings || {} });
+});
+
+// PUT /api/store/notification-settings
+router.put('/notification-settings', auth, async (req, res) => {
+  const { notification_settings } = req.body;
+  
+  const { data, error } = await supabase
+    .from('stores')
+    .update({ notification_settings })
+    .eq('id', req.user.store_id)
+    .select()
+    .single();
+  
+  if (error) throw error;
+  res.json({ success: true, data: data?.notification_settings });
 });
 
 module.exports = router;

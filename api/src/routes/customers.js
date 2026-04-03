@@ -99,13 +99,13 @@ router.post('/', auth, checkSubscription, async (req, res) => {
     }
 
     // التحقق من حد العملاء
-    if (!await checkCustomerLimit(storeId)) {
-      return res.status(403).json({
-        success: false,
-        error: 'لقد تجاوزت الحد المسموح به من العملاء حسب خطتك',
-        code: 'LIMIT_EXCEEDED'
-      });
-    }
+    // if (!await checkCustomerLimit(storeId)) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     error: 'لقد تجاوزت الحد المسموح به من العملاء حسب خطتك',
+    //     code: 'LIMIT_EXCEEDED'
+    //   });
+    // }
 
     const { data: customer, error } = await supabase
       .from('customers')

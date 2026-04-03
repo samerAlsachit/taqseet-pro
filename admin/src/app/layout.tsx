@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Tajawal } from "next/font/google";
 import { ThemeProvider } from '@/context/ThemeContext';
+import { Toaster } from 'react-hot-toast';
 import "./globals.css";
 
 const inter = Inter({ 
@@ -29,6 +30,31 @@ export default function RootLayout({
       <body className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
         <ThemeProvider>
           {children}
+          <Toaster 
+            position="top-center"
+            toastOptions={{
+              style: {
+                background: 'var(--toast-bg)',
+                color: 'var(--toast-color)',
+                border: '1px solid var(--toast-border)',
+                borderRadius: '0.5rem',
+                fontSize: '0.875rem',
+                fontFamily: 'var(--font-tajawal)'
+              },
+              success: {
+                iconTheme: {
+                  primary: '#10b981',
+                  secondary: '#ffffff'
+                }
+              },
+              error: {
+                iconTheme: {
+                  primary: '#ef4444',
+                  secondary: '#ffffff'
+                }
+              }
+            }}
+          />
         </ThemeProvider>
       </body>
     </html>

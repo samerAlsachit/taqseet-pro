@@ -28,7 +28,7 @@ export default function LoginPage() {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, is_admin: true }),
       });
 
       const data = await response.json();
@@ -36,7 +36,7 @@ export default function LoginPage() {
       if (data.success) {
         const token = data.data.token;
         localStorage.setItem('token', token);
-        document.cookie = `token=${token}; path=/; max-age=2592000`;
+        document.cookie = `token=${token}; path=/; max-age=2592000`; // 30 يوم
         router.push('/dashboard');
       } else {
         setError(data.error || 'فشل تسجيل الدخول');

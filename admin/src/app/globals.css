@@ -6,6 +6,15 @@
   --color-success: #28A745;
   --color-warning: #FFC107;
   --color-danger: #DC3545;
+  --toast-bg: #ffffff;
+  --toast-color: #374151;
+  --toast-border: #e5e7eb;
+}
+
+.dark {
+  --toast-bg: #1f2937;
+  --toast-color: #f9fafb;
+  --toast-border: #374151;
 }
 
 @custom-variant dark (&:where(.dark, .dark *));

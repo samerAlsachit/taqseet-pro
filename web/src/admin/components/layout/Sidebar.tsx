@@ -22,6 +22,7 @@ export default function Sidebar() {
     { path: '/admin/plans', icon: '📋', name: 'الخطط' },
     { path: '/admin/stores', icon: '🏪', name: 'المحلات' },
     { path: '/admin/users', icon: '👥', name: 'المستخدمون' },
+    { path: '/admin/notifications', icon: '🔔', name: 'الإشعارات' },
     { path: '/admin/settings', icon: '⚙️', name: 'الإعدادات' },
   ];
 

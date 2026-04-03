@@ -1,6 +1,27 @@
 const cron = require('node-cron');
 const { supabase } = require('../config/supabase');
 const { sendWhatsAppNotification, sendEmailNotification } = require('../services/notificationService');
+const { sendExpiryNotification } = require('../services/telegramService');
+
+// دالة مساعدة لإرسال رسالة إلى تاجر بناءً على رقم هاتفه
+const sendTelegramByPhone = async (phone, message) => {
+  // البحث عن التاجر بهذا الرقم
+  const { data: stores } = await supabase
+    .from('stores')
+    .select('telegram_chat_id, name')
+    .ilike('phone', `%${phone}%`);
+
+  if (stores && stores.length > 0) {
+    for (const store of stores) {
+      if (store.telegram_chat_id) {
+        await sendExpiryNotification(store.telegram_chat_id, store.name, 7); // استخدام الدالة الأصلية
+        console.log(`📱 تم إرسال إشعار تلجرام إلى ${store.name}`);
+      }
+    }
+  } else {
+    console.log(`⚠️ لا يوجد تاجر مسجل بهذا الرقم: ${phone}`);
+  }
+};
 
 // وظيفة إرسال التنبيهات
 const sendExpiryNotifications = async () => {
@@ -17,7 +38,7 @@ const sendExpiryNotifications = async () => {
     // جلب المحلات التي تنتهي خلال 7 أيام
     const { data: stores, error } = await supabase
       .from('stores')
-      .select('id, name, owner_name, phone, email, subscription_end')
+      .select('id, name, owner_name, phone, email, subscription_end, telegram_chat_id')
       .lt('subscription_end', nextWeekStr)
       .gte('subscription_end', todayStr)
       .eq('is_active', true);
@@ -36,6 +57,7 @@ const sendExpiryNotifications = async () => {
 
     let whatsappSent = 0;
     let emailSent = 0;
+    let telegramSent = 0;
     let failed = 0;
 
     for (const store of stores) {
@@ -65,6 +87,25 @@ const sendExpiryNotifications = async () => {
         }
       }
 
+      // إرسال إشعار تلجرام
+      if (store.phone) {
+        const message = `
+🔔 <b>تنبيه انتهاء اشتراك</b>
+
+مرحباً،
+نود إعلامكم بأن اشتراك محل <b>${store.name}</b> على وشك الانتهاء خلال <b>${daysLeft} أيام</b>.
+
+يرجى التواصل مع الدعم لتجديد الاشتراك.
+
+📞 هاتف: 077XXXXXXXX
+📧 بريد: support@marsat.com
+
+شكراً لثقتكم بنا
+<b>مرساة</b>
+  `;
+        await sendTelegramByPhone(store.phone, message);
+      }
+
       // تسجيل التنبيه في قاعدة البيانات
       await supabase
         .from('expiry_notifications')
@@ -73,11 +114,12 @@ const sendExpiryNotifications = async () => {
           days_left: daysLeft,
           sent_at: new Date().toISOString(),
           whatsapp_sent: !!store.phone,
-          email_sent: !!store.email
+          email_sent: !!store.email && result?.success,
+          telegram_sent: !!store.phone // تم تغيير للتحقق من وجود رقم الهاتف
         });
     }
 
-    console.log(`✅ [CRON] اكتمل الإرسال: واتساب=${whatsappSent}, إيميل=${emailSent}, فشل=${failed}`);
+    console.log(`✅ [CRON] اكتمل الإرسال: واتساب=${whatsappSent}, إيميل=${emailSent}, تلجرام=${telegramSent}, فشل=${failed}`);
   } catch (error) {
     console.error('❌ خطأ في إرسال التنبيهات:', error);
   }

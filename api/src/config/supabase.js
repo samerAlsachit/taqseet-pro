@@ -1,9 +1,11 @@
 const { createClient } = require('@supabase/supabase-js');
+console.log('🔑 Service Key:', process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 20));
+console.log('🔑 طول الـ Key:', process.env.SUPABASE_SERVICE_ROLE_KEY?.length);
 
 // إعدادات الاتصال بقاعدة بيانات Supabase
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // إنشاء عميل Supabase للعميل (anon key)
 const supabase = createClient(supabaseUrl, supabaseAnonKey);

@@ -16,7 +16,8 @@ import {
   Moon,
   Sun,
   Anchor,
-  Menu
+  Menu,
+  Bell
 } from 'lucide-react';
 
 // تعريف navItems خارج المكون
@@ -29,6 +30,7 @@ const navItems = [
   { name: 'الموظفين', path: '/employees', icon: Users2, roles: ['store_owner'] },
   { name: 'سجل العمليات', path: '/audit', icon: FileText, roles: ['store_owner'] },
   { name: 'الإعدادات', path: '/settings', icon: Settings, roles: ['store_owner'] },
+  { name: 'الإشعارات', path: '/settings?tab=notifications', icon: Bell, roles: ['store_owner'] },
 ];
 
 export default function StoreLayout({ children }: { children: React.ReactNode }) {

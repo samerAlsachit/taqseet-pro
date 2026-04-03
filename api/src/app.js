@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -46,6 +46,7 @@ app.get('/health', (req, res) => {
 });
 
 // Routes (جميع الاستيرادات في مكان واحد)
+const telegramRoutes = require('./routes/telegram');
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/customers', require('./routes/customers'));
 app.use('/api/guarantors', require('./routes/guarantors'));
@@ -58,6 +59,7 @@ app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/store', require('./routes/store'));
 app.use('/api/plans', require('./routes/plans'));
+app.use('/api/telegram', telegramRoutes);
 
 // Error handlers
 app.use(notFoundHandler);

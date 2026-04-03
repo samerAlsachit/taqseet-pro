@@ -1,2 +1,3 @@
 supabase project password : CVRwYZjDmdwO3g5U
 resend api key : re_P9jkVUJU_E1Fxw1AkjyevD3GGsQXv1pXV
+telegram bot api token :8778874843:AAEKG42r-0HtvbHKgiRLe15Kw2UI0bUTJGg

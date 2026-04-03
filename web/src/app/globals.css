@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
 @variant dark (&:where(.dark, .dark *));
 
 @theme {
@@ -7,6 +8,7 @@
   --color-success: #28A745;
   --color-warning: #FFC107;
   --color-danger: #DC3545;
+  --font-tajawal: 'Tajawal', sans-serif;
 }
 
 :root {
@@ -26,6 +28,7 @@
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
+  font-family: var(--font-tajawal);
 }
 
 @media print {
