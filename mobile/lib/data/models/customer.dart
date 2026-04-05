@@ -52,11 +52,48 @@ class Customer {
       nationalId: map['national_id'],
       notes: map['notes'],
       syncStatus: map['sync_status'],
-      createdAt: map['created_at'] != null 
-          ? DateTime.parse(map['created_at']) 
+      createdAt: map['created_at'] != null
+          ? DateTime.parse(map['created_at'])
           : null,
-      updatedAt: map['updated_at'] != null 
-          ? DateTime.parse(map['updated_at']) 
+      updatedAt: map['updated_at'] != null
+          ? DateTime.parse(map['updated_at'])
+          : null,
+    );
+  }
+
+  // JSON methods for API
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'store_id': storeId,
+      'full_name': fullName,
+      'phone': phone,
+      'phone_alt': phoneAlt,
+      'address': address,
+      'national_id': nationalId,
+      'notes': notes,
+      'sync_status': syncStatus,
+      'created_at': createdAt?.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
+    };
+  }
+
+  factory Customer.fromJson(Map<String, dynamic> json) {
+    return Customer(
+      id: json['id'],
+      storeId: json['store_id'] ?? '',
+      fullName: json['full_name'] ?? '',
+      phone: json['phone'],
+      phoneAlt: json['phone_alt'],
+      address: json['address'],
+      nationalId: json['national_id'],
+      notes: json['notes'],
+      syncStatus: json['sync_status'],
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
+          : null,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'])
           : null,
     );
   }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -8,10 +7,17 @@ import 'core/constants/app_constants.dart';
 import 'core/database/database_helper.dart';
 import 'core/network/api_client.dart';
 import 'data/repositories/customer_repository.dart';
+import 'data/repositories/product_repository.dart';
+import 'data/repositories/installment_repository.dart';
 import 'data/datasources/auth_datasource.dart';
 import 'presentation/screens/login_screen.dart';
 import 'presentation/screens/dashboard_screen.dart';
+import 'presentation/screens/customers_screen.dart';
+import 'presentation/screens/products_screen.dart';
+import 'presentation/screens/installments_screen.dart';
 import 'presentation/providers/customer_provider.dart';
+import 'presentation/providers/product_provider.dart';
+import 'presentation/providers/installment_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -79,6 +85,13 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => CustomerProvider(CustomerRepository(databaseHelper)),
         ),
+        ChangeNotifierProvider(
+          create: (_) => ProductProvider(ProductRepository(databaseHelper)),
+        ),
+        ChangeNotifierProvider(
+          create: (_) =>
+              InstallmentProvider(InstallmentRepository(databaseHelper)),
+        ),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
@@ -120,6 +133,10 @@ class MyApp extends StatelessWidget {
             routes: {
               AppConstants.loginRoute: (context) => const LoginScreen(),
               AppConstants.dashboardRoute: (context) => const DashboardScreen(),
+              AppConstants.customersRoute: (context) => const CustomersScreen(),
+              AppConstants.productsRoute: (context) => const ProductsScreen(),
+              AppConstants.installmentsRoute: (context) =>
+                  const InstallmentsScreen(),
             },
           );
         },
