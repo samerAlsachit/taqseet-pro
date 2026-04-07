@@ -5,10 +5,10 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = taqseet_pro
+PRODUCT_NAME = marsa
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.taqseetpro.taqseetPro
+PRODUCT_BUNDLE_IDENTIFIER = com.marsa.marsa
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.taqseetpro. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 com.marsa. All rights reserved.

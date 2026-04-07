@@ -1,30 +1,19 @@
+// This is a basic Flutter widget test.
+//
+// To perform an interaction with a widget in your test, use the WidgetTester
+// utility in the flutter_test package. For example, you can send tap and scroll
+// gestures. You can also use WidgetTester to find child widgets in the widget
+// tree, read text, and verify that the values of widget properties are correct.
+
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:taqseet_pro/main.dart';
-import 'package:taqseet_pro/core/database/database_helper.dart';
-import 'package:taqseet_pro/core/network/api_client.dart';
-import 'package:taqseet_pro/data/datasources/auth_datasource.dart';
+import 'package:marsa/main.dart';
 
 void main() {
-  testWidgets('App smoke test', (WidgetTester tester) async {
-    // Mock SharedPreferences for testing
-    SharedPreferences.setMockInitialValues({});
-
+  testWidgets('Marsa app smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(
-      MyApp(
-        sharedPreferences: await SharedPreferences.getInstance(),
-        databaseHelper: DatabaseHelper(),
-        apiClient: ApiClient(),
-        authDataSource: AuthDataSource(
-          ApiClient(),
-          await SharedPreferences.getInstance(),
-        ),
-      ),
-    );
+    await tester.pumpWidget(const MarsaApp());
 
-    // Verify that the login screen is displayed
-    expect(find.text('مرساة'), findsOneWidget);
-    expect(find.text('تسجيل الدخول'), findsOneWidget);
+    // Verify that the dashboard loads
+    expect(find.text('Marsa'), findsOneWidget);
   });
 }
