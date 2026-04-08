@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart' as intl;
+import 'package:url_launcher/url_launcher.dart';
+import 'add_installment_screen.dart';
 
 class InstallmentModel {
   final String id;
   final String customerName;
+  final String? phoneNumber; // For WhatsApp notifications
   final double totalAmount;
   final double remainingAmount;
   final double monthlyPayment;
@@ -16,6 +19,7 @@ class InstallmentModel {
   InstallmentModel({
     required this.id,
     required this.customerName,
+    this.phoneNumber,
     required this.totalAmount,
     required this.remainingAmount,
     required this.monthlyPayment,
@@ -33,16 +37,18 @@ class InstallmentsScreen extends StatefulWidget {
   State<InstallmentsScreen> createState() => _InstallmentsScreenState();
 }
 
-class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTickerProviderStateMixin {
+class _InstallmentsScreenState extends State<InstallmentsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  // Mock data
+  // Mock data with phone numbers for WhatsApp
   List<InstallmentModel> installments = [
     InstallmentModel(
       id: '1',
       customerName: 'أحمد محمد العبيدي',
+      phoneNumber: '07701234567',
       totalAmount: 1850000,
       remainingAmount: 925000,
       monthlyPayment: 185000,
@@ -54,6 +60,7 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
     InstallmentModel(
       id: '2',
       customerName: 'علي حسين الكاظمي',
+      phoneNumber: '07709876543',
       totalAmount: 950000,
       remainingAmount: 0,
       monthlyPayment: 237500,
@@ -65,6 +72,7 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
     InstallmentModel(
       id: '3',
       customerName: 'محمد علي الساعدي',
+      phoneNumber: '07705678901',
       totalAmount: 2450000,
       remainingAmount: 1470000,
       monthlyPayment: 245000,
@@ -76,6 +84,7 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
     InstallmentModel(
       id: '4',
       customerName: 'حسين علي التكريتي',
+      phoneNumber: '07703456789',
       totalAmount: 1250000,
       remainingAmount: 625000,
       monthlyPayment: 156250,
@@ -87,6 +96,7 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
     InstallmentModel(
       id: '5',
       customerName: 'فاطمة أحمد الجبوري',
+      phoneNumber: '07702345678',
       totalAmount: 750000,
       remainingAmount: 0,
       monthlyPayment: 150000,
@@ -123,7 +133,7 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
 
   List<InstallmentModel> getFilteredInstallments(String status) {
     List<InstallmentModel> filtered = installments;
-    
+
     if (status == 'active') {
       filtered = installments.where((i) => i.status == 'active').toList();
     } else if (status == 'completed') {
@@ -131,18 +141,23 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
     } else if (status == 'overdue') {
       filtered = installments.where((i) => i.status == 'overdue').toList();
     }
-    
+
     if (_searchQuery.isEmpty) return filtered;
-    return filtered.where((i) => 
-      i.customerName.toLowerCase().contains(_searchQuery.toLowerCase())
-    ).toList();
+    return filtered
+        .where(
+          (i) =>
+              i.customerName.toLowerCase().contains(_searchQuery.toLowerCase()),
+        )
+        .toList();
   }
 
   String _formatNumber(double amount) {
-    return amount.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]},',
-    );
+    return amount
+        .toStringAsFixed(0)
+        .replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]},',
+        );
   }
 
   Color _getStatusColor(String status) {
@@ -171,6 +186,79 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
     }
   }
 
+  /// Send WhatsApp reminder message
+  Future<void> _sendWhatsAppReminder(InstallmentModel installment) async {
+    if (installment.phoneNumber == null || installment.phoneNumber!.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'لا يوجد رقم هاتف لهذا الزبون',
+              style: TextStyle(fontFamily: 'Tajawal'),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Format phone number (remove leading zero and add country code)
+    String phoneNumber = installment.phoneNumber!;
+    if (phoneNumber.startsWith('0')) {
+      phoneNumber = '964${phoneNumber.substring(1)}';
+    }
+
+    // Format message
+    final formattedAmount = _formatNumber(installment.monthlyPayment);
+    final formattedDate = intl.DateFormat(
+      'yyyy/MM/dd',
+    ).format(installment.nextPaymentDate);
+    final message =
+        'السلام عليكم سيد ${installment.customerName}، نود تذكيرك بموعد قسطك القادم بمبلغ $formattedAmount د.ع والمستحق بتاريخ $formattedDate. شكراً لثقتكم بمحل مرساة.';
+
+    // Create WhatsApp URL
+    final Uri whatsappUrl = Uri.parse(
+      'https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}',
+    );
+
+    try {
+      if (await canLaunchUrl(whatsappUrl)) {
+        await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+      } else {
+        // Try WhatsApp scheme as fallback
+        final Uri whatsappAppUrl = Uri.parse(
+          'whatsapp://send?phone=$phoneNumber&text=${Uri.encodeComponent(message)}',
+        );
+        if (await canLaunchUrl(whatsappAppUrl)) {
+          await launchUrl(whatsappAppUrl);
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'لا يمكن فتح WhatsApp. تأكد من تثبيت التطبيق.',
+                style: TextStyle(fontFamily: 'Tajawal'),
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'حدث خطأ: $e',
+              style: const TextStyle(fontFamily: 'Tajawal'),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -193,7 +281,10 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
           indicatorWeight: 3,
           labelColor: const Color(0xFF0A192F),
           unselectedLabelColor: const Color(0xFF94A3B8),
-          labelStyle: const TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.bold),
+          labelStyle: const TextStyle(
+            fontFamily: 'Tajawal',
+            fontWeight: FontWeight.bold,
+          ),
           unselectedLabelStyle: const TextStyle(fontFamily: 'Tajawal'),
           tabs: const [
             Tab(text: 'الكل'),
@@ -214,11 +305,20 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
               style: const TextStyle(fontFamily: 'Tajawal'),
               decoration: InputDecoration(
                 hintText: 'البحث عن قسط...',
-                hintStyle: const TextStyle(fontFamily: 'Tajawal', color: Color(0xFF94A3B8)),
-                prefixIcon: const Icon(LucideIcons.search, color: Color(0xFF64748B)),
+                hintStyle: const TextStyle(
+                  fontFamily: 'Tajawal',
+                  color: Color(0xFF94A3B8),
+                ),
+                prefixIcon: const Icon(
+                  LucideIcons.search,
+                  color: Color(0xFF64748B),
+                ),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(LucideIcons.x, color: Color(0xFF64748B)),
+                        icon: const Icon(
+                          LucideIcons.x,
+                          color: Color(0xFF64748B),
+                        ),
                         onPressed: () {
                           _searchController.clear();
                           setState(() => _searchQuery = '');
@@ -237,7 +337,10 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: Color(0xFF0A192F), width: 1.5),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF0A192F),
+                    width: 1.5,
+                  ),
                 ),
               ),
             ),
@@ -284,10 +387,38 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AddInstallmentScreen(),
+            ),
+          );
+        },
+        backgroundColor: const Color(0xFF0A192F),
+        tooltip: 'إضافة قسط جديد',
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: const Icon(LucideIcons.plus, color: Colors.white),
+        label: const Text(
+          'إضافة قسط جديد',
+          style: TextStyle(
+            color: Colors.white,
+            fontFamily: 'Tajawal',
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -343,7 +474,7 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
 
   Widget _buildInstallmentsList(String filter) {
     final filtered = getFilteredInstallments(filter);
-    
+
     if (filtered.isEmpty) {
       return _buildEmptyState(filter);
     }
@@ -359,7 +490,9 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
 
   Widget _buildInstallmentCard(InstallmentModel installment) {
     final statusColor = _getStatusColor(installment.status);
-    final daysRemaining = installment.nextPaymentDate.difference(DateTime.now()).inDays;
+    final daysRemaining = installment.nextPaymentDate
+        .difference(DateTime.now())
+        .inDays;
     final isOverdue = daysRemaining < 0;
 
     return Container(
@@ -389,11 +522,11 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
-                    installment.status == 'completed' 
-                        ? LucideIcons.checkCircle2 
-                        : installment.status == 'overdue' 
-                            ? LucideIcons.alertCircle 
-                            : LucideIcons.clock,
+                    installment.status == 'completed'
+                        ? LucideIcons.checkCircle2
+                        : installment.status == 'overdue'
+                        ? LucideIcons.alertCircle
+                        : LucideIcons.clock,
                     color: statusColor,
                   ),
                 ),
@@ -413,7 +546,10 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
                       ),
                       const SizedBox(height: 4),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: statusColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
@@ -431,8 +567,33 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
                     ],
                   ),
                 ),
+                // WhatsApp Button (only for active/overdue installments)
+                if (installment.status != 'completed' &&
+                    installment.phoneNumber != null)
+                  Container(
+                    margin: const EdgeInsets.only(left: 8),
+                    child: InkWell(
+                      onTap: () => _sendWhatsAppReminder(installment),
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF25D366).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          LucideIcons.messageCircle,
+                          color: Color(0xFF25D366),
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
                 PopupMenuButton<String>(
-                  icon: const Icon(LucideIcons.moreVertical, color: Color(0xFF64748B)),
+                  icon: const Icon(
+                    LucideIcons.moreVertical,
+                    color: Color(0xFF64748B),
+                  ),
                   itemBuilder: (context) => [
                     const PopupMenuItem(
                       value: 'view',
@@ -440,7 +601,10 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
                         children: [
                           Icon(LucideIcons.eye, size: 18),
                           SizedBox(width: 8),
-                          Text('عرض التفاصيل', style: TextStyle(fontFamily: 'Tajawal')),
+                          Text(
+                            'عرض التفاصيل',
+                            style: TextStyle(fontFamily: 'Tajawal'),
+                          ),
                         ],
                       ),
                     ),
@@ -448,9 +612,19 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
                       value: 'payment',
                       child: Row(
                         children: [
-                          Icon(LucideIcons.banknote, size: 18, color: Color(0xFF10B981)),
+                          Icon(
+                            LucideIcons.banknote,
+                            size: 18,
+                            color: Color(0xFF10B981),
+                          ),
                           SizedBox(width: 8),
-                          Text('تسجيل دفعة', style: TextStyle(fontFamily: 'Tajawal', color: Color(0xFF10B981))),
+                          Text(
+                            'تسجيل دفعة',
+                            style: TextStyle(
+                              fontFamily: 'Tajawal',
+                              color: Color(0xFF10B981),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -459,9 +633,19 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
                         value: 'complete',
                         child: Row(
                           children: [
-                            Icon(LucideIcons.check, size: 18, color: Color(0xFF3B82F6)),
+                            Icon(
+                              LucideIcons.check,
+                              size: 18,
+                              color: Color(0xFF3B82F6),
+                            ),
                             SizedBox(width: 8),
-                            Text('إكمال القسط', style: TextStyle(fontFamily: 'Tajawal', color: Color(0xFF3B82F6))),
+                            Text(
+                              'إكمال القسط',
+                              style: TextStyle(
+                                fontFamily: 'Tajawal',
+                                color: Color(0xFF3B82F6),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -497,14 +681,20 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isOverdue ? const Color(0xFFFEF2F2) : const Color(0xFFF0FDF4),
+                color: isOverdue
+                    ? const Color(0xFFFEF2F2)
+                    : const Color(0xFFF0FDF4),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
                   Icon(
-                    isOverdue ? LucideIcons.alertTriangle : LucideIcons.calendarClock,
-                    color: isOverdue ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                    isOverdue
+                        ? LucideIcons.alertTriangle
+                        : LucideIcons.calendarClock,
+                    color: isOverdue
+                        ? const Color(0xFFEF4444)
+                        : const Color(0xFF10B981),
                     size: 18,
                   ),
                   const SizedBox(width: 8),
@@ -516,7 +706,9 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
                       style: TextStyle(
                         fontFamily: 'Tajawal',
                         fontSize: 13,
-                        color: isOverdue ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                        color: isOverdue
+                            ? const Color(0xFFEF4444)
+                            : const Color(0xFF10B981),
                       ),
                     ),
                   ),
@@ -599,7 +791,7 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
   Widget _buildEmptyState(String filter) {
     String message;
     IconData icon;
-    
+
     switch (filter) {
       case 'completed':
         message = 'لا توجد أقساط مكتملة';
@@ -618,7 +810,11 @@ class _InstallmentsScreenState extends State<InstallmentsScreen> with SingleTick
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 64, color: const Color(0xFF94A3B8).withValues(alpha: 0.5)),
+          Icon(
+            icon,
+            size: 64,
+            color: const Color(0xFF94A3B8).withValues(alpha: 0.5),
+          ),
           const SizedBox(height: 16),
           Text(
             message,

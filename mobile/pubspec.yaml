@@ -38,6 +38,15 @@ dependencies:
   cupertino_icons: ^1.0.8
   lucide_icons: ^0.257.0
   intl: ^0.20.2
+  # مكتبة التقاط الصور من الكاميرا أو المعرض
+  image_picker: ^1.0.7
+  # مكتبة الوصول إلى مسارات الملفات في ذاكرة الهاتف لحفظ الصور
+  path_provider: ^2.1.2
+  # مكتبة التعامل مع مسارات الملفات
+  path: ^1.8.3
+  # مكتبة فتح روابط URL وإجراء المكالمات الهاتفية
+  url_launcher: ^6.2.5
+
 
 dev_dependencies:
   flutter_test:

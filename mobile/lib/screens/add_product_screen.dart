@@ -3,7 +3,9 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../models/product_model.dart';
 
 class AddProductScreen extends StatefulWidget {
-  const AddProductScreen({super.key});
+  final ProductModel? product;
+
+  const AddProductScreen({super.key, this.product});
 
   @override
   State<AddProductScreen> createState() => _AddProductScreenState();
@@ -11,10 +13,68 @@ class AddProductScreen extends StatefulWidget {
 
 class _AddProductScreenState extends State<AddProductScreen> {
   final _formKey = GlobalKey<FormState>();
+
+  // Basic fields
   final _nameController = TextEditingController();
-  final _stockController = TextEditingController();
-  final _priceIQDController = TextEditingController();
-  final _priceUSDController = TextEditingController();
+  final _descriptionController = TextEditingController();
+
+  // Stock fields
+  final _quantityController = TextEditingController();
+  final _stockAlertController = TextEditingController();
+
+  // Price fields
+  final _purchasePriceController = TextEditingController();
+  final _cashSalePriceController = TextEditingController();
+  final _installmentSalePriceController = TextEditingController();
+
+  // Currency selection
+  bool _isIQD = true;
+
+  String get _currencySymbol => _isIQD ? 'د.ع' : '\$';
+  IconData get _currencyIcon =>
+      _isIQD ? LucideIcons.banknote : LucideIcons.dollarSign;
+
+  // Check if we're in edit mode
+  bool get _isEditMode => widget.product != null;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill data if in edit mode
+    if (_isEditMode) {
+      _nameController.text = widget.product!.name;
+      _quantityController.text = widget.product!.stockQuantity.toString();
+      // Determine currency based on which price is set
+      if (widget.product!.priceIQD > 0 && widget.product!.priceUSD == 0) {
+        _isIQD = true;
+        _cashSalePriceController.text = widget.product!.priceIQD
+            .toStringAsFixed(0);
+      } else if (widget.product!.priceUSD > 0 &&
+          widget.product!.priceIQD == 0) {
+        _isIQD = false;
+        _cashSalePriceController.text = widget.product!.priceUSD
+            .toStringAsFixed(0);
+      } else {
+        // Both or none - default to IQD
+        _isIQD = true;
+        _cashSalePriceController.text = widget.product!.priceIQD > 0
+            ? widget.product!.priceIQD.toStringAsFixed(0)
+            : widget.product!.priceUSD.toStringAsFixed(0);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _quantityController.dispose();
+    _stockAlertController.dispose();
+    _purchasePriceController.dispose();
+    _cashSalePriceController.dispose();
+    _installmentSalePriceController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,9 +87,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
           icon: const Icon(LucideIcons.chevronRight, color: Color(0xFF0A192F)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'إضافة منتج جديد',
-          style: TextStyle(
+        title: Text(
+          _isEditMode ? 'تعديل المنتج' : 'إضافة منتج جديد',
+          style: const TextStyle(
             color: Color(0xFF0A192F),
             fontFamily: 'Tajawal',
             fontWeight: FontWeight.bold,
@@ -44,52 +104,285 @@ class _AddProductScreenState extends State<AddProductScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Product Name
               _buildInputField(
                 label: 'اسم المنتج',
                 controller: _nameController,
                 icon: LucideIcons.package,
                 hint: 'أدخل اسم المنتج',
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'اسم المنتج مطلوب';
+                  }
+                  return null;
+                },
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
+
+              // Currency Toggle
+              _buildCurrencyToggle(),
+              const SizedBox(height: 24),
+
+              // Stock Alert Threshold
               _buildInputField(
-                label: 'الكمية في المخزن',
-                controller: _stockController,
+                label: 'حد تنبيه المخزون',
+                controller: _stockAlertController,
+                icon: LucideIcons.alertTriangle,
+                hint: '5',
+                keyboardType: TextInputType.number,
+                suffixText: 'قطعة',
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'حد التنبيه مطلوب';
+                  }
+                  if (int.tryParse(value) == null) {
+                    return 'أدخل رقماً صحيحاً';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+
+              // Section: Pricing
+              _buildSectionTitle('البيانات المالية'),
+              const SizedBox(height: 16),
+
+              // Purchase Price
+              _buildInputField(
+                label: 'سعر الشراء',
+                controller: _purchasePriceController,
+                icon: _currencyIcon,
+                hint: '0',
+                keyboardType: TextInputType.number,
+                suffixText: _currencySymbol,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'سعر الشراء مطلوب';
+                  }
+                  if (double.tryParse(value) == null) {
+                    return 'أدخل رقماً صحيحاً';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Cash Sale Price
+              _buildInputField(
+                label: 'سعر البيع نقداً',
+                controller: _cashSalePriceController,
+                icon: LucideIcons.banknote,
+                hint: '0',
+                keyboardType: TextInputType.number,
+                suffixText: _currencySymbol,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'سعر البيع نقداً مطلوب';
+                  }
+                  if (double.tryParse(value) == null) {
+                    return 'أدخل رقماً صحيحاً';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Installment Sale Price
+              _buildInputField(
+                label: 'سعر البيع بالأقساط',
+                controller: _installmentSalePriceController,
+                icon: LucideIcons.calendar,
+                hint: '0',
+                keyboardType: TextInputType.number,
+                suffixText: _currencySymbol,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'سعر البيع بالأقساط مطلوب';
+                  }
+                  if (double.tryParse(value) == null) {
+                    return 'أدخل رقماً صحيحاً';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+
+              // Section: Additional Details
+              _buildSectionTitle('تفاصيل إضافية'),
+              const SizedBox(height: 16),
+
+              // Current Quantity
+              _buildInputField(
+                label: 'الكمية الحالية',
+                controller: _quantityController,
                 icon: LucideIcons.archive,
                 hint: '0',
                 keyboardType: TextInputType.number,
+                suffixText: 'قطعة',
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'الكمية مطلوبة';
+                  }
+                  if (int.tryParse(value) == null) {
+                    return 'أدخل رقماً صحيحاً';
+                  }
+                  return null;
+                },
               ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildInputField(
-                      label: 'السعر (د.ع)',
-                      controller: _priceIQDController,
-                      icon: LucideIcons.banknote,
-                      hint: '0',
-                      keyboardType: TextInputType.number,
-                      suffixText: 'د.ع',
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildInputField(
-                      label: 'السعر (\$)',
-                      controller: _priceUSDController,
-                      icon: LucideIcons.dollarSign,
-                      hint: '0',
-                      keyboardType: TextInputType.number,
-                      suffixText: '\$',
-                    ),
-                  ),
-                ],
+              const SizedBox(height: 16),
+
+              // Description
+              _buildInputField(
+                label: 'وصف المنتج',
+                controller: _descriptionController,
+                icon: LucideIcons.fileText,
+                hint: 'أدخل وصف المنتج (اختياري)',
+                maxLines: 4,
               ),
               const SizedBox(height: 40),
+
+              // Submit Button
               _buildSubmitButton(),
+              const SizedBox(height: 24),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 20,
+          decoration: BoxDecoration(
+            color: const Color(0xFF0A192F),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            color: Color(0xFF0A192F),
+            fontFamily: 'Tajawal',
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCurrencyToggle() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'عملة المنتج',
+          style: TextStyle(
+            color: Color(0xFF64748B),
+            fontFamily: 'Tajawal',
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _isIQD = true),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: _isIQD
+                          ? const Color(0xFF0A192F)
+                          : Colors.transparent,
+                      borderRadius: const BorderRadius.horizontal(
+                        right: Radius.circular(16),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          LucideIcons.banknote,
+                          color: _isIQD
+                              ? Colors.white
+                              : const Color(0xFF64748B),
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'دينار عراقي',
+                          style: TextStyle(
+                            fontFamily: 'Tajawal',
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: _isIQD
+                                ? Colors.white
+                                : const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Container(width: 1, height: 40, color: const Color(0xFFE2E8F0)),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _isIQD = false),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: !_isIQD
+                          ? const Color(0xFF0A192F)
+                          : Colors.transparent,
+                      borderRadius: const BorderRadius.horizontal(
+                        left: Radius.circular(16),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          LucideIcons.dollarSign,
+                          color: !_isIQD
+                              ? Colors.white
+                              : const Color(0xFF64748B),
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'دولار أمريكي',
+                          style: TextStyle(
+                            fontFamily: 'Tajawal',
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: !_isIQD
+                                ? Colors.white
+                                : const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -100,6 +393,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
     required String hint,
     TextInputType keyboardType = TextInputType.text,
     String? suffixText,
+    String? Function(String?)? validator,
+    int maxLines = 1,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -118,16 +413,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
           controller: controller,
           keyboardType: keyboardType,
           textAlign: TextAlign.right,
+          maxLines: maxLines,
           style: const TextStyle(
             fontFamily: 'Tajawal',
             color: Color(0xFF0A192F),
           ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'هذا الحقل مطلوب';
-            }
-            return null;
-          },
+          validator: validator,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
@@ -159,6 +450,15 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 width: 1.5,
               ),
             ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Colors.red, width: 1),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Colors.red, width: 1.5),
+            ),
+            errorStyle: const TextStyle(fontFamily: 'Tajawal', fontSize: 12),
           ),
         ),
       ],
@@ -168,28 +468,40 @@ class _AddProductScreenState extends State<AddProductScreen> {
   Widget _buildSubmitButton() {
     return SizedBox(
       width: double.infinity,
-      height: 60,
+      height: 56,
       child: ElevatedButton(
         onPressed: () {
           if (_formKey.currentState!.validate()) {
             final product = ProductModel(
-              id: DateTime.now().millisecondsSinceEpoch.toString(),
+              id: _isEditMode
+                  ? widget.product!.id
+                  : DateTime.now().millisecondsSinceEpoch.toString(),
               name: _nameController.text,
-              stockQuantity: int.parse(_stockController.text),
-              priceIQD: double.parse(_priceIQDController.text),
-              priceUSD: double.parse(_priceUSDController.text),
+              stockQuantity: int.parse(_quantityController.text),
+              priceIQD: _isIQD
+                  ? double.parse(_cashSalePriceController.text)
+                  : 0,
+              priceUSD: !_isIQD
+                  ? double.parse(_cashSalePriceController.text)
+                  : 0,
             );
-            
+
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
+              SnackBar(
                 content: Text(
-                  'تم إضافة المنتج بنجاح!',
-                  style: TextStyle(fontFamily: 'Tajawal'),
+                  _isEditMode
+                      ? 'تم تحديث بيانات المنتج بنجاح!'
+                      : 'تم إضافة المنتج بنجاح!',
+                  style: const TextStyle(fontFamily: 'Tajawal'),
                 ),
-                backgroundColor: Color(0xFF0A192F),
+                backgroundColor: const Color(0xFF0A192F),
+                behavior: SnackBarBehavior.floating,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                ),
               ),
             );
-            
+
             Future.delayed(const Duration(seconds: 1), () {
               if (mounted) {
                 Navigator.pop(context, product);
@@ -200,18 +512,18 @@ class _AddProductScreenState extends State<AddProductScreen> {
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF0A192F),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(24),
           ),
           elevation: 0,
         ),
-        child: const Row(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(LucideIcons.check, color: Colors.white),
-            SizedBox(width: 8),
+            const Icon(LucideIcons.check, color: Colors.white),
+            const SizedBox(width: 8),
             Text(
-              'حفظ المنتج',
-              style: TextStyle(
+              _isEditMode ? 'تحديث المنتج' : 'حفظ المنتج',
+              style: const TextStyle(
                 color: Colors.white,
                 fontFamily: 'Tajawal',
                 fontSize: 18,

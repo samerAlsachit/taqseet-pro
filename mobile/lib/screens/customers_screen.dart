@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../models/customer_model.dart';
 import 'add_customer_screen.dart';
+import 'customer_details_screen.dart';
 
 class CustomersScreen extends StatefulWidget {
   const CustomersScreen({super.key});
@@ -303,193 +304,41 @@ class _CustomersScreenState extends State<CustomersScreen> {
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0A192F).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(LucideIcons.user, color: Color(0xFF0A192F)),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        customer.name,
-                        style: const TextStyle(
-                          fontFamily: 'Tajawal',
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF0A192F),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            LucideIcons.phone,
-                            size: 14,
-                            color: const Color(0xFF64748B),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            customer.phone,
-                            style: const TextStyle(
-                              fontFamily: 'Tajawal',
-                              fontSize: 13,
-                              color: Color(0xFF64748B),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                PopupMenuButton<String>(
-                  icon: const Icon(
-                    LucideIcons.moreVertical,
-                    color: Color(0xFF64748B),
-                  ),
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'view',
-                      child: Row(
-                        children: [
-                          Icon(LucideIcons.eye, size: 18),
-                          SizedBox(width: 8),
-                          Text(
-                            'عرض التفاصيل',
-                            style: TextStyle(fontFamily: 'Tajawal'),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          Icon(LucideIcons.edit2, size: 18),
-                          SizedBox(width: 8),
-                          Text(
-                            'تعديل',
-                            style: TextStyle(fontFamily: 'Tajawal'),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(LucideIcons.trash2, size: 18, color: Colors.red),
-                          SizedBox(width: 8),
-                          Text(
-                            'حذف',
-                            style: TextStyle(
-                              fontFamily: 'Tajawal',
-                              color: Colors.red,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CustomerDetailsScreen(customer: customer),
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(
-                  LucideIcons.mapPin,
-                  size: 14,
-                  color: const Color(0xFF94A3B8),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  customer.address,
-                  style: const TextStyle(
-                    fontFamily: 'Tajawal',
-                    fontSize: 13,
-                    color: Color(0xFF94A3B8),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Divider(height: 1),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
+          );
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: hasDebt
-                          ? const Color(0xFFFEF3C7)
-                          : const Color(0xFFD1FAE5),
+                      color: const Color(0xFF0A192F).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Column(
-                      children: [
-                        Text(
-                          'الديون المستحقة',
-                          style: TextStyle(
-                            fontFamily: 'Tajawal',
-                            fontSize: 12,
-                            color: hasDebt
-                                ? const Color(0xFF92400E)
-                                : const Color(0xFF065F46),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          hasDebt
-                              ? '${_formatNumber(totalDebt)} د.ع'
-                              : 'لا يوجد',
-                          style: TextStyle(
-                            fontFamily: 'Tajawal',
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: hasDebt
-                                ? const Color(0xFF92400E)
-                                : const Color(0xFF065F46),
-                          ),
-                        ),
-                      ],
+                    child: const Icon(
+                      LucideIcons.user,
+                      color: Color(0xFF0A192F),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8F9FB),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                  const SizedBox(width: 12),
+                  Expanded(
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'عدد الأقساط',
-                          style: TextStyle(
-                            fontFamily: 'Tajawal',
-                            fontSize: 12,
-                            color: Color(0xFF64748B),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
                         Text(
-                          '$installmentsCount قسط',
+                          customer.name,
                           style: const TextStyle(
                             fontFamily: 'Tajawal',
                             fontSize: 16,
@@ -497,13 +346,214 @@ class _CustomersScreenState extends State<CustomersScreen> {
                             color: Color(0xFF0A192F),
                           ),
                         ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              LucideIcons.phone,
+                              size: 14,
+                              color: const Color(0xFF64748B),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              customer.phone,
+                              style: const TextStyle(
+                                fontFamily: 'Tajawal',
+                                fontSize: 13,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                  PopupMenuButton<String>(
+                    icon: const Icon(
+                      LucideIcons.moreVertical,
+                      color: Color(0xFF64748B),
+                    ),
+                    onSelected: (value) {
+                      if (value == 'view') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                CustomerDetailsScreen(customer: customer),
+                          ),
+                        );
+                      } else if (value == 'edit') {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'سيتم فتح شاشة التعديل قريباً',
+                              style: TextStyle(fontFamily: 'Tajawal'),
+                            ),
+                            backgroundColor: Color(0xFF0A192F),
+                          ),
+                        );
+                      } else if (value == 'delete') {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'سيتم حذف العميل قريباً',
+                              style: TextStyle(fontFamily: 'Tajawal'),
+                            ),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'view',
+                        child: Row(
+                          children: [
+                            Icon(LucideIcons.eye, size: 18),
+                            SizedBox(width: 8),
+                            Text(
+                              'عرض التفاصيل',
+                              style: TextStyle(fontFamily: 'Tajawal'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(LucideIcons.edit2, size: 18),
+                            SizedBox(width: 8),
+                            Text(
+                              'تعديل',
+                              style: TextStyle(fontFamily: 'Tajawal'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(
+                              LucideIcons.trash2,
+                              size: 18,
+                              color: Colors.red,
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              'حذف',
+                              style: TextStyle(
+                                fontFamily: 'Tajawal',
+                                color: Colors.red,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(
+                    LucideIcons.mapPin,
+                    size: 14,
+                    color: const Color(0xFF94A3B8),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    customer.address,
+                    style: const TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontSize: 13,
+                      color: Color(0xFF94A3B8),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(height: 1),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: hasDebt
+                            ? const Color(0xFFFEF3C7)
+                            : const Color(0xFFD1FAE5),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            'الديون المستحقة',
+                            style: TextStyle(
+                              fontFamily: 'Tajawal',
+                              fontSize: 12,
+                              color: hasDebt
+                                  ? const Color(0xFF92400E)
+                                  : const Color(0xFF065F46),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            hasDebt
+                                ? '${_formatNumber(totalDebt)} د.ع'
+                                : 'لا يوجد',
+                            style: TextStyle(
+                              fontFamily: 'Tajawal',
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: hasDebt
+                                  ? const Color(0xFF92400E)
+                                  : const Color(0xFF065F46),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8F9FB),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'عدد الأقساط',
+                            style: TextStyle(
+                              fontFamily: 'Tajawal',
+                              fontSize: 12,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '$installmentsCount قسط',
+                            style: const TextStyle(
+                              fontFamily: 'Tajawal',
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0A192F),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
