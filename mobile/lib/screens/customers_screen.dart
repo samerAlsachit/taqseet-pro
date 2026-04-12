@@ -20,8 +20,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
     {
       'customer': CustomerModel(
         id: '1',
-        name: 'أحمد محمد العبيدي',
+        fullName: 'أحمد محمد العبيدي',
         phone: '07701234567',
+        nationalId: '12345678901',
         address: 'المنصور، بغداد',
       ),
       'totalDebt': 1850000.0,
@@ -30,8 +31,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
     {
       'customer': CustomerModel(
         id: '2',
-        name: 'علي حسين الكاظمي',
+        fullName: 'علي حسين الكاظمي',
         phone: '07709876543',
+        nationalId: '12345678902',
         address: 'كربلاء',
       ),
       'totalDebt': 950000.0,
@@ -40,8 +42,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
     {
       'customer': CustomerModel(
         id: '3',
-        name: 'محمد علي الساعدي',
+        fullName: 'محمد علي الساعدي',
         phone: '07705678901',
+        nationalId: '12345678903',
         address: 'البصرة',
       ),
       'totalDebt': 2450000.0,
@@ -50,8 +53,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
     {
       'customer': CustomerModel(
         id: '4',
-        name: 'فاطمة أحمد الجبوري',
+        fullName: 'فاطمة أحمد الجبوري',
         phone: '07703456789',
+        nationalId: '12345678904',
         address: 'الموصل',
       ),
       'totalDebt': 0.0,
@@ -60,8 +64,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
     {
       'customer': CustomerModel(
         id: '5',
-        name: 'حسين علي التكريتي',
+        fullName: 'حسين علي التكريتي',
         phone: '07707890123',
+        nationalId: '12345678905',
         address: 'تكريت',
       ),
       'totalDebt': 1250000.0,

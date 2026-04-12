@@ -19,6 +19,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _nationalIdController = TextEditingController();
   final _addressController = TextEditingController();
 
   // Image paths
@@ -37,8 +38,9 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     super.initState();
     // Pre-fill data if in edit mode
     if (_isEditMode) {
-      _nameController.text = widget.customer!.name;
+      _nameController.text = widget.customer!.fullName;
       _phoneController.text = widget.customer!.phone;
+      _nationalIdController.text = widget.customer!.nationalId ?? '';
       _addressController.text = widget.customer!.address;
       _customerImagePath = widget.customer!.customerImagePath;
       _docFrontPath = widget.customer!.docFrontPath;
@@ -51,6 +53,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _nationalIdController.dispose();
     _addressController.dispose();
     super.dispose();
   }
@@ -754,8 +757,11 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               id: _isEditMode
                   ? widget.customer!.id
                   : DateTime.now().millisecondsSinceEpoch.toString(),
-              name: _nameController.text,
+              fullName: _nameController.text,
               phone: _phoneController.text,
+              nationalId: _nationalIdController.text.isNotEmpty
+                  ? _nationalIdController.text
+                  : null,
               address: _addressController.text,
               customerImagePath: _customerImagePath,
               docFrontPath: _docFrontPath,

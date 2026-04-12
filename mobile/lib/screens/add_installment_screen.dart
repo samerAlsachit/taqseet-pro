@@ -44,14 +44,16 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
     customers = [
       CustomerModel(
         id: '1',
-        name: 'أحمد محمد',
+        fullName: 'أحمد محمد',
         phone: '07701234567',
+        nationalId: '12345678901',
         address: 'بغداد',
       ),
       CustomerModel(
         id: '2',
-        name: 'علي حسين',
+        fullName: 'علي حسين',
         phone: '07709876543',
+        nationalId: '12345678902',
         address: 'البصرة',
       ),
     ];

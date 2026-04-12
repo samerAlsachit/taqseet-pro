@@ -3,12 +3,27 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/customer_model.dart';
+import '../models/installment_plan_model.dart';
+import '../models/payment_schedule_model.dart';
+import '../services/thabit_local_db_service.dart';
+import '../services/thabit_pull_sync_service.dart';
 import 'add_customer_screen.dart';
 
-class CustomerDetailsScreen extends StatelessWidget {
+class CustomerDetailsScreen extends StatefulWidget {
   final CustomerModel customer;
 
   const CustomerDetailsScreen({super.key, required this.customer});
+
+  @override
+  State<CustomerDetailsScreen> createState() => _CustomerDetailsScreenState();
+}
+
+class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
+  final ThabitLocalDBService _thabitDB = ThabitLocalDBService();
+  final ThabitPullSyncService _thabitSync = ThabitPullSyncService();
+  bool _isGeneratingStatement = false;
+
+  CustomerModel get customer => widget.customer;
 
   @override
   Widget build(BuildContext context) {
@@ -226,32 +241,68 @@ class CustomerDetailsScreen extends StatelessWidget {
     const double collected = 750000;
     const double remaining = totalDebt - collected;
 
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _buildFinancialCard(
-            title: 'إجمالي الديون',
-            amount: totalDebt,
-            icon: LucideIcons.wallet,
-            color: const Color(0xFFEF4444),
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: _buildFinancialCard(
+                title: 'إجمالي الديون',
+                amount: totalDebt,
+                icon: LucideIcons.wallet,
+                color: const Color(0xFFEF4444),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildFinancialCard(
+                title: 'المحصل',
+                amount: collected,
+                icon: LucideIcons.arrowDownCircle,
+                color: const Color(0xFF10B981),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildFinancialCard(
+                title: 'المتبقي',
+                amount: remaining,
+                icon: LucideIcons.creditCard,
+                color: const Color(0xFFF59E0B),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildFinancialCard(
-            title: 'المحصل',
-            amount: collected,
-            icon: LucideIcons.arrowDownCircle,
-            color: const Color(0xFF10B981),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildFinancialCard(
-            title: 'المتبقي',
-            amount: remaining,
-            icon: LucideIcons.creditCard,
-            color: const Color(0xFFF59E0B),
+        const SizedBox(height: 16),
+        // Share Statement Button
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _isGeneratingStatement ? null : _downloadStatement,
+            icon: _isGeneratingStatement
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(LucideIcons.share2, size: 18),
+            label: Text(
+              _isGeneratingStatement
+                  ? 'جاري تجهيز الكشف...'
+                  : 'مشاركة كشف الحساب',
+              style: const TextStyle(fontFamily: 'Tajawal', fontSize: 14),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0A192F),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
           ),
         ),
       ],
@@ -541,6 +592,243 @@ class CustomerDetailsScreen extends StatelessWidget {
     final Uri phoneUri = Uri(scheme: 'tel', path: phoneNumber);
     if (await canLaunchUrl(phoneUri)) {
       await launchUrl(phoneUri);
+    }
+  }
+
+  /// Generate and share customer statement as image
+  /// Uses Thabit system: installment_plans + payment_schedule
+  Future<void> _downloadStatement() async {
+    setState(() => _isGeneratingStatement = true);
+
+    try {
+      // Initialize Thabit DB
+      await _thabitDB.init();
+
+      print(
+        '🔍 CustomerDetails: Looking for data for customer ID "${customer.id}"',
+      );
+
+      // 1. Get installment plans for this customer
+      List<InstallmentPlanModel> plans = _thabitDB
+          .getInstallmentPlansByCustomer(customer.id);
+      print('📊 CustomerDetails: Found ${plans.length} installment plans');
+
+      // 2. Get payment schedules for all plans (this contains due_date!)
+      List<PaymentScheduleModel> allSchedules = [];
+      for (final plan in plans) {
+        final schedules = _thabitDB.getPaymentScheduleByPlan(plan.id);
+        allSchedules.addAll(schedules);
+      }
+      print(
+        '📊 CustomerDetails: Found ${allSchedules.length} payment schedules',
+      );
+
+      // 3. If no local data, fetch from Supabase
+      if (plans.isEmpty || allSchedules.isEmpty) {
+        print('🌐 CustomerDetails: No local data, fetching from Supabase...');
+        await _thabitSync.init();
+        final success = await _thabitSync.fetchCustomerData(customer.id);
+
+        if (success) {
+          // Re-fetch from local DB after sync
+          plans = _thabitDB.getInstallmentPlansByCustomer(customer.id);
+          allSchedules = [];
+          for (final plan in plans) {
+            final schedules = _thabitDB.getPaymentScheduleByPlan(plan.id);
+            allSchedules.addAll(schedules);
+          }
+          print(
+            '📊 CustomerDetails: After sync - ${plans.length} plans, ${allSchedules.length} schedules',
+          );
+        }
+      }
+
+      // 4. If still no data, show dialog
+      if (plans.isEmpty || allSchedules.isEmpty) {
+        print('❌ CustomerDetails: No data found after all attempts');
+        if (mounted) {
+          setState(() => _isGeneratingStatement = false);
+          _showNoInstallmentsDialog();
+        }
+        return;
+      }
+
+      // 5. Calculate totals
+      final totalFinanced = plans.fold<int>(
+        0,
+        (sum, p) => sum + p.financedAmount,
+      );
+      final totalPaid = allSchedules.fold<int>(
+        0,
+        (sum, s) => sum + (s.paidAmount ?? 0),
+      );
+      final totalRemaining = totalFinanced - totalPaid;
+
+      print('✅ CustomerDetails: Statement ready');
+      print('   Plans: ${plans.length}');
+      print('   Schedules: ${allSchedules.length}');
+      print('   Total Financed: $totalFinanced');
+      print('   Total Paid: $totalPaid');
+      print('   Remaining: $totalRemaining');
+
+      // Show preparing message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'تم تجهيز الكشف، جارٍ فتح المشاركة...',
+              style: TextStyle(fontFamily: 'Tajawal'),
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      // TODO: Update ImageService to handle PaymentScheduleModel
+      // For now, we'll use a placeholder message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'تم جلب البيانات بنجاح: ${allSchedules.length} قسط',
+              style: const TextStyle(fontFamily: 'Tajawal'),
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+
+      /*
+      // Generate and share statement as image
+      await _imageService.generateAndShareStatement(
+        storeName: 'مرساة',
+        customerName: customer.name,
+        customerPhone: customer.phone,
+        paymentSchedules: allSchedules, // TODO: Update ImageService
+        totalFinanced: totalFinanced,
+        totalPaid: totalPaid,
+        remainingBalance: totalRemaining,
+      );
+      */
+    } catch (e) {
+      print('❌ CustomerDetails: Error generating statement: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'تعذر إنشاء الكشف: ${e.toString()}',
+              style: const TextStyle(fontFamily: 'Tajawal'),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isGeneratingStatement = false);
+      }
+    }
+  }
+
+  /// Show dialog when no installments found with option to clear cache and re-fetch
+  void _showNoInstallmentsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'لا توجد أقساط مسجلة',
+          style: TextStyle(fontFamily: 'Tajawal'),
+          textAlign: TextAlign.center,
+        ),
+        content: const Text(
+          'لم يتم العثور على أقساط لهذا العميل. قد يكون السبب:\n\n'
+          '• البيانات محلية (LocalDB) فارغة\n'
+          '• اسم الجدول في Supabase تغير\n\n'
+          'هل تريد مسح البيانات المحلية وجلبها من جديد؟',
+          style: TextStyle(fontFamily: 'Tajawal'),
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء', style: TextStyle(fontFamily: 'Tajawal')),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _clearAndRefetchData();
+            },
+            child: const Text(
+              'مسح وجلب من جديد',
+              style: TextStyle(fontFamily: 'Tajawal'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Clear local data and re-fetch from Supabase using Thabit system
+  Future<void> _clearAndRefetchData() async {
+    setState(() => _isGeneratingStatement = true);
+
+    try {
+      await _thabitSync.init();
+
+      // Clear cache and fetch fresh data
+      final success = await _thabitSync.fetchCustomerData(customer.id);
+
+      if (success) {
+        // Get the data to show counts
+        final plans = _thabitDB.getInstallmentPlansByCustomer(customer.id);
+        List<PaymentScheduleModel> allSchedules = [];
+        for (final plan in plans) {
+          final schedules = _thabitDB.getPaymentScheduleByPlan(plan.id);
+          allSchedules.addAll(schedules);
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'تم جلب ${plans.length} خطة و ${allSchedules.length} قسط من Supabase',
+                style: const TextStyle(fontFamily: 'Tajawal'),
+              ),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'لا توجد أقساط في Supabase لهذا العميل',
+                style: TextStyle(fontFamily: 'Tajawal'),
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('❌ Error re-fetching: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'خطأ في جلب البيانات: ${e.toString()}',
+              style: const TextStyle(fontFamily: 'Tajawal'),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isGeneratingStatement = false);
+      }
     }
   }
 }

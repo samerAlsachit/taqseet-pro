@@ -3,6 +3,7 @@ import '../core/utils/formatter.dart';
 
 class InstallmentModel {
   final String id;
+  final String customerId;
   final String customerName;
   final double totalAmount;
   final double paidAmount;
@@ -18,6 +19,7 @@ class InstallmentModel {
 
   InstallmentModel({
     required this.id,
+    this.customerId = '',
     required this.customerName,
     required this.totalAmount,
     required this.paidAmount,
@@ -33,24 +35,47 @@ class InstallmentModel {
   factory InstallmentModel.fromJSON(Map<String, dynamic> json) {
     return InstallmentModel(
       id: json['id']?.toString() ?? '',
-      customerName: json['customer_name']?.toString() ?? '',
-      totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0.0,
-      paidAmount: (json['paid_amount'] as num?)?.toDouble() ?? 0.0,
-      remainingAmount: (json['remaining_amount'] as num?)?.toDouble() ?? 0.0,
+      customerId:
+          json['customer_id']?.toString() ??
+          json['customerId']?.toString() ??
+          '',
+      customerName:
+          json['customer_name']?.toString() ??
+          json['customerName']?.toString() ??
+          '',
+      totalAmount:
+          (json['total_amount'] as num?)?.toDouble() ??
+          (json['totalAmount'] as num?)?.toDouble() ??
+          0.0,
+      paidAmount:
+          (json['paid_amount'] as num?)?.toDouble() ??
+          (json['paidAmount'] as num?)?.toDouble() ??
+          0.0,
+      remainingAmount:
+          (json['remaining_amount'] as num?)?.toDouble() ??
+          (json['remainingAmount'] as num?)?.toDouble() ??
+          0.0,
       dueDate:
-          DateTime.tryParse(json['due_date']?.toString() ?? '') ??
+          DateTime.tryParse(
+            json['due_date']?.toString() ?? json['dueDate']?.toString() ?? '',
+          ) ??
           DateTime.now(),
       status: json['status']?.toString() ?? 'pending',
-      isSynced: json['is_synced'] as bool? ?? true,
-      localId: json['local_id']?.toString(),
-      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
-      updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? ''),
+      isSynced: json['is_synced'] as bool? ?? json['isSynced'] as bool? ?? true,
+      localId: json['local_id']?.toString() ?? json['localId']?.toString(),
+      createdAt: DateTime.tryParse(
+        json['created_at']?.toString() ?? json['createdAt']?.toString() ?? '',
+      ),
+      updatedAt: DateTime.tryParse(
+        json['updated_at']?.toString() ?? json['updatedAt']?.toString() ?? '',
+      ),
     );
   }
 
   Map<String, dynamic> toJSON() {
     return {
       'id': id,
+      'customer_id': customerId,
       'customer_name': customerName,
       'total_amount': totalAmount,
       'paid_amount': paidAmount,
@@ -68,6 +93,7 @@ class InstallmentModel {
   Map<String, dynamic> toSupabase() {
     return {
       'id': id,
+      'customer_id': customerId,
       'customer_name': customerName,
       'total_amount': totalAmount,
       'paid_amount': paidAmount,
@@ -120,6 +146,7 @@ class InstallmentModel {
 
   InstallmentModel copyWith({
     String? id,
+    String? customerId,
     String? customerName,
     double? totalAmount,
     double? paidAmount,
@@ -133,6 +160,7 @@ class InstallmentModel {
   }) {
     return InstallmentModel(
       id: id ?? this.id,
+      customerId: customerId ?? this.customerId,
       customerName: customerName ?? this.customerName,
       totalAmount: totalAmount ?? this.totalAmount,
       paidAmount: paidAmount ?? this.paidAmount,

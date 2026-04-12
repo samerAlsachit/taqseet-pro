@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../providers/installment_provider.dart';
 import '../models/installment_model.dart';
 import '../core/utils/formatter.dart';
-import '../services/local_db_service.dart';
-import '../services/sync_service.dart';
+import '../services/unified_sync_service.dart';
+import '../services/pull_sync_service.dart';
 import 'add_installment_screen.dart';
 import 'installments_screen.dart' hide InstallmentModel;
 import 'login_screen.dart';
@@ -18,80 +19,151 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
-  final LocalDBService _localDB = LocalDBService();
-  final SyncService _syncService = SyncService();
+class _DashboardScreenState extends State<DashboardScreen>
+    with WidgetsBindingObserver {
+  final UnifiedSyncService _syncService = UnifiedSyncService();
+  final PullSyncService _pullSyncService = PullSyncService();
 
-  List<InstallmentModel> _localInstallments = [];
+  final List<InstallmentModel> _localInstallments = [];
   bool _isLoadingFromHive = true;
-  SyncStatus _syncStatus = SyncStatus.idle;
+  SyncEngineStatus _syncStatus = SyncEngineStatus.idle;
   int _pendingSyncCount = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initServices();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Monitor app lifecycle for background sync
+    _pullSyncService.setupAppLifecycleMonitoring(state);
+  }
+
   Future<void> _initServices() async {
-    // Initialize Hive first
-    await _localDB.init();
-
-    // Load data from Hive immediately for fast display
-    setState(() {
-      _localInstallments = _localDB.getAllInstallments();
-      _isLoadingFromHive = false;
-      _pendingSyncCount = _localDB.getUnsyncedCount();
-    });
-
-    // Initialize sync service and start monitoring
+    // Unified Sync Service is already initialized in main.dart
     await _syncService.init();
+
+    // Initialize Pull Sync Service for incremental sync
+    await _pullSyncService.init();
+
+    // Set up pull sync notifications (only when there are new records)
+    _pullSyncService.onPullSuccess = (message) {
+      if (mounted) {
+        // Show notification for new records
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              message,
+              style: const TextStyle(fontFamily: 'Tajawal'),
+            ),
+            backgroundColor: const Color(0xFF3B82F6),
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+
+        // Refresh provider data
+        context.read<InstallmentProvider>().loadInstallments();
+      }
+    };
+
+    // Set up sync notifications
+    _syncService.onSyncSuccess = (message) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              message,
+              style: const TextStyle(fontFamily: 'Tajawal'),
+            ),
+            backgroundColor: const Color(0xFF27AE60),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    };
+
+    _syncService.onSyncError = (message) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              message,
+              style: const TextStyle(fontFamily: 'Tajawal'),
+            ),
+            backgroundColor: const Color(0xFFEF4444),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    };
+
+    // Listen to queue count changes
+    _syncService.queueCountStream.listen((count) {
+      if (mounted) {
+        setState(() {
+          _pendingSyncCount = count;
+        });
+      }
+    });
 
     // Listen to sync status updates
     _syncService.syncStatusStream.listen((status) {
-      setState(() {
-        _syncStatus = status;
-        if (status == SyncStatus.completed || status == SyncStatus.partial) {
-          // Refresh local data after successful sync
-          _localInstallments = _localDB.getAllInstallments();
-          _pendingSyncCount = _localDB.getUnsyncedCount();
-        }
-      });
+      if (mounted) {
+        setState(() {
+          _syncStatus = status;
+        });
+      }
     });
 
-    // Trigger initial sync if online
-    final isOnline = await _syncService.isOnline();
-    if (isOnline && _pendingSyncCount > 0) {
-      _syncService.syncPendingInstallments();
+    // Get initial queue count
+    setState(() {
+      _pendingSyncCount = _syncService.getPendingCount();
+      _isLoadingFromHive = false;
+    });
+
+    // Trigger initial sync if online and has pending items
+    if (await _syncService.isOnline() && _pendingSyncCount > 0) {
+      _syncService.processQueue();
     }
 
-    // Also load from provider (for mock data fallback or remote updates)
+    // Trigger initial incremental pull sync on app start
+    final pullResult = await _pullSyncService.fetchLatestData();
+    if (pullResult.hasNewRecords && mounted) {
+      context.read<InstallmentProvider>().loadInstallments();
+    }
+
+    // Load from provider for mock data
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<InstallmentProvider>().loadInstallments();
     });
   }
 
   Future<void> _refreshData() async {
-    // Pull-to-refresh: reload from Hive and trigger sync
-    setState(() {
-      _isLoadingFromHive = true;
-    });
+    // Pull-to-refresh: trigger incremental pull sync first
+    await _pullSyncService.fetchLatestData();
 
-    _localInstallments = _localDB.getAllInstallments();
-    _pendingSyncCount = _localDB.getUnsyncedCount();
+    // Then process any pending upload queue
+    await _syncService.processQueue();
 
-    setState(() {
-      _isLoadingFromHive = false;
-    });
-
-    // Trigger sync
-    await _syncService.syncPendingInstallments();
+    // Finally refresh from provider to get latest data
+    if (mounted) {
+      await context.read<InstallmentProvider>().loadInstallments();
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _syncService.dispose();
-    _localDB.close();
+    _pullSyncService.dispose();
     super.dispose();
   }
 
@@ -276,6 +348,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         Row(
           children: [
+            // Sync Status Icon with Badge
+            _buildSyncStatusIcon(),
+            const SizedBox(width: 12),
             _buildCircleIcon(LucideIcons.bell),
             const SizedBox(width: 12),
             _buildCircleIcon(LucideIcons.user),
@@ -302,6 +377,76 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
       child: Icon(icon, color: const Color(0xFF0A192F), size: 20),
+    );
+  }
+
+  /// Build sync status icon with badge showing pending count
+  Widget _buildSyncStatusIcon() {
+    final bool hasPending = _pendingSyncCount > 0;
+    final bool isProcessing = _syncStatus == SyncEngineStatus.processing;
+
+    return InkWell(
+      onTap: () {
+        if (hasPending && !isProcessing) {
+          _syncService.processQueue();
+        }
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Icon(
+              hasPending ? LucideIcons.uploadCloud : LucideIcons.cloud,
+              color: hasPending
+                  ? const Color(0xFFF97316)
+                  : const Color(0xFF27AE60),
+              size: 20,
+            ),
+            // Badge showing pending count
+            if (hasPending)
+              Positioned(
+                right: -8,
+                top: -8,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF97316),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
+                  child: Center(
+                    child: Text(
+                      _pendingSyncCount > 99 ? '99+' : '$_pendingSyncCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Tajawal',
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -783,6 +928,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildSyncStatusCard() {
+    final bool isProcessing = _syncStatus == SyncEngineStatus.processing;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -801,9 +948,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               shape: BoxShape.circle,
             ),
             child: Icon(
-              _syncStatus == SyncStatus.inProgress
-                  ? LucideIcons.loader2
-                  : LucideIcons.cloudOff,
+              isProcessing ? LucideIcons.loader2 : LucideIcons.cloudOff,
               color: const Color(0xFFF97316),
               size: 20,
             ),
@@ -824,7 +969,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  _syncStatus == SyncStatus.inProgress
+                  isProcessing
                       ? 'جاري المزامنة...'
                       : 'في انتظار الاتصال بالإنترنت',
                   style: const TextStyle(
@@ -836,9 +981,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
           ),
-          if (_syncStatus != SyncStatus.inProgress)
+          if (!isProcessing)
             TextButton(
-              onPressed: () => _syncService.syncPendingInstallments(),
+              onPressed: () => _syncService.processQueue(),
               child: const Text(
                 'مزامنة الآن',
                 style: TextStyle(

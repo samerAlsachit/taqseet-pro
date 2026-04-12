@@ -51,6 +51,14 @@ dependencies:
   supabase_flutter: ^2.8.0
   hive_flutter: ^1.1.0
   connectivity_plus: ^6.0.3
+  # مكتبات الوصل الرقمي (Digital Receipt)
+  pdf: ^3.10.8
+  printing: ^5.12.0
+  share_plus: ^10.1.4
+  # مكتبات دعم اللغة العربية (Arabic Text Support)
+  arabic_reshaper: ^0.0.1
+  # مكتبة التقاط الصورة (Screenshot for receipt as image)
+  screenshot: ^3.0.0
 
 
 dev_dependencies:

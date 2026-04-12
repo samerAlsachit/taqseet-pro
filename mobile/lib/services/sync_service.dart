@@ -9,26 +9,24 @@ import 'local_db_service.dart';
 class SyncService {
   final LocalDBService _localDB;
   final SupabaseClient _supabase;
-  
+
   // Stream subscription for connectivity changes
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
-  
+
   // Sync status stream controller
   final _syncStatusController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _syncStatusController.stream;
-  
+
   // Last sync result
   SyncResult? _lastSyncResult;
   SyncResult? get lastSyncResult => _lastSyncResult;
-  
+
   bool _isSyncing = false;
   bool get isSyncing => _isSyncing;
 
-  SyncService({
-    LocalDBService? localDB,
-    SupabaseClient? supabase,
-  })  : _localDB = localDB ?? LocalDBService(),
-        _supabase = supabase ?? Supabase.instance.client;
+  SyncService({LocalDBService? localDB, SupabaseClient? supabase})
+    : _localDB = localDB ?? LocalDBService(),
+      _supabase = supabase ?? Supabase.instance.client;
 
   /// Initialize and start monitoring connectivity
   Future<void> init() async {
@@ -38,15 +36,16 @@ class SyncService {
 
   /// Start listening to connectivity changes
   void _startConnectivityMonitoring() {
-    _connectivitySubscription = Connectivity()
-        .onConnectivityChanged
-        .listen((List<ConnectivityResult> results) {
-      final hasInternet = results.any((result) => 
-        result == ConnectivityResult.wifi || 
-        result == ConnectivityResult.mobile ||
-        result == ConnectivityResult.ethernet
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
+      List<ConnectivityResult> results,
+    ) {
+      final hasInternet = results.any(
+        (result) =>
+            result == ConnectivityResult.wifi ||
+            result == ConnectivityResult.mobile ||
+            result == ConnectivityResult.ethernet,
       );
-      
+
       if (hasInternet && !_isSyncing) {
         // Auto-sync when internet is available
         syncPendingInstallments();
@@ -66,7 +65,7 @@ class SyncService {
     try {
       // Get all unsynced installments from local DB
       final unsyncedInstallments = _localDB.getUnsyncedInstallments();
-      
+
       if (unsyncedInstallments.isEmpty) {
         _isSyncing = false;
         _syncStatusController.add(SyncStatus.completed);
@@ -82,7 +81,7 @@ class SyncService {
       for (final installment in unsyncedInstallments) {
         try {
           final result = await _syncInstallmentToSupabase(installment);
-          
+
           if (result) {
             successCount++;
           } else {
@@ -99,7 +98,7 @@ class SyncService {
       await _localDB.updateLastSyncTime();
 
       _isSyncing = false;
-      
+
       if (failCount == 0) {
         _syncStatusController.add(SyncStatus.completed);
         _lastSyncResult = SyncResult.success(syncedCount: successCount);
@@ -119,7 +118,6 @@ class SyncService {
       }
 
       return _lastSyncResult!;
-
     } catch (e) {
       _isSyncing = false;
       _syncStatusController.add(SyncStatus.failed);
@@ -132,31 +130,31 @@ class SyncService {
   Future<bool> _syncInstallmentToSupabase(InstallmentModel installment) async {
     try {
       final data = installment.toSupabase();
-      
+
       // Check if record already exists in Supabase
       final existing = await _supabase
-          .from('installments')
+          .from('installment_plans')
           .select('id')
           .eq('id', installment.id)
           .maybeSingle();
-      
+
       if (existing != null) {
         // Update existing record
         await _supabase
-            .from('installments')
+            .from('installment_plans')
             .update(data)
             .eq('id', installment.id);
       } else {
         // Insert new record
-        await _supabase.from('installments').insert(data);
+        await _supabase.from('installment_plans').insert(data);
       }
-      
+
       // Mark as synced in local DB
       await _localDB.markAsSynced(
         installment.localId ?? installment.id,
         serverId: installment.id,
       );
-      
+
       return true;
     } catch (e) {
       return false;
@@ -166,10 +164,11 @@ class SyncService {
   /// Check current connectivity status
   Future<bool> isOnline() async {
     final result = await Connectivity().checkConnectivity();
-    return result.any((r) => 
-      r == ConnectivityResult.wifi || 
-      r == ConnectivityResult.mobile ||
-      r == ConnectivityResult.ethernet
+    return result.any(
+      (r) =>
+          r == ConnectivityResult.wifi ||
+          r == ConnectivityResult.mobile ||
+          r == ConnectivityResult.ethernet,
     );
   }
 
@@ -186,13 +185,7 @@ class SyncService {
 }
 
 /// Sync status enum for UI updates
-enum SyncStatus {
-  idle,
-  inProgress,
-  completed,
-  partial,
-  failed,
-}
+enum SyncStatus { idle, inProgress, completed, partial, failed }
 
 /// Sync result class for detailed sync information
 class SyncResult {
@@ -212,39 +205,39 @@ class SyncResult {
   }) : timestamp = DateTime.now();
 
   SyncResult.success({required int syncedCount})
-      : success = true,
-        syncedCount = syncedCount,
-        failedCount = 0,
-        failedIds = const [],
-        error = null,
-        timestamp = DateTime.now();
+    : success = true,
+      syncedCount = syncedCount,
+      failedCount = 0,
+      failedIds = const [],
+      error = null,
+      timestamp = DateTime.now();
 
   SyncResult.failure({required String error, List<String>? failedIds})
-      : success = false,
-        syncedCount = 0,
-        failedCount = failedIds?.length ?? 0,
-        failedIds = failedIds ?? [],
-        error = error,
-        timestamp = DateTime.now();
+    : success = false,
+      syncedCount = 0,
+      failedCount = failedIds?.length ?? 0,
+      failedIds = failedIds ?? [],
+      error = error,
+      timestamp = DateTime.now();
 
   SyncResult.partial({
     required int syncedCount,
     required int failedCount,
     required List<String> failedIds,
-  })   : success = true,
-        syncedCount = syncedCount,
-        failedCount = failedCount,
-        failedIds = failedIds,
-        error = null,
-        timestamp = DateTime.now();
+  }) : success = true,
+       syncedCount = syncedCount,
+       failedCount = failedCount,
+       failedIds = failedIds,
+       error = null,
+       timestamp = DateTime.now();
 
   SyncResult.alreadySyncing()
-      : success = false,
-        syncedCount = 0,
-        failedCount = 0,
-        failedIds = const [],
-        error = 'Sync already in progress',
-        timestamp = DateTime.now();
+    : success = false,
+      syncedCount = 0,
+      failedCount = 0,
+      failedIds = const [],
+      error = 'Sync already in progress',
+      timestamp = DateTime.now();
 
   bool get hasPartialSuccess => success && failedCount > 0;
 }

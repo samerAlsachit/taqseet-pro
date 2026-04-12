@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/installment_model.dart';
 import '../providers/installment_provider.dart';
 import '../core/utils/formatter.dart';
+import '../services/image_service.dart';
 
 class PaymentScreen extends StatefulWidget {
   const PaymentScreen({super.key});
@@ -30,6 +31,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
   // Step 3: Payment details
   final TextEditingController _amountController = TextEditingController();
   double _monthlyPayment = 0.0;
+
+  // Image Service for digital receipts (replaces PDF)
+  final ImageService _imageService = ImageService();
 
   @override
   void initState() {
@@ -139,6 +143,72 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
   }
 
+  /// Generate receipt as image and share via WhatsApp
+  Future<void> _generateAndShareReceipt(
+    double paidAmount,
+    double remainingAmount, {
+    bool shareToWhatsApp = true,
+  }) async {
+    try {
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      // Generate receipt number
+      final receiptNumber =
+          'RCP-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
+
+      // Generate and share receipt as image
+      await _imageService.generateAndShareReceipt(
+        storeName: 'مرساة',
+        customerName: _selectedCustomer!,
+        customerPhone: null, // TODO: Add phone number support
+        amountPaid: paidAmount,
+        remainingBalance: remainingAmount,
+        receiptNumber: receiptNumber,
+        date: DateTime.now(),
+        installmentId: _selectedInstallment?.id,
+        phoneNumber: shareToWhatsApp ? null : null,
+      );
+
+      // Hide loading
+      if (mounted) Navigator.pop(context);
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'تم تجهيز الوصل، جارٍ فتح المشاركة...',
+              style: TextStyle(fontFamily: 'Tajawal'),
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      // Hide loading
+      if (mounted) Navigator.pop(context);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'تعذر إنشاء الوصل: ${e.toString()}',
+              style: const TextStyle(fontFamily: 'Tajawal'),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Legacy text-based WhatsApp receipt (fallback)
   Future<void> _sendWhatsAppReceipt(
     double paidAmount,
     double remainingAmount,
@@ -218,16 +288,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
     // Update in provider
     await provider.updateInstallment(updatedInstallment);
 
-    // Show success dialog
+    // Show success and ask about receipt
     if (mounted) {
-      _showSuccessDialog(
+      _showReceiptDialog(
         amount,
         newRemainingAmount > 0 ? newRemainingAmount : 0,
       );
     }
   }
 
-  void _showSuccessDialog(double paidAmount, double remainingAmount) {
+  /// Show dialog asking if merchant wants to send receipt
+  void _showReceiptDialog(double paidAmount, double remainingAmount) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -280,56 +351,102 @@ class _PaymentScreenState extends State<PaymentScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            // WhatsApp Receipt Button
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () =>
-                    _sendWhatsAppReceipt(paidAmount, remainingAmount),
-                icon: const Icon(
-                  LucideIcons.messageCircle,
-                  color: Color(0xFF25D366),
-                ),
-                label: const Text(
-                  'إرسال وصل استلام عبر WhatsApp',
-                  style: TextStyle(
-                    fontFamily: 'Tajawal',
-                    fontSize: 14,
-                    color: Color(0xFF25D366),
+            // Receipt Options
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  const Text(
+                    'هل تريد إرسال وصل استلام للزبون؟',
+                    style: TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0A192F),
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFF25D366)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  const SizedBox(height: 12),
+                  // Generate Receipt Image and Share
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        Navigator.pop(context); // Close dialog
+                        await _generateAndShareReceipt(
+                          paidAmount,
+                          remainingAmount,
+                          shareToWhatsApp: true,
+                        );
+                        Navigator.pop(context, true); // Return to dashboard
+                      },
+                      icon: const Icon(LucideIcons.share2, size: 18),
+                      label: const Text(
+                        'نعم، إرسال الوصل',
+                        style: TextStyle(fontFamily: 'Tajawal', fontSize: 14),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF3B82F6),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
                   ),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
+                  const SizedBox(height: 8),
+                  // WhatsApp Quick Message
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _sendWhatsAppReceipt(paidAmount, remainingAmount);
+                        Navigator.pop(context, true);
+                      },
+                      icon: const Icon(
+                        LucideIcons.messageCircle,
+                        color: Color(0xFF25D366),
+                        size: 18,
+                      ),
+                      label: const Text(
+                        'رسالة نصية WhatsApp',
+                        style: TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontSize: 13,
+                          color: Color(0xFF25D366),
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFF25D366)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context); // Close dialog
-                  Navigator.pop(context, true); // Return to dashboard
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF27AE60),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: const Text(
-                  'حسناً',
-                  style: TextStyle(
-                    fontFamily: 'Tajawal',
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+            // Skip button
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Close dialog
+                Navigator.pop(context, true); // Return to dashboard
+              },
+              child: const Text(
+                'لا، العودة للرئيسية',
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  fontSize: 14,
+                  color: Color(0xFF64748B),
                 ),
               ),
             ),
