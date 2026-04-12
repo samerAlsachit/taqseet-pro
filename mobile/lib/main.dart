@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'providers/installment_provider.dart';
-import 'screens/main_navigation_screen.dart';
+import 'screens/login_screen.dart';
 import 'core/theme/app_theme.dart';
 
 void main() {
@@ -40,7 +40,7 @@ class MarsaApp extends StatelessWidget {
           ],
           home: const Directionality(
             textDirection: TextDirection.rtl,
-            child: MainNavigationScreen(),
+            child: LoginScreen(),
           ),
         ),
       ),

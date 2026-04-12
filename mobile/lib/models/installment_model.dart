@@ -10,6 +10,12 @@ class InstallmentModel {
   final DateTime dueDate;
   final String status;
 
+  // Offline-first sync fields
+  final bool isSynced;
+  final String? localId;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
   InstallmentModel({
     required this.id,
     required this.customerName,
@@ -18,6 +24,10 @@ class InstallmentModel {
     required this.remainingAmount,
     required this.dueDate,
     required this.status,
+    this.isSynced = false,
+    this.localId,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory InstallmentModel.fromJSON(Map<String, dynamic> json) {
@@ -31,6 +41,10 @@ class InstallmentModel {
           DateTime.tryParse(json['due_date']?.toString() ?? '') ??
           DateTime.now(),
       status: json['status']?.toString() ?? 'pending',
+      isSynced: json['is_synced'] as bool? ?? true,
+      localId: json['local_id']?.toString(),
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
+      updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? ''),
     );
   }
 
@@ -43,6 +57,25 @@ class InstallmentModel {
       'remaining_amount': remainingAmount,
       'due_date': dueDate.toIso8601String(),
       'status': status,
+      'is_synced': isSynced,
+      'local_id': localId,
+      'created_at': createdAt?.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
+    };
+  }
+
+  /// Convert to Supabase format (snake_case keys for database)
+  Map<String, dynamic> toSupabase() {
+    return {
+      'id': id,
+      'customer_name': customerName,
+      'total_amount': totalAmount,
+      'paid_amount': paidAmount,
+      'remaining_amount': remainingAmount,
+      'due_date': dueDate.toIso8601String(),
+      'status': status,
+      'created_at': (createdAt ?? DateTime.now()).toIso8601String(),
+      'updated_at': DateTime.now().toIso8601String(),
     };
   }
 
@@ -93,6 +126,10 @@ class InstallmentModel {
     double? remainingAmount,
     DateTime? dueDate,
     String? status,
+    bool? isSynced,
+    String? localId,
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) {
     return InstallmentModel(
       id: id ?? this.id,
@@ -102,6 +139,10 @@ class InstallmentModel {
       remainingAmount: remainingAmount ?? this.remainingAmount,
       dueDate: dueDate ?? this.dueDate,
       status: status ?? this.status,
+      isSynced: isSynced ?? this.isSynced,
+      localId: localId ?? this.localId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 }
