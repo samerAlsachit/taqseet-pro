@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../providers/installment_provider.dart';
 import '../models/installment_model.dart';
 import '../core/utils/formatter.dart';
 import '../services/unified_sync_service.dart';
-import '../services/pull_sync_service.dart';
+import '../services/marsa_sync_service.dart';
+import '../services/api_client.dart';
+import '../services/dashboard_service.dart';
 import 'add_installment_screen.dart';
 import 'installments_screen.dart' hide InstallmentModel;
 import 'login_screen.dart';
@@ -22,12 +23,17 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen>
     with WidgetsBindingObserver {
   final UnifiedSyncService _syncService = UnifiedSyncService();
-  final PullSyncService _pullSyncService = PullSyncService();
+  final MarsaSyncService _marsaSyncService = MarsaSyncService();
+  final DashboardService _dashboardService = DashboardService();
 
   final List<InstallmentModel> _localInstallments = [];
   bool _isLoadingFromHive = true;
   SyncEngineStatus _syncStatus = SyncEngineStatus.idle;
   int _pendingSyncCount = 0;
+
+  // Dashboard stats from API
+  DashboardStats? _dashboardStats;
+  bool _isLoadingStats = false;
 
   @override
   void initState() {
@@ -39,18 +45,27 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Monitor app lifecycle for background sync
-    _pullSyncService.setupAppLifecycleMonitoring(state);
+    _marsaSyncService.setupAppLifecycleMonitoring(state);
   }
 
   Future<void> _initServices() async {
+    // Set context for ApiClient (for 401 handling)
+    ApiClient().setContext(context);
+
     // Unified Sync Service is already initialized in main.dart
     await _syncService.init();
 
-    // Initialize Pull Sync Service for incremental sync
-    await _pullSyncService.init();
+    // Initialize Dashboard Service
+    await _dashboardService.init();
 
-    // Set up pull sync notifications (only when there are new records)
-    _pullSyncService.onPullSuccess = (message) {
+    // Fetch dashboard stats from API
+    await _fetchDashboardStats();
+
+    // Initialize Marsa Sync Service for API sync
+    await _marsaSyncService.init();
+
+    // Set up sync notifications (only when there are new records)
+    _marsaSyncService.onPullSuccess = (message) {
       if (mounted) {
         // Show notification for new records
         ScaffoldMessenger.of(context).showSnackBar(
@@ -134,9 +149,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       _syncService.processQueue();
     }
 
-    // Trigger initial incremental pull sync on app start
-    final pullResult = await _pullSyncService.fetchLatestData();
-    if (pullResult.hasNewRecords && mounted) {
+    // Trigger initial sync from API
+    final syncResult = await _marsaSyncService.fetchSync();
+    if (syncResult.hasNewRecords && mounted) {
       context.read<InstallmentProvider>().loadInstallments();
     }
 
@@ -146,9 +161,36 @@ class _DashboardScreenState extends State<DashboardScreen>
     });
   }
 
+  Future<void> _fetchDashboardStats() async {
+    setState(() => _isLoadingStats = true);
+
+    final stats = await _dashboardService.fetchDashboardStats();
+
+    if (mounted) {
+      setState(() {
+        _dashboardStats = stats;
+        _isLoadingStats = false;
+      });
+
+      if (stats != null) {
+        print('✅ DashboardScreen: Stats loaded');
+        print('   Total Debt (IQD): ${stats.totalDebtIQD}');
+        print('   Daily Collection (IQD): ${stats.dailyCollectionIQD}');
+        print('   Overdue (IQD): ${stats.overdueIQD}');
+        print('   Total Customers: ${stats.totalCustomers}');
+        print('   Active Installments: ${stats.activeInstallments}');
+      } else {
+        print('⚠️ DashboardScreen: Failed to load stats');
+      }
+    }
+  }
+
   Future<void> _refreshData() async {
-    // Pull-to-refresh: trigger incremental pull sync first
-    await _pullSyncService.fetchLatestData();
+    // Fetch dashboard stats first
+    await _fetchDashboardStats();
+
+    // Pull-to-refresh: trigger sync from API
+    await _marsaSyncService.fetchSync();
 
     // Then process any pending upload queue
     await _syncService.processQueue();
@@ -162,8 +204,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    ApiClient().clearContext();
     _syncService.dispose();
-    _pullSyncService.dispose();
+    _marsaSyncService.dispose();
     super.dispose();
   }
 
@@ -557,9 +600,14 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Widget _buildSummarySection(InstallmentProvider provider) {
-    final total = provider.totalRemaining + provider.todayCollected;
-    final remainingPercent = total > 0 ? provider.totalRemaining / total : 0.0;
-    final collectedPercent = total > 0 ? provider.todayCollected / total : 0.0;
+    // استخدام بيانات الـ API إذا كانت متوفرة (IQD العملة الأساسية)
+    final totalDebt = _dashboardStats?.totalDebtIQD ?? provider.totalRemaining;
+    final dailyCollection =
+        _dashboardStats?.dailyCollectionIQD ?? provider.todayCollected;
+
+    final total = totalDebt + dailyCollection;
+    final remainingPercent = total > 0 ? totalDebt / total : 0.0;
+    final collectedPercent = total > 0 ? dailyCollection / total : 0.0;
 
     return Row(
       children: [
@@ -567,10 +615,11 @@ class _DashboardScreenState extends State<DashboardScreen>
         Expanded(
           child: _buildSummaryCard(
             title: 'المتبقي',
-            amount: provider.totalRemaining,
+            amount: totalDebt,
             textColor: const Color(0xFF0A192F),
             progressColor: const Color(0xFF0A192F),
             progressValue: remainingPercent,
+            isLoading: _isLoadingStats,
           ),
         ),
         const SizedBox(width: 12),
@@ -578,10 +627,11 @@ class _DashboardScreenState extends State<DashboardScreen>
         Expanded(
           child: _buildSummaryCard(
             title: 'المحصل',
-            amount: provider.todayCollected,
+            amount: dailyCollection,
             textColor: const Color(0xFF27AE60),
             progressColor: const Color(0xFF27AE60),
             progressValue: collectedPercent,
+            isLoading: _isLoadingStats,
           ),
         ),
         const SizedBox(width: 12),
@@ -593,6 +643,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             textColor: const Color(0xFF374151),
             progressColor: const Color(0xFF6B7280),
             progressValue: 1.0,
+            isLoading: _isLoadingStats,
           ),
         ),
       ],
@@ -605,6 +656,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     required Color textColor,
     required Color progressColor,
     required double progressValue,
+    bool isLoading = false,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -631,21 +683,30 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            _formatNumber(amount),
-            style: TextStyle(
-              color: textColor,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Tajawal',
-              fontSize: 16,
+          if (isLoading)
+            SizedBox(
+              height: 20,
+              child: LinearProgressIndicator(
+                backgroundColor: progressColor.withValues(alpha: 0.1),
+                valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+              ),
+            )
+          else
+            Text(
+              _formatNumber(amount),
+              style: TextStyle(
+                color: textColor,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Tajawal',
+                fontSize: 16,
+              ),
             ),
-          ),
           const SizedBox(height: 8),
           // Thin LinearProgressIndicator
           ClipRRect(
             borderRadius: BorderRadius.circular(2),
             child: LinearProgressIndicator(
-              value: progressValue,
+              value: isLoading ? null : progressValue,
               backgroundColor: progressColor.withValues(alpha: 0.1),
               valueColor: AlwaysStoppedAnimation<Color>(progressColor),
               minHeight: 3,

@@ -43,7 +43,7 @@ class ImageService {
   }) async {
     try {
       // Capture screenshot of the receipt widget
-      final Uint8List? imageBytes = await _screenshotController
+      final Uint8List imageBytes = await _screenshotController
           .captureFromWidget(
             ReceiptWidget(
               storeName: storeName,
@@ -104,7 +104,7 @@ class ImageService {
     String? installmentId,
   }) async {
     try {
-      final Uint8List? imageBytes = await _screenshotController
+      final Uint8List imageBytes = await _screenshotController
           .captureFromWidget(
             ReceiptWidget(
               storeName: storeName,
@@ -213,7 +213,7 @@ class ImageService {
       );
 
       // Capture screenshot with increased pixel Ratio for better quality
-      final Uint8List? imageBytes = await _screenshotController
+      final Uint8List imageBytes = await _screenshotController
           .captureFromWidget(
             statementWidget,
             context: null,
@@ -285,7 +285,7 @@ class ImageService {
         ),
       );
 
-      final Uint8List? imageBytes = await _screenshotController
+      final Uint8List imageBytes = await _screenshotController
           .captureFromWidget(
             statementWidget,
             context: null,

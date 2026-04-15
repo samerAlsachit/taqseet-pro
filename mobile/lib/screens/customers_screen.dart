@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../models/customer_model.dart';
 import '../services/thabit_local_db_service.dart';
-import '../services/thabit_pull_sync_service.dart';
+import '../services/marsa_sync_service.dart';
 import 'add_customer_screen.dart';
 import 'customer_details_screen.dart';
 
@@ -17,9 +17,8 @@ class CustomersScreen extends StatefulWidget {
 class _CustomersScreenState extends State<CustomersScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ThabitLocalDBService _localDB = ThabitLocalDBService();
-  final ThabitPullSyncService _pullSync = ThabitPullSyncService();
-  final SupabaseClient _supabase = Supabase.instance.client;
-  
+  final MarsaSyncService _marsaSync = MarsaSyncService();
+
   String _searchQuery = '';
   List<Map<String, dynamic>> _customers = [];
   bool _isLoading = true;
@@ -36,7 +35,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
   Future<void> _initializeAndLoadData() async {
     try {
       await _localDB.init();
-      await _pullSync.init();
+      await _marsaSync.init();
       await _loadCustomers();
     } catch (e) {
       setState(() {
@@ -54,16 +53,16 @@ class _CustomersScreenState extends State<CustomersScreen> {
     });
 
     try {
-      // First, try to sync with Supabase
+      // First, try to sync from API
       if (await _isOnline()) {
         setState(() => _isSyncing = true);
-        await _pullSync.fetchLatestData();
+        await _marsaSync.fetchSync();
         setState(() => _isSyncing = false);
       }
 
       // Load customers from local Hive box
       final customersData = _localDB.getAllCustomers();
-      
+
       // Calculate debt and installments for each customer
       final enrichedCustomers = await _enrichCustomerData(customersData);
 
@@ -88,10 +87,10 @@ class _CustomersScreenState extends State<CustomersScreen> {
 
     for (final customerData in customers) {
       final customerId = customerData['id']?.toString() ?? '';
-      
+
       // Get installment plans for this customer from local DB
       final plans = _localDB.getInstallmentPlansByCustomer(customerId);
-      
+
       // Calculate total debt (remaining amount)
       double totalDebt = 0;
       for (final plan in plans) {
@@ -112,8 +111,13 @@ class _CustomersScreenState extends State<CustomersScreen> {
   /// Check if device is online
   Future<bool> _isOnline() async {
     try {
-      final result = await _supabase.from('customers').select('id').limit(1);
-      return true;
+      final connectivityResult = await Connectivity().checkConnectivity();
+      return connectivityResult.any(
+        (r) =>
+            r == ConnectivityResult.wifi ||
+            r == ConnectivityResult.mobile ||
+            r == ConnectivityResult.ethernet,
+      );
     } catch (e) {
       return false;
     }
@@ -273,9 +277,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        CircularProgressIndicator(
-                          color: Color(0xFF0A192F),
-                        ),
+                        CircularProgressIndicator(color: Color(0xFF0A192F)),
                         SizedBox(height: 16),
                         Text(
                           'جاري تحميل البيانات...',
@@ -288,63 +290,63 @@ class _CustomersScreenState extends State<CustomersScreen> {
                     ),
                   )
                 : _error != null
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              LucideIcons.alertCircle,
-                              size: 64,
-                              color: const Color(0xFF94A3B8).withValues(alpha: 0.5),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'حدث خطأ',
-                              style: TextStyle(
-                                fontFamily: 'Tajawal',
-                                fontSize: 18,
-                                color: Color(0xFF64748B),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _error!,
-                              style: TextStyle(
-                                fontFamily: 'Tajawal',
-                                fontSize: 14,
-                                color: Color(0xFF94A3B8),
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 24),
-                            ElevatedButton.icon(
-                              onPressed: _loadCustomers,
-                              icon: const Icon(LucideIcons.refreshCw),
-                              label: const Text(
-                                'إعادة المحاولة',
-                                style: TextStyle(fontFamily: 'Tajawal'),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF0A192F),
-                                foregroundColor: Colors.white,
-                              ),
-                            ),
-                          ],
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          LucideIcons.alertCircle,
+                          size: 64,
+                          color: const Color(0xFF94A3B8).withValues(alpha: 0.5),
                         ),
-                      )
-                    : filteredCustomers.isEmpty
-                        ? _buildEmptyState()
-                        : RefreshIndicator(
-                            onRefresh: _loadCustomers,
-                            color: const Color(0xFF0A192F),
-                            child: ListView.builder(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              itemCount: filteredCustomers.length,
-                              itemBuilder: (context, index) {
-                                return _buildCustomerCard(filteredCustomers[index]);
-                              },
-                            ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'حدث خطأ',
+                          style: TextStyle(
+                            fontFamily: 'Tajawal',
+                            fontSize: 18,
+                            color: Color(0xFF64748B),
                           ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _error!,
+                          style: TextStyle(
+                            fontFamily: 'Tajawal',
+                            fontSize: 14,
+                            color: Color(0xFF94A3B8),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          onPressed: _loadCustomers,
+                          icon: const Icon(LucideIcons.refreshCw),
+                          label: const Text(
+                            'إعادة المحاولة',
+                            style: TextStyle(fontFamily: 'Tajawal'),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0A192F),
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : filteredCustomers.isEmpty
+                ? _buildEmptyState()
+                : RefreshIndicator(
+                    onRefresh: _loadCustomers,
+                    color: const Color(0xFF0A192F),
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: filteredCustomers.length,
+                      itemBuilder: (context, index) {
+                        return _buildCustomerCard(filteredCustomers[index]);
+                      },
+                    ),
+                  ),
           ),
         ],
       ),

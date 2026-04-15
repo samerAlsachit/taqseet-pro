@@ -2,11 +2,13 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../core/config/app_config.dart';
+import 'api_client.dart';
+import 'thabit_local_db_service.dart';
 
 /// AuthService - خدمة التوثيق
 /// تتعامل مع تسجيل الدخول والخروج وحفظ التوكن بشكل آمن
 class AuthService {
-  static const String _baseUrl = 'http://192.168.0.196:3000/api';
   static const String _tokenKey = 'auth_token';
   static const String _storeIdKey = 'store_id';
   static const String _userDataKey = 'user_data';
@@ -17,7 +19,7 @@ class AuthService {
   AuthService() {
     _dio = Dio(
       BaseOptions(
-        baseUrl: _baseUrl,
+        baseUrl: AppConfig.API_URL,
         connectTimeout: const Duration(seconds: 15),
         receiveTimeout: const Duration(seconds: 15),
         sendTimeout: const Duration(seconds: 15),
@@ -74,26 +76,68 @@ class AuthService {
   /// تسجيل الدخول
   Future<AuthResult> login(String username, String password) async {
     try {
+      // ✅ طباعة الرابط الكامل للتأكد
+      final fullUrl = '${AppConfig.API_URL}/auth/login';
+      print('🔍 AuthService: Attempting to connect to:');
+      print('   Full URL: $fullUrl');
+      print('   Base URL: ${AppConfig.API_URL}');
+      print('   Endpoint: /auth/login');
+      print('   Method: POST');
+
       final response = await _dio.post(
         '/auth/login',
-        data: {
-          'username': username,
-          'password': password,
-        },
+        data: {'username': username, 'password': password},
       );
 
       if (response.statusCode == 200) {
-        final data = response.data;
-        
+        // ✅ الـ Response يأتي ببنية: { success: true, message: "...", data: { token, user: {...} } }
+        final responseData = response.data;
+        final data = responseData['data'];
+        final user = data?['user'];
+
+        print('🔍 AuthService: Parsing response:');
+        print('   responseData: $responseData');
+        print('   data: $data');
+        print('   user: $user');
+
+        // التحقق من وجود التوكن
+        final token = data?['token'];
+        if (token == null) {
+          print('❌ AuthService: Token is null!');
+          return AuthResult.error('خطأ في البيانات: التوكن غير موجود');
+        }
+
+        // استخراج بيانات المستخدم من داخل 'user'
+        final userId = user?['id']?.toString();
+        final storeId = user?['store_id']?.toString();
+        final userName = user?['username'];
+        final userRole = user?['role'];
+
+        print('✅ AuthService: Extracted:');
+        print('   token: $token');
+        print('   userId: $userId');
+        print('   storeId: $storeId');
+        print('   userName: $userName');
+        print('   userRole: $userRole');
+
         // حفظ التوكن والبيانات بشكل آمن
-        await _secureStorage.write(key: _tokenKey, value: data['token']);
-        await _secureStorage.write(key: _storeIdKey, value: data['store_id']?.toString());
-        await _secureStorage.write(key: _userDataKey, value: jsonEncode(data));
+        await _secureStorage.write(key: _tokenKey, value: token);
+        await _secureStorage.write(key: _storeIdKey, value: storeId ?? '');
+        await _secureStorage.write(
+          key: _userDataKey,
+          value: jsonEncode({'token': token, 'user': user}),
+        );
+
+        // Also save to ApiClient for automatic token injection
+        await ApiClient().saveToken(token);
+
+        // Mark first login as complete (for data wipe on next fresh install)
+        await ThabitLocalDBService().markFirstLoginComplete();
 
         return AuthResult.success(
-          token: data['token'],
-          storeId: data['store_id']?.toString(),
-          userData: data,
+          token: token,
+          storeId: storeId,
+          userData: {'token': token, 'user': user},
         );
       } else if (response.statusCode == 401) {
         return AuthResult.error('اسم المستخدم أو كلمة المرور غير صحيحة');
@@ -106,7 +150,9 @@ class AuthService {
       if (e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.receiveTimeout ||
           e.type == DioExceptionType.sendTimeout) {
-        return AuthResult.error('انتهت مهلة الاتصال (15 ثانية)، تأكد من تشغيل الـ API');
+        return AuthResult.error(
+          'انتهت مهلة الاتصال (15 ثانية)، تأكد من تشغيل الـ API',
+        );
       }
       if (e.response?.statusCode == 401) {
         return AuthResult.error('اسم المستخدم أو كلمة المرور غير صحيحة');
@@ -123,6 +169,7 @@ class AuthService {
     await _secureStorage.delete(key: _tokenKey);
     await _secureStorage.delete(key: _storeIdKey);
     await _secureStorage.delete(key: _userDataKey);
+    await ApiClient().clearToken();
   }
 
   /// التحقق من وجود توكن محفوظ (للدخول التلقائي)
@@ -181,9 +228,6 @@ class AuthResult {
   }
 
   factory AuthResult.error(String message) {
-    return AuthResult._(
-      success: false,
-      errorMessage: message,
-    );
+    return AuthResult._(success: false, errorMessage: message);
   }
 }

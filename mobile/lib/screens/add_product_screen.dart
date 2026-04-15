@@ -477,13 +477,16 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   ? widget.product!.id
                   : DateTime.now().millisecondsSinceEpoch.toString(),
               name: _nameController.text,
-              stockQuantity: int.parse(_quantityController.text),
-              priceIQD: _isIQD
+              quantity: int.parse(_quantityController.text),
+              sellPriceCashIqd: _isIQD
                   ? double.parse(_cashSalePriceController.text)
                   : 0,
-              priceUSD: !_isIQD
+              sellPriceCashUsd: !_isIQD
                   ? double.parse(_cashSalePriceController.text)
                   : 0,
+              storeId: '', // Will be set by backend
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
             );
 
             ScaffoldMessenger.of(context).showSnackBar(

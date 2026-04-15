@@ -70,7 +70,7 @@ app.use(errorHandler);
 // تشغيل الخادم
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0' , () => {
   console.log(`🚀 خادم مرساة يعمل على المنفذ ${PORT}`);
   console.log(`🌍 البيئة: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📊 الصحة: http://localhost:${PORT}/health`);

@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'auth_service.dart';
@@ -84,7 +83,10 @@ class ApiService {
   }
 
   /// GET Request
-  Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) async {
+  Future<Response> get(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
     try {
       return await _dio.get(path, queryParameters: queryParameters);
     } on DioException catch (e) {

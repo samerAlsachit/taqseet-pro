@@ -1,7 +1,8 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/page": "app/page.js",
-  "/login/page": "app/login/page.js",
   "/(store)/dashboard/page": "app/(store)/dashboard/page.js",
-  "/(store)/payments/new/page": "app/(store)/payments/new/page.js"
+  "/(store)/reports/page": "app/(store)/reports/page.js",
+  "/(store)/installments/page": "app/(store)/installments/page.js",
+  "/(store)/customers/page": "app/(store)/customers/page.js",
+  "/(store)/installments/[id]/page": "app/(store)/installments/[id]/page.js",
+  "/(store)/products/page": "app/(store)/products/page.js"
 }

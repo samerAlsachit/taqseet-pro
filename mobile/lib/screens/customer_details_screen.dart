@@ -6,7 +6,7 @@ import '../models/customer_model.dart';
 import '../models/installment_plan_model.dart';
 import '../models/payment_schedule_model.dart';
 import '../services/thabit_local_db_service.dart';
-import '../services/thabit_pull_sync_service.dart';
+import '../services/marsa_sync_service.dart';
 import 'add_customer_screen.dart';
 
 class CustomerDetailsScreen extends StatefulWidget {
@@ -20,7 +20,7 @@ class CustomerDetailsScreen extends StatefulWidget {
 
 class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
   final ThabitLocalDBService _thabitDB = ThabitLocalDBService();
-  final ThabitPullSyncService _thabitSync = ThabitPullSyncService();
+  final MarsaSyncService _marsaSync = MarsaSyncService();
   bool _isGeneratingStatement = false;
 
   CustomerModel get customer => widget.customer;
@@ -623,11 +623,11 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
         '📊 CustomerDetails: Found ${allSchedules.length} payment schedules',
       );
 
-      // 3. If no local data, fetch from Supabase
+      // 3. If no local data, fetch from API
       if (plans.isEmpty || allSchedules.isEmpty) {
-        print('🌐 CustomerDetails: No local data, fetching from Supabase...');
-        await _thabitSync.init();
-        final success = await _thabitSync.fetchCustomerData(customer.id);
+        print('🌐 CustomerDetails: No local data, fetching from API...');
+        await _marsaSync.init();
+        final success = await _marsaSync.fetchCustomerData(customer.id);
 
         if (success) {
           // Re-fetch from local DB after sync
@@ -769,15 +769,15 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
     );
   }
 
-  /// Clear local data and re-fetch from Supabase using Thabit system
+  /// Clear local data and re-fetch from API using Marsa system
   Future<void> _clearAndRefetchData() async {
     setState(() => _isGeneratingStatement = true);
 
     try {
-      await _thabitSync.init();
+      await _marsaSync.init();
 
       // Clear cache and fetch fresh data
-      final success = await _thabitSync.fetchCustomerData(customer.id);
+      final success = await _marsaSync.fetchCustomerData(customer.id);
 
       if (success) {
         // Get the data to show counts
@@ -792,7 +792,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'تم جلب ${plans.length} خطة و ${allSchedules.length} قسط من Supabase',
+                'تم جلب ${plans.length} خطة و ${allSchedules.length} قسط من السيرفر',
                 style: const TextStyle(fontFamily: 'Tajawal'),
               ),
               backgroundColor: Colors.green,
@@ -804,7 +804,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                'لا توجد أقساط في Supabase لهذا العميل',
+                'لا توجد أقساط في السيرفر لهذا العميل',
                 style: TextStyle(fontFamily: 'Tajawal'),
               ),
               backgroundColor: Colors.orange,
