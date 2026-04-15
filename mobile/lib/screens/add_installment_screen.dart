@@ -3,6 +3,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart' as intl;
 import '../models/customer_model.dart';
 import '../models/product_model.dart';
+import '../services/thabit_local_db_service.dart';
 import 'add_customer_screen.dart';
 
 class CartItem {
@@ -22,9 +23,11 @@ class AddInstallmentScreen extends StatefulWidget {
 class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // Mock data - in real app, these come from providers/database
+  // Data from local storage
   List<CustomerModel> customers = [];
   List<ProductModel> products = [];
+  final ThabitLocalDBService _localDB = ThabitLocalDBService();
+  bool _isLoading = true;
 
   CustomerModel? _selectedCustomer;
   final List<CartItem> _cart = [];
@@ -37,50 +40,28 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSampleData();
+    _loadData();
   }
 
-  void _loadSampleData() {
-    customers = [
-      CustomerModel(
-        id: '1',
-        fullName: 'أحمد محمد',
-        phone: '07701234567',
-        nationalId: '12345678901',
-        address: 'بغداد',
-      ),
-      CustomerModel(
-        id: '2',
-        fullName: 'علي حسين',
-        phone: '07709876543',
-        nationalId: '12345678902',
-        address: 'البصرة',
-      ),
-    ];
-
-    products = [
-      ProductModel(
-        id: '1',
-        name: 'موبايل سامسونج',
-        stockQuantity: 10,
-        priceIQD: 750000,
-        priceUSD: 575,
-      ),
-      ProductModel(
-        id: '2',
-        name: 'لابتوب ديل',
-        stockQuantity: 5,
-        priceIQD: 1200000,
-        priceUSD: 920,
-      ),
-      ProductModel(
-        id: '3',
-        name: 'سماعات بلوتوث',
-        stockQuantity: 20,
-        priceIQD: 125000,
-        priceUSD: 96,
-      ),
-    ];
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      await _localDB.init();
+      
+      // Load customers from local storage
+      final customerMaps = _localDB.getAllCustomers();
+      customers = customerMaps.map((map) => CustomerModel.fromJson(map)).toList();
+      
+      // TODO: Load products from local storage when product service is ready
+      // For now, products list remains empty
+      products = [];
+      
+    } catch (e) {
+      debugPrint('Error loading data: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   double get _totalAmount {
@@ -654,41 +635,97 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
           ],
         ),
         const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<CustomerModel>(
-              isExpanded: true,
-              value: _selectedCustomer,
-              hint: const Text(
-                'اختر عميلاً',
-                style: TextStyle(
-                  fontFamily: 'Tajawal',
-                  color: Color(0xFF94A3B8),
+        if (_isLoading)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 ),
-              ),
-              icon: const Icon(
-                LucideIcons.chevronDown,
-                color: Color(0xFF64748B),
-              ),
-              items: customers.map((customer) {
-                return DropdownMenuItem(
-                  value: customer,
-                  child: Text(
-                    customer.name,
-                    style: const TextStyle(fontFamily: 'Tajawal'),
+                SizedBox(width: 12),
+                Text(
+                  'جاري تحميل البيانات...',
+                  style: TextStyle(
+                    fontFamily: 'Tajawal',
+                    color: Color(0xFF94A3B8),
                   ),
-                );
-              }).toList(),
-              onChanged: (value) => setState(() => _selectedCustomer = value),
+                ),
+              ],
+            ),
+          )
+        else if (customers.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF2F2),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  LucideIcons.userX,
+                  color: Color(0xFFEF4444),
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'لا يوجد عملاء. أضف عميلاً أولاً.',
+                    style: TextStyle(
+                      fontFamily: 'Tajawal',
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<CustomerModel>(
+                isExpanded: true,
+                value: _selectedCustomer,
+                hint: const Text(
+                  'اختر عميلاً',
+                  style: TextStyle(
+                    fontFamily: 'Tajawal',
+                    color: Color(0xFF94A3B8),
+                  ),
+                ),
+                icon: const Icon(
+                  LucideIcons.chevronDown,
+                  color: Color(0xFF64748B),
+                ),
+                items: customers.map((customer) {
+                  return DropdownMenuItem(
+                    value: customer,
+                    child: Text(
+                      customer.fullName,
+                      style: const TextStyle(fontFamily: 'Tajawal'),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) => setState(() => _selectedCustomer = value),
+              ),
             ),
           ),
-        ),
       ],
     );
   }

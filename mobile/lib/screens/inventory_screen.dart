@@ -14,65 +14,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  // Mock data - in real app, this comes from provider/database
-  List<ProductModel> products = [
-    ProductModel(
-      id: '1',
-      name: 'آيفون 15 برو ماكس',
-      stockQuantity: 5,
-      priceIQD: 1850000,
-      priceUSD: 1420,
-    ),
-    ProductModel(
-      id: '2',
-      name: 'سامسونج جالاكسي S24',
-      stockQuantity: 8,
-      priceIQD: 1450000,
-      priceUSD: 1115,
-    ),
-    ProductModel(
-      id: '3',
-      name: 'لابتوب ديل XPS 15',
-      stockQuantity: 3,
-      priceIQD: 2450000,
-      priceUSD: 1885,
-    ),
-    ProductModel(
-      id: '4',
-      name: 'سماعات AirPods Pro',
-      stockQuantity: 15,
-      priceIQD: 385000,
-      priceUSD: 296,
-    ),
-    ProductModel(
-      id: '5',
-      name: 'ساعة Apple Watch',
-      stockQuantity: 12,
-      priceIQD: 625000,
-      priceUSD: 480,
-    ),
-    ProductModel(
-      id: '6',
-      name: 'آيباد برو 12.9',
-      stockQuantity: 6,
-      priceIQD: 1250000,
-      priceUSD: 962,
-    ),
-    ProductModel(
-      id: '7',
-      name: 'ماك بوك برو 14',
-      stockQuantity: 4,
-      priceIQD: 3250000,
-      priceUSD: 2500,
-    ),
-    ProductModel(
-      id: '8',
-      name: 'شاحن سريع 65W',
-      stockQuantity: 25,
-      priceIQD: 65000,
-      priceUSD: 50,
-    ),
-  ];
+  // Products loaded from local database
+  List<ProductModel> products = [];
 
   List<ProductModel> get filteredProducts {
     if (_searchQuery.isEmpty) return products;

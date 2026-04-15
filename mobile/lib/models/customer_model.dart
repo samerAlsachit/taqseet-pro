@@ -15,6 +15,10 @@ class CustomerModel {
   final String? docBackPath;
   final String? residenceCardPath;
 
+  // Financial summary (calculated from installments)
+  final double? totalDebt;
+  final double? totalPaid;
+
   CustomerModel({
     required this.id,
     required this.fullName,
@@ -29,6 +33,8 @@ class CustomerModel {
     this.docFrontPath,
     this.docBackPath,
     this.residenceCardPath,
+    this.totalDebt,
+    this.totalPaid,
   });
 
   /// للتوافق مع الكود القديم
@@ -55,6 +61,12 @@ class CustomerModel {
       residenceCardPath:
           json['residence_card_path']?.toString() ??
           json['residenceCardPath'] as String?,
+      totalDebt: json['total_debt'] != null
+          ? double.tryParse(json['total_debt'].toString())
+          : null,
+      totalPaid: json['total_paid'] != null
+          ? double.tryParse(json['total_paid'].toString())
+          : null,
     );
   }
 
@@ -73,6 +85,8 @@ class CustomerModel {
       'doc_front_path': docFrontPath,
       'doc_back_path': docBackPath,
       'residence_card_path': residenceCardPath,
+      'total_debt': totalDebt,
+      'total_paid': totalPaid,
     };
   }
 
@@ -103,6 +117,8 @@ class CustomerModel {
     String? docFrontPath,
     String? docBackPath,
     String? residenceCardPath,
+    double? totalDebt,
+    double? totalPaid,
   }) {
     return CustomerModel(
       id: id ?? this.id,
@@ -118,6 +134,8 @@ class CustomerModel {
       docFrontPath: docFrontPath ?? this.docFrontPath,
       docBackPath: docBackPath ?? this.docBackPath,
       residenceCardPath: residenceCardPath ?? this.residenceCardPath,
+      totalDebt: totalDebt ?? this.totalDebt,
+      totalPaid: totalPaid ?? this.totalPaid,
     );
   }
 }

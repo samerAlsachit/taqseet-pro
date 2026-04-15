@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/customer_model.dart';
+import '../services/thabit_local_db_service.dart';
+import '../services/thabit_pull_sync_service.dart';
 import 'add_customer_screen.dart';
 import 'customer_details_screen.dart';
 
@@ -13,70 +16,112 @@ class CustomersScreen extends StatefulWidget {
 
 class _CustomersScreenState extends State<CustomersScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final ThabitLocalDBService _localDB = ThabitLocalDBService();
+  final ThabitPullSyncService _pullSync = ThabitPullSyncService();
+  final SupabaseClient _supabase = Supabase.instance.client;
+  
   String _searchQuery = '';
+  List<Map<String, dynamic>> _customers = [];
+  bool _isLoading = true;
+  bool _isSyncing = false;
+  String? _error;
 
-  // Mock data with debt amounts - use .0 for all numeric values
-  List<Map<String, dynamic>> customers = [
-    {
-      'customer': CustomerModel(
-        id: '1',
-        fullName: 'أحمد محمد العبيدي',
-        phone: '07701234567',
-        nationalId: '12345678901',
-        address: 'المنصور، بغداد',
-      ),
-      'totalDebt': 1850000.0,
-      'installmentsCount': 3,
-    },
-    {
-      'customer': CustomerModel(
-        id: '2',
-        fullName: 'علي حسين الكاظمي',
-        phone: '07709876543',
-        nationalId: '12345678902',
-        address: 'كربلاء',
-      ),
-      'totalDebt': 950000.0,
-      'installmentsCount': 2,
-    },
-    {
-      'customer': CustomerModel(
-        id: '3',
-        fullName: 'محمد علي الساعدي',
-        phone: '07705678901',
-        nationalId: '12345678903',
-        address: 'البصرة',
-      ),
-      'totalDebt': 2450000.0,
-      'installmentsCount': 4,
-    },
-    {
-      'customer': CustomerModel(
-        id: '4',
-        fullName: 'فاطمة أحمد الجبوري',
-        phone: '07703456789',
-        nationalId: '12345678904',
-        address: 'الموصل',
-      ),
-      'totalDebt': 0.0,
-      'installmentsCount': 0,
-    },
-    {
-      'customer': CustomerModel(
-        id: '5',
-        fullName: 'حسين علي التكريتي',
-        phone: '07707890123',
-        nationalId: '12345678905',
-        address: 'تكريت',
-      ),
-      'totalDebt': 1250000.0,
-      'installmentsCount': 2,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _initializeAndLoadData();
+  }
+
+  /// Initialize services and load data
+  Future<void> _initializeAndLoadData() async {
+    try {
+      await _localDB.init();
+      await _pullSync.init();
+      await _loadCustomers();
+    } catch (e) {
+      setState(() {
+        _error = 'خطأ في تهيئة قاعدة البيانات: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  /// Load customers from local DB and sync with Supabase
+  Future<void> _loadCustomers() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      // First, try to sync with Supabase
+      if (await _isOnline()) {
+        setState(() => _isSyncing = true);
+        await _pullSync.fetchLatestData();
+        setState(() => _isSyncing = false);
+      }
+
+      // Load customers from local Hive box
+      final customersData = _localDB.getAllCustomers();
+      
+      // Calculate debt and installments for each customer
+      final enrichedCustomers = await _enrichCustomerData(customersData);
+
+      setState(() {
+        _customers = enrichedCustomers;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'خطأ في تحميل البيانات: $e';
+        _isLoading = false;
+        _isSyncing = false;
+      });
+    }
+  }
+
+  /// Enrich customer data with debt and installments count
+  Future<List<Map<String, dynamic>>> _enrichCustomerData(
+    List<Map<String, dynamic>> customers,
+  ) async {
+    final enriched = <Map<String, dynamic>>[];
+
+    for (final customerData in customers) {
+      final customerId = customerData['id']?.toString() ?? '';
+      
+      // Get installment plans for this customer from local DB
+      final plans = _localDB.getInstallmentPlansByCustomer(customerId);
+      
+      // Calculate total debt (remaining amount)
+      double totalDebt = 0;
+      for (final plan in plans) {
+        totalDebt += plan.remainingAmount;
+      }
+
+      enriched.add({
+        'customer': CustomerModel.fromJson(customerData),
+        'totalDebt': totalDebt,
+        'installmentsCount': plans.length,
+        'rawData': customerData,
+      });
+    }
+
+    return enriched;
+  }
+
+  /// Check if device is online
+  Future<bool> _isOnline() async {
+    try {
+      final result = await _supabase.from('customers').select('id').limit(1);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 
   List<Map<String, dynamic>> get filteredCustomers {
-    if (_searchQuery.isEmpty) return customers;
-    return customers.where((c) {
+    if (_searchQuery.isEmpty) return _customers;
+    return _customers.where((c) {
       final customer = c['customer'] as CustomerModel;
       return customer.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           customer.phone.contains(_searchQuery);
@@ -111,6 +156,36 @@ class _CustomersScreenState extends State<CustomersScreen> {
       ),
       body: Column(
         children: [
+          // Sync Indicator
+          if (_isSyncing)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              color: const Color(0xFF0A192F).withValues(alpha: 0.1),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFF0A192F),
+                    ),
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'جاري المزامنة مع السحابة...',
+                    style: TextStyle(
+                      fontFamily: 'Tajawal',
+                      fontSize: 12,
+                      color: Color(0xFF0A192F),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           // Search Bar
           Padding(
             padding: const EdgeInsets.all(16),
@@ -163,44 +238,113 @@ class _CustomersScreenState extends State<CustomersScreen> {
           ),
 
           // Stats Summary
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    'إجمالي العملاء',
-                    '${customers.length}',
-                    LucideIcons.users,
-                    const Color(0xFF0A192F),
+          if (!_isLoading && _error == null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard(
+                      'إجمالي العملاء',
+                      '${_customers.length}',
+                      LucideIcons.users,
+                      const Color(0xFF0A192F),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildStatCard(
-                    'إجمالي الديون',
-                    '${_formatNumber(customers.fold<double>(0, (sum, c) => sum + (c['totalDebt'] as num).toDouble()))} د.ع',
-                    LucideIcons.wallet,
-                    const Color(0xFFF59E0B),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildStatCard(
+                      'إجمالي الديون',
+                      '${_formatNumber(_customers.fold<double>(0, (sum, c) => sum + (c['totalDebt'] as num).toDouble()))} د.ع',
+                      LucideIcons.wallet,
+                      const Color(0xFFF59E0B),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
           const SizedBox(height: 16),
 
-          // Customers List
+          // Content Area
           Expanded(
-            child: filteredCustomers.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: filteredCustomers.length,
-                    itemBuilder: (context, index) {
-                      return _buildCustomerCard(filteredCustomers[index]);
-                    },
-                  ),
+            child: _isLoading
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          color: Color(0xFF0A192F),
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'جاري تحميل البيانات...',
+                          style: TextStyle(
+                            fontFamily: 'Tajawal',
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : _error != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              LucideIcons.alertCircle,
+                              size: 64,
+                              color: const Color(0xFF94A3B8).withValues(alpha: 0.5),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'حدث خطأ',
+                              style: TextStyle(
+                                fontFamily: 'Tajawal',
+                                fontSize: 18,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _error!,
+                              style: TextStyle(
+                                fontFamily: 'Tajawal',
+                                fontSize: 14,
+                                color: Color(0xFF94A3B8),
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 24),
+                            ElevatedButton.icon(
+                              onPressed: _loadCustomers,
+                              icon: const Icon(LucideIcons.refreshCw),
+                              label: const Text(
+                                'إعادة المحاولة',
+                                style: TextStyle(fontFamily: 'Tajawal'),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0A192F),
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : filteredCustomers.isEmpty
+                        ? _buildEmptyState()
+                        : RefreshIndicator(
+                            onRefresh: _loadCustomers,
+                            color: const Color(0xFF0A192F),
+                            child: ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              itemCount: filteredCustomers.length,
+                              itemBuilder: (context, index) {
+                                return _buildCustomerCard(filteredCustomers[index]);
+                              },
+                            ),
+                          ),
           ),
         ],
       ),
@@ -210,14 +354,12 @@ class _CustomersScreenState extends State<CustomersScreen> {
             context,
             MaterialPageRoute(builder: (context) => const AddCustomerScreen()),
           );
-          if (result != null && result is CustomerModel) {
-            setState(() {
-              customers.add({
-                'customer': result,
-                'totalDebt': 0.0,
-                'installmentsCount': 0,
-              });
-            });
+          if (result != null && result is Map<String, dynamic>) {
+            final shouldRefresh = result['shouldRefresh'] as bool? ?? false;
+            if (shouldRefresh) {
+              // Refresh data after adding a customer
+              await _loadCustomers();
+            }
           }
         },
         backgroundColor: const Color(0xFF0A192F),

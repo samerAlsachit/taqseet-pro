@@ -1,34 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart' as intl;
-import 'package:url_launcher/url_launcher.dart';
-import 'add_installment_screen.dart';
-
-class InstallmentModel {
-  final String id;
-  final String customerName;
-  final String? phoneNumber; // For WhatsApp notifications
-  final double totalAmount;
-  final double remainingAmount;
-  final double monthlyPayment;
-  final int totalMonths;
-  final int paidMonths;
-  final DateTime nextPaymentDate;
-  final String status; // 'active', 'completed', 'overdue'
-
-  InstallmentModel({
-    required this.id,
-    required this.customerName,
-    this.phoneNumber,
-    required this.totalAmount,
-    required this.remainingAmount,
-    required this.monthlyPayment,
-    required this.totalMonths,
-    required this.paidMonths,
-    required this.nextPaymentDate,
-    required this.status,
-  });
-}
+import 'package:provider/provider.dart';
+import '../providers/installment_provider.dart';
+import '../models/installment_model.dart' as app_models;
 
 class InstallmentsScreen extends StatefulWidget {
   const InstallmentsScreen({super.key});
@@ -43,86 +18,16 @@ class _InstallmentsScreenState extends State<InstallmentsScreen>
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  // Mock data with phone numbers for WhatsApp
-  List<InstallmentModel> installments = [
-    InstallmentModel(
-      id: '1',
-      customerName: 'أحمد محمد العبيدي',
-      phoneNumber: '07701234567',
-      totalAmount: 1850000,
-      remainingAmount: 925000,
-      monthlyPayment: 185000,
-      totalMonths: 10,
-      paidMonths: 5,
-      nextPaymentDate: DateTime.now().add(const Duration(days: 5)),
-      status: 'active',
-    ),
-    InstallmentModel(
-      id: '2',
-      customerName: 'علي حسين الكاظمي',
-      phoneNumber: '07709876543',
-      totalAmount: 950000,
-      remainingAmount: 0,
-      monthlyPayment: 237500,
-      totalMonths: 4,
-      paidMonths: 4,
-      nextPaymentDate: DateTime.now(),
-      status: 'completed',
-    ),
-    InstallmentModel(
-      id: '3',
-      customerName: 'محمد علي الساعدي',
-      phoneNumber: '07705678901',
-      totalAmount: 2450000,
-      remainingAmount: 1470000,
-      monthlyPayment: 245000,
-      totalMonths: 10,
-      paidMonths: 4,
-      nextPaymentDate: DateTime.now().subtract(const Duration(days: 3)),
-      status: 'overdue',
-    ),
-    InstallmentModel(
-      id: '4',
-      customerName: 'حسين علي التكريتي',
-      phoneNumber: '07703456789',
-      totalAmount: 1250000,
-      remainingAmount: 625000,
-      monthlyPayment: 156250,
-      totalMonths: 8,
-      paidMonths: 4,
-      nextPaymentDate: DateTime.now().add(const Duration(days: 12)),
-      status: 'active',
-    ),
-    InstallmentModel(
-      id: '5',
-      customerName: 'فاطمة أحمد الجبوري',
-      phoneNumber: '07702345678',
-      totalAmount: 750000,
-      remainingAmount: 0,
-      monthlyPayment: 150000,
-      totalMonths: 5,
-      paidMonths: 5,
-      nextPaymentDate: DateTime.now(),
-      status: 'completed',
-    ),
-    InstallmentModel(
-      id: '6',
-      customerName: 'عمر محمد السامرائي',
-      totalAmount: 3200000,
-      remainingAmount: 2560000,
-      monthlyPayment: 320000,
-      totalMonths: 10,
-      paidMonths: 2,
-      nextPaymentDate: DateTime.now().subtract(const Duration(days: 7)),
-      status: 'overdue',
-    ),
-  ];
-
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    // Load installments from provider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<InstallmentProvider>().loadInstallments();
+    });
   }
+
 
   @override
   void dispose() {
@@ -131,8 +36,11 @@ class _InstallmentsScreenState extends State<InstallmentsScreen>
     super.dispose();
   }
 
-  List<InstallmentModel> getFilteredInstallments(String status) {
-    List<InstallmentModel> filtered = installments;
+  List<app_models.InstallmentModel> getFilteredInstallments(
+    String status,
+    List<app_models.InstallmentModel> installments,
+  ) {
+    List<app_models.InstallmentModel> filtered = installments;
 
     if (status == 'active') {
       filtered = installments.where((i) => i.status == 'active').toList();
@@ -187,81 +95,31 @@ class _InstallmentsScreenState extends State<InstallmentsScreen>
   }
 
   /// Send WhatsApp reminder message
-  Future<void> _sendWhatsAppReminder(InstallmentModel installment) async {
-    if (installment.phoneNumber == null || installment.phoneNumber!.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'لا يوجد رقم هاتف لهذا الزبون',
-              style: TextStyle(fontFamily: 'Tajawal'),
-            ),
-            backgroundColor: Colors.red,
+  Future<void> _sendWhatsAppReminder(
+    app_models.InstallmentModel installment,
+  ) async {
+    // TODO: Get phone number from customer record
+    // For now, show message that feature needs customer data
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'ميزة التذكير عبر الواتساب تحتاج إلى ربط بيانات العميل',
+            style: TextStyle(fontFamily: 'Tajawal'),
           ),
-        );
-      }
-      return;
+          backgroundColor: Colors.orange,
+        ),
+      );
     }
-
-    // Format phone number (remove leading zero and add country code)
-    String phoneNumber = installment.phoneNumber!;
-    if (phoneNumber.startsWith('0')) {
-      phoneNumber = '964${phoneNumber.substring(1)}';
-    }
-
-    // Format message
-    final formattedAmount = _formatNumber(installment.monthlyPayment);
-    final formattedDate = intl.DateFormat(
-      'yyyy/MM/dd',
-    ).format(installment.nextPaymentDate);
-    final message =
-        'السلام عليكم سيد ${installment.customerName}، نود تذكيرك بموعد قسطك القادم بمبلغ $formattedAmount د.ع والمستحق بتاريخ $formattedDate. شكراً لثقتكم بمحل مرساة.';
-
-    // Create WhatsApp URL
-    final Uri whatsappUrl = Uri.parse(
-      'https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}',
-    );
-
-    try {
-      if (await canLaunchUrl(whatsappUrl)) {
-        await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
-      } else {
-        // Try WhatsApp scheme as fallback
-        final Uri whatsappAppUrl = Uri.parse(
-          'whatsapp://send?phone=$phoneNumber&text=${Uri.encodeComponent(message)}',
-        );
-        if (await canLaunchUrl(whatsappAppUrl)) {
-          await launchUrl(whatsappAppUrl);
-        } else if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'لا يمكن فتح WhatsApp. تأكد من تثبيت التطبيق.',
-                style: TextStyle(fontFamily: 'Tajawal'),
-              ),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'حدث خطأ: $e',
-              style: const TextStyle(fontFamily: 'Tajawal'),
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
+    return;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Consumer<InstallmentProvider>(
+      builder: (context, provider, child) {
+        final installments = provider.installments;
+        return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -354,7 +212,7 @@ class _InstallmentsScreenState extends State<InstallmentsScreen>
                 Expanded(
                   child: _buildStatCard(
                     'إجمالي الأقساط',
-                    '${installments.length}',
+                    '${provider.installments.length}',
                     LucideIcons.fileText,
                     const Color(0xFF0A192F),
                   ),
@@ -363,7 +221,7 @@ class _InstallmentsScreenState extends State<InstallmentsScreen>
                 Expanded(
                   child: _buildStatCard(
                     'المتأخرة',
-                    '${installments.where((i) => i.status == 'overdue').length}',
+                    '${provider.installments.where((i) => i.status == 'overdue').length}',
                     LucideIcons.alertCircle,
                     const Color(0xFFEF4444),
                   ),
@@ -379,39 +237,18 @@ class _InstallmentsScreenState extends State<InstallmentsScreen>
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildInstallmentsList('all'),
-                _buildInstallmentsList('completed'),
-                _buildInstallmentsList('overdue'),
+                _buildInstallmentsList('all', provider.installments),
+                _buildInstallmentsList('completed', provider.installments),
+                _buildInstallmentsList('overdue', provider.installments),
               ],
             ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AddInstallmentScreen(),
-            ),
-          );
-        },
-        backgroundColor: const Color(0xFF0A192F),
-        tooltip: 'إضافة قسط جديد',
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        icon: const Icon(LucideIcons.plus, color: Colors.white),
-        label: const Text(
-          'إضافة قسط جديد',
-          style: TextStyle(
-            color: Colors.white,
-            fontFamily: 'Tajawal',
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
     );
-  }
+  },
+);
+}
 
   Widget _buildStatCard(
     String title,
@@ -472,8 +309,11 @@ class _InstallmentsScreenState extends State<InstallmentsScreen>
     );
   }
 
-  Widget _buildInstallmentsList(String filter) {
-    final filtered = getFilteredInstallments(filter);
+  Widget _buildInstallmentsList(
+    String filter,
+    List<app_models.InstallmentModel> installments,
+  ) {
+    final filtered = getFilteredInstallments(filter, installments);
 
     if (filtered.isEmpty) {
       return _buildEmptyState(filter);
@@ -488,12 +328,10 @@ class _InstallmentsScreenState extends State<InstallmentsScreen>
     );
   }
 
-  Widget _buildInstallmentCard(InstallmentModel installment) {
+  Widget _buildInstallmentCard(app_models.InstallmentModel installment) {
     final statusColor = _getStatusColor(installment.status);
-    final daysRemaining = installment.nextPaymentDate
-        .difference(DateTime.now())
-        .inDays;
-    final isOverdue = daysRemaining < 0;
+    final daysRemaining = installment.dueDate.difference(DateTime.now()).inDays;
+    final isOverdue = daysRemaining < 0 || installment.status == 'overdue';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -568,27 +406,9 @@ class _InstallmentsScreenState extends State<InstallmentsScreen>
                   ),
                 ),
                 // WhatsApp Button (only for active/overdue installments)
-                if (installment.status != 'completed' &&
-                    installment.phoneNumber != null)
-                  Container(
-                    margin: const EdgeInsets.only(left: 8),
-                    child: InkWell(
-                      onTap: () => _sendWhatsAppReminder(installment),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF25D366).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          LucideIcons.messageCircle,
-                          color: Color(0xFF25D366),
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ),
+                // TODO: Enable when customer phone data is available
+                // if (installment.status != 'completed' && hasPhoneNumber)
+                //   _buildWhatsAppButton(installment),
                 PopupMenuButton<String>(
                   icon: const Icon(
                     LucideIcons.moreVertical,
@@ -669,8 +489,8 @@ class _InstallmentsScreenState extends State<InstallmentsScreen>
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildInfoBox(
-                    'القسط الشهري',
-                    '${_formatNumber(installment.monthlyPayment)} د.ع',
+                    'المبلغ المدفوع',
+                    '${_formatNumber(installment.paidAmount)} د.ع',
                     LucideIcons.calendar,
                     const Color(0xFF64748B),
                   ),
@@ -702,7 +522,7 @@ class _InstallmentsScreenState extends State<InstallmentsScreen>
                     child: Text(
                       isOverdue
                           ? 'متأخر عن الدفع بـ ${daysRemaining.abs()} يوم'
-                          : 'القسط القادم: ${intl.DateFormat('yyyy/MM/dd').format(installment.nextPaymentDate)}',
+                          : 'تاريخ الاستحقاق: ${intl.DateFormat('yyyy/MM/dd').format(installment.dueDate)}',
                       style: TextStyle(
                         fontFamily: 'Tajawal',
                         fontSize: 13,
@@ -716,27 +536,38 @@ class _InstallmentsScreenState extends State<InstallmentsScreen>
               ),
             ),
             const SizedBox(height: 12),
-            // Progress bar
+            // Status indicator (replaced progress bar since we don't have months data)
             Row(
               children: [
                 Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: installment.paidMonths / installment.totalMonths,
-                      backgroundColor: const Color(0xFFE2E8F0),
-                      valueColor: AlwaysStoppedAnimation<Color>(statusColor),
-                      minHeight: 6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  '${installment.paidMonths}/${installment.totalMonths}',
-                  style: const TextStyle(
-                    fontFamily: 'Tajawal',
-                    fontSize: 12,
-                    color: Color(0xFF64748B),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          installment.status == 'completed'
+                              ? LucideIcons.checkCircle2
+                              : LucideIcons.clock,
+                          size: 16,
+                          color: statusColor,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _getStatusText(installment.status),
+                          style: TextStyle(
+                            fontFamily: 'Tajawal',
+                            fontSize: 12,
+                            color: statusColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

@@ -50,7 +50,11 @@ dependencies:
   local_auth_android: ^1.0.56
   supabase_flutter: ^2.8.0
   hive_flutter: ^1.1.0
+  flutter_secure_storage: ^9.2.2
+  http: ^1.2.0
   connectivity_plus: ^6.0.3
+  # مكتبة توليد UUID
+  uuid: ^4.3.3
   # مكتبات الوصل الرقمي (Digital Receipt)
   pdf: ^3.10.8
   printing: ^5.12.0

@@ -1,140 +1,57 @@
 import 'package:flutter/material.dart';
 import '../models/installment_model.dart';
 import '../core/utils/formatter.dart';
+import '../services/thabit_local_db_service.dart';
 
 class InstallmentProvider with ChangeNotifier {
   List<InstallmentModel> _installments = [];
   bool _isLoading = false;
   String? _error;
+  final ThabitLocalDBService _localDB = ThabitLocalDBService();
 
   List<InstallmentModel> get installments => _installments;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
   InstallmentProvider() {
-    _loadMockData();
+    loadInstallments();
   }
 
-  void _loadMockData() {
-    _isLoading = true;
-    notifyListeners();
-
-    // Simulate API delay
-    Future.delayed(const Duration(seconds: 1), () {
-      _installments = [
-        InstallmentModel(
-          id: '1',
-          customerName: '  Mohamed Ahmed Hassan',
-          totalAmount: 250000.0,
-          paidAmount: 150000.0,
-          remainingAmount: 100000.0,
-          dueDate: DateTime.now().add(const Duration(days: 15)),
-          status: 'pending',
-        ),
-        InstallmentModel(
-          id: '2',
-          customerName: '  Fatima Ali Karim',
-          totalAmount: 180000.0,
-          paidAmount: 180000.0,
-          remainingAmount: 0.0,
-          dueDate: DateTime.now().subtract(const Duration(days: 5)),
-          status: 'completed',
-        ),
-        InstallmentModel(
-          id: '3',
-          customerName: '  Hassan Mahmoud Ali',
-          totalAmount: 320000.0,
-          paidAmount: 80000.0,
-          remainingAmount: 240000.0,
-          dueDate: DateTime.now().subtract(const Duration(days: 2)),
-          status: 'overdue',
-        ),
-        InstallmentModel(
-          id: '4',
-          customerName: '  Sara Youssef Omar',
-          totalAmount: 150000.0,
-          paidAmount: 75000.0,
-          remainingAmount: 75000.0,
-          dueDate: DateTime.now().add(const Duration(days: 7)),
-          status: 'pending',
-        ),
-        InstallmentModel(
-          id: '5',
-          customerName: '  Omar Khalid Ahmed',
-          totalAmount: 450000.0,
-          paidAmount: 450000.0,
-          remainingAmount: 0.0,
-          dueDate: DateTime.now().subtract(const Duration(days: 1)),
-          status: 'completed',
-        ),
-        InstallmentModel(
-          id: '6',
-          customerName: '  Layla Hassan Mahmoud',
-          totalAmount: 280000.0,
-          paidAmount: 140000.0,
-          remainingAmount: 140000.0,
-          dueDate: DateTime.now().add(const Duration(days: 10)),
-          status: 'pending',
-        ),
-        InstallmentModel(
-          id: '7',
-          customerName: '  Khalid Saad Ali',
-          totalAmount: 120000.0,
-          paidAmount: 0.0,
-          remainingAmount: 120000.0,
-          dueDate: DateTime.now().add(const Duration(days: 20)),
-          status: 'pending',
-        ),
-        InstallmentModel(
-          id: '8',
-          customerName: '  Noura Mohamed Karim',
-          totalAmount: 380000.0,
-          paidAmount: 190000.0,
-          remainingAmount: 190000.0,
-          dueDate: DateTime.now().subtract(const Duration(days: 3)),
-          status: 'overdue',
-        ),
-        InstallmentModel(
-          id: '9',
-          customerName: '  Ahmed Ali Hassan',
-          totalAmount: 220000.0,
-          paidAmount: 220000.0,
-          remainingAmount: 0.0,
-          dueDate: DateTime.now().subtract(const Duration(days: 7)),
-          status: 'completed',
-        ),
-        InstallmentModel(
-          id: '10',
-          customerName: '  Rania Mahmoud Omar',
-          totalAmount: 350000.0,
-          paidAmount: 175000.0,
-          remainingAmount: 175000.0,
-          dueDate: DateTime.now().add(const Duration(days: 5)),
-          status: 'pending',
-        ),
-      ];
-
-      _isLoading = false;
-      _error = null;
-      notifyListeners();
-    });
-  }
-
+  /// Load installments from local Hive database
   Future<void> loadInstallments() async {
     try {
       _isLoading = true;
       _error = null;
       notifyListeners();
 
-      // TODO: Replace with actual API call
-      await Future.delayed(const Duration(seconds: 1));
-      _loadMockData();
+      // Initialize local DB if needed
+      await _localDB.init();
+
+      // Load from local Hive storage
+      final plans = _localDB.getAllInstallmentPlans();
+      
+      // Convert InstallmentPlanModel to InstallmentModel
+      _installments = plans.map((plan) => InstallmentModel(
+        id: plan.id,
+        customerName: plan.customerName ?? 'عميل غير معروف',
+        totalAmount: plan.totalPrice.toDouble(),
+        paidAmount: plan.downPayment.toDouble(),
+        remainingAmount: plan.remainingAmount.toDouble(),
+        dueDate: plan.endDate,
+        status: plan.status == 'active' ? 'pending' : plan.status,
+      )).toList();
+
+      _isLoading = false;
+      notifyListeners();
     } catch (e) {
       _isLoading = false;
       _error = 'فشل في تحميل البيانات: $e';
       notifyListeners();
     }
   }
+
+  /// Check if local data is empty
+  bool get isEmpty => _installments.isEmpty;
 
   Future<void> addInstallment(InstallmentModel installment) async {
     try {

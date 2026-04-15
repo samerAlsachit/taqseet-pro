@@ -12,12 +12,14 @@ class ThabitLocalDBService {
   static const String _installmentPlansBoxName = 'installment_plans';
   static const String _paymentScheduleBoxName = 'payment_schedule';
   static const String _paymentsBoxName = 'payments';
+  static const String _customersBoxName = 'customers';
   static const String _appSettingsBoxName = 'app_settings';
   static const String _incrementalSyncKey = 'last_incremental_sync';
 
   Box<Map>? _installmentPlansBox;
   Box<Map>? _paymentScheduleBox;
   Box<Map>? _paymentsBox;
+  Box<Map>? _customersBox;
   Box? _appSettingsBox;
 
   static final ThabitLocalDBService _instance = ThabitLocalDBService._internal();
@@ -30,6 +32,7 @@ class ThabitLocalDBService {
     _installmentPlansBox = await Hive.openBox<Map>(_installmentPlansBoxName);
     _paymentScheduleBox = await Hive.openBox<Map>(_paymentScheduleBoxName);
     _paymentsBox = await Hive.openBox<Map>(_paymentsBoxName);
+    _customersBox = await Hive.openBox<Map>(_customersBoxName);
     _appSettingsBox = await Hive.openBox(_appSettingsBoxName);
   }
 
@@ -44,9 +47,10 @@ class ThabitLocalDBService {
     await _installmentPlansBox!.clear();
     await _paymentScheduleBox!.clear();
     await _paymentsBox!.clear();
+    await _customersBox!.clear();
     
     // Clear sync timestamps
-    for (final table in ['installment_plans', 'payment_schedule', 'payments']) {
+    for (final table in ['installment_plans', 'payment_schedule', 'payments', 'customers']) {
       await _appSettingsBox!.delete('${_incrementalSyncKey}_$table');
     }
     print('✅ ThabitLocalDB: All cache cleared');
@@ -66,6 +70,9 @@ class ThabitLocalDBService {
         break;
       case 'payments':
         await _paymentsBox!.clear();
+        break;
+      case 'customers':
+        await _customersBox!.clear();
         break;
     }
     await _appSettingsBox!.delete('${_incrementalSyncKey}_$tableName');
@@ -370,11 +377,66 @@ class ThabitLocalDBService {
     }
   }
 
+  // ============================================
+  // Customers - العملاء
+  // ============================================
+
+  /// Save customer to local storage
+  Future<void> saveCustomer(Map<String, dynamic> customer) async {
+    await _ensureInitialized();
+    final id = customer['id']?.toString() ?? '';
+    if (id.isNotEmpty) {
+      await _customersBox!.put(id, customer);
+    }
+  }
+
+  /// Batch save customers (for sync)
+  Future<int> batchSaveCustomers(List<Map<String, dynamic>> customers) async {
+    await _ensureInitialized();
+    int count = 0;
+    for (final customer in customers) {
+      final id = customer['id']?.toString() ?? '';
+      if (id.isNotEmpty) {
+        await _customersBox!.put(id, customer);
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /// Get all customers
+  List<Map<String, dynamic>> getAllCustomers() {
+    _ensureInitializedSync();
+    if (_customersBox == null) return [];
+    
+    return _customersBox!.values
+        .map((data) => Map<String, dynamic>.from(data))
+        .toList();
+  }
+
+  /// Get customer by ID
+  Map<String, dynamic>? getCustomerById(String id) {
+    _ensureInitializedSync();
+    if (_customersBox == null) return null;
+    
+    final data = _customersBox!.get(id);
+    if (data == null) return null;
+    
+    return Map<String, dynamic>.from(data);
+  }
+
+  /// Delete customer by ID
+  Future<void> deleteCustomer(String id) async {
+    await _ensureInitialized();
+    await _customersBox!.delete(id);
+  }
+
   /// Close all boxes
   Future<void> close() async {
     await _installmentPlansBox?.close();
     await _paymentScheduleBox?.close();
     await _paymentsBox?.close();
+    await _customersBox?.close();
     await _appSettingsBox?.close();
   }
 }

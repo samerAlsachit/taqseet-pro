@@ -140,7 +140,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       context.read<InstallmentProvider>().loadInstallments();
     }
 
-    // Load from provider for mock data
+    // Load real data from local storage
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<InstallmentProvider>().loadInstallments();
     });
@@ -283,6 +283,93 @@ class _DashboardScreenState extends State<DashboardScreen>
             body: Center(
               child: CircularProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0A192F)),
+              ),
+            ),
+          );
+        }
+
+        // Show message when no data available
+        if (provider.isEmpty && !provider.isLoading) {
+          return Scaffold(
+            backgroundColor: const Color(0xFFF8FAFC),
+            body: RefreshIndicator(
+              onRefresh: _refreshData,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    _buildHeader(),
+                    const SizedBox(height: 60),
+                    Container(
+                      padding: const EdgeInsets.all(32),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          const Icon(
+                            LucideIcons.database,
+                            size: 64,
+                            color: Color(0xFF94A3B8),
+                          ),
+                          const SizedBox(height: 24),
+                          const Text(
+                            'لا توجد بيانات حالياً',
+                            style: TextStyle(
+                              fontFamily: 'Tajawal',
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0A192F),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'اطلب مزامنة البيانات من السيرفر',
+                            style: TextStyle(
+                              fontFamily: 'Tajawal',
+                              fontSize: 14,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            onPressed: _refreshData,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0A192F),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 12,
+                              ),
+                            ),
+                            icon: const Icon(LucideIcons.refreshCw, size: 20),
+                            label: const Text(
+                              'مزامنة الآن',
+                              style: TextStyle(
+                                fontFamily: 'Tajawal',
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           );

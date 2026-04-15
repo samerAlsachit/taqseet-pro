@@ -236,10 +236,10 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
   }
 
   Widget _buildFinancialSummary() {
-    // Mock financial data - in real app, this would come from customer model
-    const double totalDebt = 2500000;
-    const double collected = 750000;
-    const double remaining = totalDebt - collected;
+    // Get financial data from customer model or calculate from installments
+    final double totalDebt = widget.customer.totalDebt ?? 0;
+    final double collected = widget.customer.totalPaid ?? 0;
+    final double remaining = totalDebt - collected;
 
     return Column(
       children: [
@@ -266,7 +266,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
             Expanded(
               child: _buildFinancialCard(
                 title: 'المتبقي',
-                amount: remaining,
+                amount: remaining > 0 ? remaining : 0,
                 icon: LucideIcons.creditCard,
                 color: const Color(0xFFF59E0B),
               ),

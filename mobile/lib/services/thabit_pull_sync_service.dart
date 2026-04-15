@@ -142,7 +142,7 @@ class ThabitPullSyncService {
         count = await _processPayments(records);
         break;
       case 'customers':
-        count = records.length; // TODO: Implement when CustomerModel is ready
+        count = await _processCustomers(records);
         break;
     }
 
@@ -180,6 +180,15 @@ class ThabitPullSyncService {
     }).toList();
 
     return await _localDB.batchSavePayments(payments);
+  }
+
+  /// Process customers records
+  Future<int> _processCustomers(List<dynamic> records) async {
+    final customers = records.map((data) {
+      return Map<String, dynamic>.from(data);
+    }).toList();
+
+    return await _localDB.batchSaveCustomers(customers);
   }
 
   /// ============================================

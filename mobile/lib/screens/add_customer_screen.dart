@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/customer_model.dart';
 
 class AddCustomerScreen extends StatefulWidget {
@@ -448,7 +449,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                 ],
               ),
               const SizedBox(height: 40),
-              _buildSubmitButton(),
+              _buildSaveButton(),
               const SizedBox(height: 24),
             ],
           ),
@@ -746,52 +747,123 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
     );
   }
 
-  Widget _buildSubmitButton() {
+  bool _isSaving = false;
+
+  Widget _buildSaveButton() {
     return SizedBox(
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: () {
-          if (_formKey.currentState!.validate()) {
-            final customer = CustomerModel(
-              id: _isEditMode
-                  ? widget.customer!.id
-                  : DateTime.now().millisecondsSinceEpoch.toString(),
-              fullName: _nameController.text,
-              phone: _phoneController.text,
-              nationalId: _nationalIdController.text.isNotEmpty
-                  ? _nationalIdController.text
-                  : null,
-              address: _addressController.text,
-              customerImagePath: _customerImagePath,
-              docFrontPath: _docFrontPath,
-              docBackPath: _docBackPath,
-              residenceCardPath: _residenceCardPath,
-            );
+        onPressed: _isSaving
+            ? null
+            : () async {
+                if (_formKey.currentState!.validate()) {
+                  setState(() => _isSaving = true);
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  _isEditMode
-                      ? 'تم تحديث بيانات العميل بنجاح!'
-                      : 'تم إضافة العميل بنجاح!',
-                  style: const TextStyle(fontFamily: 'Tajawal'),
-                ),
-                backgroundColor: const Color(0xFF0A192F),
-                behavior: SnackBarBehavior.floating,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(12)),
-                ),
-              ),
-            );
+                  try {
+                    // Generate local_id for new customers
+                    final localId = _isEditMode
+                        ? widget.customer!.id
+                        : 'local_${DateTime.now().millisecondsSinceEpoch}';
 
-            Future.delayed(const Duration(seconds: 1), () {
-              if (mounted) {
-                Navigator.pop(context, customer);
-              }
-            });
-          }
-        },
+                    // Create customer data for Supabase
+                    final customerData = {
+                      'local_id': localId,
+                      'full_name': _nameController.text,
+                      'phone': _phoneController.text,
+                      'national_id': _nationalIdController.text.isNotEmpty
+                          ? _nationalIdController.text
+                          : null,
+                      'address': _addressController.text,
+                      'created_at': DateTime.now().toIso8601String(),
+                      'updated_at': DateTime.now().toIso8601String(),
+                    };
+
+                    if (_isEditMode) {
+                      // Update existing customer in Supabase
+                      await Supabase.instance.client
+                          .from('customers')
+                          .update({
+                            'full_name': _nameController.text,
+                            'phone': _phoneController.text,
+                            'national_id': _nationalIdController.text.isNotEmpty
+                                ? _nationalIdController.text
+                                : null,
+                            'address': _addressController.text,
+                            'updated_at': DateTime.now().toIso8601String(),
+                          })
+                          .eq('local_id', widget.customer!.id);
+                    } else {
+                      // Insert new customer to Supabase
+                      await Supabase.instance.client
+                          .from('customers')
+                          .insert(customerData);
+                    }
+
+                    // Create CustomerModel for local use
+                    final customer = CustomerModel(
+                      id: localId,
+                      fullName: _nameController.text,
+                      phone: _phoneController.text,
+                      nationalId: _nationalIdController.text.isNotEmpty
+                          ? _nationalIdController.text
+                          : null,
+                      address: _addressController.text,
+                      customerImagePath: _customerImagePath,
+                      docFrontPath: _docFrontPath,
+                      docBackPath: _docBackPath,
+                      residenceCardPath: _residenceCardPath,
+                      createdAt: DateTime.now(),
+                      updatedAt: DateTime.now(),
+                    );
+
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            _isEditMode
+                                ? 'تم تحديث بيانات العميل بنجاح!'
+                                : 'تم إضافة العميل بنجاح!',
+                            style: const TextStyle(fontFamily: 'Tajawal'),
+                          ),
+                          backgroundColor: const Color(0xFF0A192F),
+                          behavior: SnackBarBehavior.floating,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(12)),
+                          ),
+                        ),
+                      );
+
+                      Future.delayed(const Duration(seconds: 1), () {
+                        if (mounted) {
+                          // Return the customer data and trigger refresh
+                          Navigator.pop(context, {
+                            'customer': customer,
+                            'shouldRefresh': true,
+                          });
+                        }
+                      });
+                    }
+                  } catch (e) {
+                    setState(() => _isSaving = false);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'حدث خطأ: $e',
+                            style: const TextStyle(fontFamily: 'Tajawal'),
+                          ),
+                          backgroundColor: Colors.red,
+                          behavior: SnackBarBehavior.floating,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(12)),
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                }
+              },
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF0A192F),
           shape: RoundedRectangleBorder(
@@ -799,22 +871,31 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
           ),
           elevation: 0,
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(LucideIcons.check, color: Colors.white),
-            const SizedBox(width: 8),
-            Text(
-              _isEditMode ? 'تحديث البيانات' : 'حفظ العميل',
-              style: const TextStyle(
-                color: Colors.white,
-                fontFamily: 'Tajawal',
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+        child: _isSaving
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(LucideIcons.check, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(
+                    _isEditMode ? 'تحديث البيانات' : 'حفظ العميل',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'Tajawal',
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }

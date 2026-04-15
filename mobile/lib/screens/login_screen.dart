@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:local_auth_android/local_auth_android.dart';
+import '../services/auth_service.dart';
 import 'main_navigation_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -14,7 +15,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final LocalAuthentication _localAuth = LocalAuthentication();
   bool _rememberMe = false;
@@ -72,6 +73,25 @@ class _LoginScreenState extends State<LoginScreen>
 
   Future<void> _authenticateWithBiometric() async {
     try {
+      // التحقق من وجود توكن محفوظ أولاً
+      final authService = AuthService();
+      final hasToken = await authService.isLoggedIn();
+
+      if (!hasToken) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'يجب تسجيل الدخول مرة أولى باستخدام اسم المستخدم وكلمة المرور',
+                style: TextStyle(fontFamily: 'Tajawal'),
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
       final bool didAuthenticate = await _localAuth.authenticate(
         localizedReason: 'استخدم بصمتك للدخول إلى متجرك',
         authMessages: [
@@ -95,7 +115,6 @@ class _LoginScreenState extends State<LoginScreen>
       );
 
       if (didAuthenticate && mounted) {
-        // Mock successful biometric login
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -130,26 +149,9 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void dispose() {
     _animationController.dispose();
-    _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
-  }
-
-  /// Mock function to check subscription status
-  Future<Map<String, dynamic>> _checkSubscriptionStatus(String email) async {
-    // Simulate API call delay
-    await Future.delayed(const Duration(seconds: 1));
-
-    // Mock logic: emails containing "expired" will have expired subscription
-    if (email.toLowerCase().contains('expired')) {
-      return {
-        'isActive': false,
-        'message': 'انتهت فترة التجربة، يرجى تفعيل الكود من لوحة تحكم الويب',
-      };
-    }
-
-    // Default: active subscription
-    return {'isActive': true, 'message': 'تم تسجيل الدخول بنجاح'};
   }
 
   Future<void> _login() async {
@@ -158,19 +160,22 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() => _isLoading = true);
 
     try {
-      // Check subscription status
-      final status = await _checkSubscriptionStatus(_emailController.text);
+      final authService = AuthService();
+      final result = await authService.login(
+        _usernameController.text.trim(),
+        _passwordController.text,
+      );
 
       if (mounted) {
-        if (status['isActive'] == true) {
-          // Active subscription - navigate to dashboard
+        if (result.success) {
+          // Success - navigate to dashboard
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Text(
-                status['message'],
-                style: const TextStyle(fontFamily: 'Tajawal'),
+                'تم تسجيل الدخول بنجاح',
+                style: TextStyle(fontFamily: 'Tajawal'),
               ),
-              backgroundColor: const Color(0xFF0A192F),
+              backgroundColor: Color(0xFF0A192F),
             ),
           );
 
@@ -182,55 +187,14 @@ class _LoginScreenState extends State<LoginScreen>
             ),
           );
         } else {
-          // Expired subscription - show error
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => AlertDialog(
-              backgroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: Row(
-                children: [
-                  const Icon(
-                    LucideIcons.alertCircle,
-                    color: Color(0xFFEF4444),
-                    size: 28,
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'انتهى الاشتراك',
-                    style: TextStyle(
-                      fontFamily: 'Tajawal',
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0A192F),
-                    ),
-                  ),
-                ],
-              ),
+          // Show error message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
               content: Text(
-                status['message'],
-                style: const TextStyle(
-                  fontFamily: 'Tajawal',
-                  fontSize: 16,
-                  color: Color(0xFF64748B),
-                ),
+                result.errorMessage ?? 'حدث خطأ غير متوقع',
+                style: const TextStyle(fontFamily: 'Tajawal'),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    'فهمت',
-                    style: TextStyle(
-                      fontFamily: 'Tajawal',
-                      color: Color(0xFF0A192F),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
+              backgroundColor: Colors.red,
             ),
           );
         }
@@ -422,16 +386,16 @@ class _LoginScreenState extends State<LoginScreen>
                       ),
                       const SizedBox(height: 32),
 
-                      // Email/Phone Field
+                      // Username Field
                       _buildTextField(
-                        controller: _emailController,
-                        label: 'البريد الإلكتروني أو رقم الهاتف',
-                        hint: 'example@email.com أو 0770XXXXXXX',
-                        icon: LucideIcons.mail,
-                        keyboardType: TextInputType.emailAddress,
+                        controller: _usernameController,
+                        label: 'اسم المستخدم',
+                        hint: 'أدخل اسم المستخدم',
+                        icon: LucideIcons.user,
+                        keyboardType: TextInputType.text,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'يرجى إدخال البريد الإلكتروني أو رقم الهاتف';
+                            return 'يرجى إدخال اسم المستخدم';
                           }
                           return null;
                         },
