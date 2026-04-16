@@ -26,30 +26,30 @@
       "static/chunks/main-app.js",
       "static/chunks/app/(store)/layout.js"
     ],
-    "/(store)/reports/page": [
+    "/(store)/products/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(store)/reports/page.js"
+      "static/chunks/app/(store)/products/page.js"
+    ],
+    "/register/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/register/page.js"
     ],
     "/(store)/installments/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/(store)/installments/page.js"
     ],
-    "/(store)/customers/page": [
+    "/(store)/installments/new/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(store)/customers/page.js"
+      "static/chunks/app/(store)/installments/new/page.js"
     ],
-    "/(store)/products/page": [
+    "/(store)/cash-sales/new/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(store)/products/page.js"
-    ],
-    "/(store)/installments/[id]/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(store)/installments/[id]/page.js"
+      "static/chunks/app/(store)/cash-sales/new/page.js"
     ]
   }
 }

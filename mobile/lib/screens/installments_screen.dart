@@ -246,6 +246,18 @@ class _InstallmentsScreenState extends State<InstallmentsScreen>
               ),
             ],
           ),
+          floatingActionButton: FloatingActionButton.extended(
+            heroTag: 'installments_fab',
+            onPressed: () {
+              Navigator.pushNamed(context, '/add-installment');
+            },
+            backgroundColor: const Color(0xFF0A192F),
+            icon: const Icon(LucideIcons.plus, color: Colors.white),
+            label: const Text(
+              'قسط جديد',
+              style: TextStyle(fontFamily: 'Tajawal', color: Colors.white),
+            ),
+          ),
         );
       },
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../models/product_model.dart';
 import '../services/product_service.dart';
 import '../services/thabit_local_db_service.dart';
@@ -17,38 +18,39 @@ class _StoreScreenState extends State<StoreScreen> {
   final ProductService _productService = ProductService();
   final ThabitLocalDBService _localDB = ThabitLocalDBService();
 
-  List<ProductModel> _products = [];
-  List<ProductModel> _filteredProducts = [];
-  bool _isLoading = true;
   bool _isSyncing = false;
+  bool _isInitialLoading = true;
   String _searchQuery = '';
   String _errorMessage = '';
 
   @override
   void initState() {
     super.initState();
-    _loadProducts();
+    _initAndSync();
   }
 
-  Future<void> _loadProducts() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
+  Future<void> _initAndSync() async {
+    setState(() => _isInitialLoading = true);
 
-    try {
-      await _localDB.init();
-      _products = _productService.getAllProducts();
-      _filterProducts();
-      print('✅ StoreScreen: Loaded ${_products.length} products from local DB');
-    } catch (e) {
-      print('❌ StoreScreen Error loading products: $e');
-      setState(() {
-        _errorMessage = 'فشل تحميل المنتجات: $e';
-      });
-    } finally {
-      setState(() => _isLoading = false);
+    await _localDB.init();
+
+    // Check if box has existing data
+    final hasExistingData =
+        _localDB.productsBox != null && _localDB.productsBox!.isNotEmpty;
+
+    if (!hasExistingData) {
+      // No data - sync from API and wait
+      print('🌐 StoreScreen: No products in DB, syncing from API...');
+      await _productService.syncProducts();
+    } else {
+      // Has data - sync in background
+      print(
+        '✅ StoreScreen: Found ${(_localDB.productsBox?.length ?? 0)} products, syncing in background...',
+      );
+      _productService.syncProducts();
     }
+
+    setState(() => _isInitialLoading = false);
   }
 
   Future<void> _syncProducts() async {
@@ -58,7 +60,6 @@ class _StoreScreenState extends State<StoreScreen> {
       final result = await _productService.forceFullResync();
 
       if (result.success) {
-        await _loadProducts();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -95,11 +96,11 @@ class _StoreScreenState extends State<StoreScreen> {
     }
   }
 
-  void _filterProducts() {
+  List<ProductModel> _filterProducts(List<ProductModel> products) {
     if (_searchQuery.isEmpty) {
-      _filteredProducts = _products;
+      return products;
     } else {
-      _filteredProducts = _products.where((product) {
+      return products.where((product) {
         return product.name.toLowerCase().contains(
               _searchQuery.toLowerCase(),
             ) ||
@@ -111,7 +112,12 @@ class _StoreScreenState extends State<StoreScreen> {
   void _onSearchChanged(String value) {
     setState(() {
       _searchQuery = value;
-      _filterProducts();
+    });
+  }
+
+  void _clearSearch() {
+    setState(() {
+      _searchQuery = '';
     });
   }
 
@@ -154,32 +160,80 @@ class _StoreScreenState extends State<StoreScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Search Bar
-          _buildSearchBar(),
+      body: _isInitialLoading || _localDB.productsBox == null
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text(
+                    'جاري تحميل المنتجات...',
+                    style: TextStyle(
+                      fontFamily: 'Tajawal',
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : ValueListenableBuilder(
+              valueListenable: _localDB.productsBox!.listenable(),
+              builder: (context, Box<Map> box, _) {
+                final products = box.values
+                    .map(
+                      (data) => ProductModel.fromJson(
+                        Map<String, dynamic>.from(data),
+                      ),
+                    )
+                    .toList();
+                final filteredProducts = _filterProducts(products);
 
-          // Stats Summary
-          _buildStatsSummary(),
+                // Show loading if syncing and no products yet
+                if (products.isEmpty && _isSyncing) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text(
+                          'جاري مزامنة المنتجات...',
+                          style: TextStyle(
+                            fontFamily: 'Tajawal',
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
-          // Products List
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _errorMessage.isNotEmpty
-                ? _buildErrorState()
-                : _filteredProducts.isEmpty
-                ? _buildEmptyState()
-                : _buildProductsList(),
-          ),
-        ],
-      ),
+                return Column(
+                  children: [
+                    // Search Bar
+                    _buildSearchBar(),
+
+                    // Stats Summary
+                    _buildStatsSummary(products),
+
+                    // Products List
+                    Expanded(
+                      child: _errorMessage.isNotEmpty
+                          ? _buildErrorState()
+                          : filteredProducts.isEmpty
+                          ? _buildEmptyState()
+                          : _buildProductsList(filteredProducts),
+                    ),
+                  ],
+                );
+              },
+            ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'store_fab',
         onPressed: () {
           // Navigate to add product screen
-          Navigator.pushNamed(context, '/add-product').then((_) {
-            _loadProducts(); // Reload after adding
-          });
+          Navigator.pushNamed(context, '/add-product');
         },
         backgroundColor: const Color(0xFF1E3A8A),
         icon: const Icon(Icons.add),
@@ -217,12 +271,7 @@ class _StoreScreenState extends State<StoreScreen> {
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
                   icon: const Icon(Icons.clear, color: Color(0xFF64748B)),
-                  onPressed: () {
-                    setState(() {
-                      _searchQuery = '';
-                      _filterProducts();
-                    });
-                  },
+                  onPressed: _clearSearch,
                 )
               : null,
           border: InputBorder.none,
@@ -236,8 +285,8 @@ class _StoreScreenState extends State<StoreScreen> {
     );
   }
 
-  Widget _buildStatsSummary() {
-    final lowStockCount = _products.where((p) => p.isLowStock).length;
+  Widget _buildStatsSummary(List<ProductModel> products) {
+    final lowStockCount = products.where((p) => p.isLowStock).length;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -255,7 +304,7 @@ class _StoreScreenState extends State<StoreScreen> {
         children: [
           _buildStatItem(
             'إجمالي المنتجات',
-            _products.length.toString(),
+            products.length.toString(),
             Icons.inventory_2_outlined,
           ),
           Container(height: 40, width: 1, color: Colors.white24),
@@ -310,14 +359,14 @@ class _StoreScreenState extends State<StoreScreen> {
     );
   }
 
-  Widget _buildProductsList() {
+  Widget _buildProductsList(List<ProductModel> filteredProducts) {
     return RefreshIndicator(
-      onRefresh: _loadProducts,
+      onRefresh: _productService.syncProducts,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: _filteredProducts.length,
+        itemCount: filteredProducts.length,
         itemBuilder: (context, index) {
-          final product = _filteredProducts[index];
+          final product = filteredProducts[index];
           return _buildProductCard(product);
         },
       ),
@@ -556,7 +605,7 @@ class _StoreScreenState extends State<StoreScreen> {
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
-            onPressed: _loadProducts,
+            onPressed: _productService.syncProducts,
             icon: const Icon(Icons.refresh),
             label: const Text('إعادة المحاولة'),
             style: ElevatedButton.styleFrom(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../models/product_model.dart';
+import '../services/product_service.dart';
 
 class AddProductScreen extends StatefulWidget {
   final ProductModel? product;
@@ -13,6 +14,8 @@ class AddProductScreen extends StatefulWidget {
 
 class _AddProductScreenState extends State<AddProductScreen> {
   final _formKey = GlobalKey<FormState>();
+  final ProductService _productService = ProductService();
+  bool _isLoading = false;
 
   // Basic fields
   final _nameController = TextEditingController();
@@ -470,71 +473,113 @@ class _AddProductScreenState extends State<AddProductScreen> {
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: () {
-          if (_formKey.currentState!.validate()) {
-            final product = ProductModel(
-              id: _isEditMode
-                  ? widget.product!.id
-                  : DateTime.now().millisecondsSinceEpoch.toString(),
-              name: _nameController.text,
-              quantity: int.parse(_quantityController.text),
-              sellPriceCashIqd: _isIQD
-                  ? double.parse(_cashSalePriceController.text)
-                  : 0,
-              sellPriceCashUsd: !_isIQD
-                  ? double.parse(_cashSalePriceController.text)
-                  : 0,
-              storeId: '', // Will be set by backend
-              createdAt: DateTime.now(),
-              updatedAt: DateTime.now(),
-            );
+        onPressed: _isLoading
+            ? null
+            : () async {
+                if (_formKey.currentState!.validate()) {
+                  setState(() => _isLoading = true);
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  _isEditMode
-                      ? 'تم تحديث بيانات المنتج بنجاح!'
-                      : 'تم إضافة المنتج بنجاح!',
-                  style: const TextStyle(fontFamily: 'Tajawal'),
-                ),
-                backgroundColor: const Color(0xFF0A192F),
-                behavior: SnackBarBehavior.floating,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(12)),
-                ),
-              ),
-            );
+                  final product = ProductModel(
+                    id: _isEditMode
+                        ? widget.product!.id
+                        : DateTime.now().millisecondsSinceEpoch.toString(),
+                    name: _nameController.text,
+                    quantity: int.parse(_quantityController.text),
+                    sellPriceCashIqd: _isIQD
+                        ? double.parse(_cashSalePriceController.text)
+                        : 0,
+                    sellPriceCashUsd: !_isIQD
+                        ? double.parse(_cashSalePriceController.text)
+                        : 0,
+                    storeId: '', // Will be set by backend
+                    createdAt: DateTime.now(),
+                    updatedAt: DateTime.now(),
+                  );
 
-            Future.delayed(const Duration(seconds: 1), () {
-              if (mounted) {
-                Navigator.pop(context, product);
-              }
-            });
-          }
-        },
+                  // Save to API and local DB
+                  final result = _isEditMode
+                      ? await _productService.updateProduct(product)
+                      : await _productService.createProduct(product);
+
+                  setState(() => _isLoading = false);
+
+                  if (result.success) {
+                    // Sync all products to ensure consistency
+                    await _productService.syncProducts();
+
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            result.message,
+                            style: const TextStyle(fontFamily: 'Tajawal'),
+                          ),
+                          backgroundColor: const Color(0xFF10B981),
+                          behavior: SnackBarBehavior.floating,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(12)),
+                          ),
+                        ),
+                      );
+
+                      Future.delayed(const Duration(seconds: 1), () {
+                        if (mounted) {
+                          Navigator.pop(context, product);
+                        }
+                      });
+                    }
+                  } else {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            result.message,
+                            style: const TextStyle(fontFamily: 'Tajawal'),
+                          ),
+                          backgroundColor: Colors.red,
+                          behavior: SnackBarBehavior.floating,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(12)),
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                }
+              },
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF0A192F),
+          disabledBackgroundColor: Colors.grey,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
           elevation: 0,
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(LucideIcons.check, color: Colors.white),
-            const SizedBox(width: 8),
-            Text(
-              _isEditMode ? 'تحديث المنتج' : 'حفظ المنتج',
-              style: const TextStyle(
-                color: Colors.white,
-                fontFamily: 'Tajawal',
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+        child: _isLoading
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(LucideIcons.check, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(
+                    _isEditMode ? 'تحديث المنتج' : 'حفظ المنتج',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'Tajawal',
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }

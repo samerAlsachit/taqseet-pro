@@ -351,6 +351,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'customers_fab',
         onPressed: () async {
           final result = await Navigator.push(
             context,

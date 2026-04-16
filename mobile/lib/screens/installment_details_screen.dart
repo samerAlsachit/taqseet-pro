@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import '../models/installment_plan_model.dart';
 import '../models/payment_schedule_model.dart';
 import '../models/customer_model.dart';
 import '../services/thabit_local_db_service.dart';
+import '../services/api_client.dart';
 import '../core/utils/formatter.dart';
 
 /// شاشة تفاصيل القسط
@@ -24,10 +26,17 @@ class InstallmentDetailsScreen extends StatefulWidget {
 
 class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
   final ThabitLocalDBService _localDB = ThabitLocalDBService();
+  final ApiClient _apiClient = ApiClient();
+  Dio? _dio;
 
   InstallmentPlanModel? _installmentPlan;
   List<PaymentScheduleModel> _paymentSchedule = [];
   bool _isLoading = true;
+
+  // Raw API data for accurate calculations
+  Map<String, dynamic> _rawPlanData = {};
+  int _installmentAmount = 0;
+  String _currency = 'IQD';
 
   // Calculated values
   int _totalAmount = 0;
@@ -40,6 +49,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
   @override
   void initState() {
     super.initState();
+    _dio = _apiClient.dio;
     _loadData();
   }
 
@@ -49,20 +59,16 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
     try {
       await _localDB.init();
 
-      // Load installment plan
-      _installmentPlan = _localDB.getInstallmentPlanById(
-        widget.installmentPlanId,
-      );
+      // Try to fetch from API first
+      final success = await _fetchFromApi();
 
-      if (_installmentPlan != null) {
-        // Load payment schedule
-        _paymentSchedule = _localDB.getPaymentScheduleByPlan(
-          widget.installmentPlanId,
-        );
-
-        // Calculate totals
-        _calculateTotals();
+      if (!success) {
+        // Fall back to local DB
+        await _loadFromLocalDB();
       }
+
+      // Calculate totals
+      _calculateTotals();
     } catch (e) {
       print('❌ Error loading installment details: $e');
     } finally {
@@ -70,24 +76,147 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
     }
   }
 
+  /// Fetch installment details from API including full payment schedule
+  Future<bool> _fetchFromApi() async {
+    try {
+      if (_dio == null) return false;
+
+      print('🌐 Fetching installment details from API...');
+      final response = await _dio!.get(
+        '/installments/${widget.installmentPlanId}',
+      );
+
+      print('📦 API Response: ${response.data}');
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+
+        // Handle {success: true, data: {...}} format
+        final responseData = data['data'] ?? data;
+
+        // Parse installment plan
+        if (responseData['installment_plan'] != null ||
+            responseData['plan'] != null) {
+          final planData =
+              responseData['installment_plan'] ?? responseData['plan'];
+          print('📋 Plan data: $planData');
+
+          // Store raw data for accurate calculations
+          _rawPlanData = planData is Map<String, dynamic> ? planData : {};
+
+          // Extract installment amount and currency from raw data
+          _installmentAmount =
+              (planData['installment_amount'] as num?)?.toInt() ??
+              (planData['monthly_amount'] as num?)?.toInt() ??
+              (planData['installment_amount_iqd'] as num?)?.toInt() ??
+              0;
+          _currency = planData['currency']?.toString() ?? 'IQD';
+
+          print('� Installment amount: $_installmentAmount $_currency');
+
+          _installmentPlan = InstallmentPlanModel.fromJSON(planData);
+
+          // Save to local DB
+          await _localDB.saveInstallmentPlan(_installmentPlan!);
+        }
+
+        // Parse payment schedule - check multiple possible locations
+        List<dynamic> scheduleData = [];
+
+        // Check top level
+        scheduleData =
+            responseData['payment_schedule'] ??
+            responseData['schedule'] ??
+            responseData['installments'] ??
+            responseData['payments'] ??
+            [];
+
+        // If not found, check inside plan object
+        if (scheduleData.isEmpty && responseData['plan'] != null) {
+          final plan = responseData['plan'];
+          scheduleData =
+              plan['payment_schedule'] ??
+              plan['schedule'] ??
+              plan['installments'] ??
+              plan['payments'] ??
+              [];
+        }
+
+        print('📅 Schedule data: $scheduleData');
+
+        if (scheduleData.isNotEmpty) {
+          _paymentSchedule = scheduleData
+              .map((item) => PaymentScheduleModel.fromJSON(item))
+              .toList();
+
+          // Save to local DB
+          for (final schedule in _paymentSchedule) {
+            await _localDB.savePaymentSchedule(schedule);
+          }
+        }
+
+        print('✅ Fetched ${_paymentSchedule.length} schedule items from API');
+        return true;
+      }
+    } on DioException catch (e) {
+      print('❌ API Error: ${e.message}');
+      if (e.response != null) {
+        print('❌ Response data: ${e.response?.data}');
+      }
+    } catch (e) {
+      print('❌ Error fetching from API: $e');
+    }
+
+    return false;
+  }
+
+  /// Load from local DB as fallback
+  Future<void> _loadFromLocalDB() async {
+    print('📦 Loading from local DB...');
+
+    _installmentPlan = _localDB.getInstallmentPlanById(
+      widget.installmentPlanId,
+    );
+
+    if (_installmentPlan != null) {
+      _paymentSchedule = _localDB.getPaymentScheduleByPlan(
+        widget.installmentPlanId,
+      );
+    }
+
+    print('✅ Loaded ${_paymentSchedule.length} schedule items from local DB');
+  }
+
   void _calculateTotals() {
     if (_installmentPlan == null) return;
 
-    _totalAmount = _installmentPlan!.totalPrice;
+    // Use raw API data for total price if available, otherwise fall back to model
+    _totalAmount =
+        (_rawPlanData['total_price'] as num?)?.toInt() ??
+        (_rawPlanData['total_amount'] as num?)?.toInt() ??
+        _installmentPlan!.totalPrice;
+
     _totalInstallments = _paymentSchedule.length;
 
-    _totalPaid = _paymentSchedule.fold<int>(
-      0,
-      (sum, schedule) => sum + (schedule.paidAmount ?? 0),
-    );
+    // Calculate total paid from payment schedule - sum only 'paid' installments
+    _totalPaid = _paymentSchedule
+        .where((s) => s.status == 'paid' || s.isPaid)
+        .fold<int>(0, (sum, schedule) => sum + schedule.amount);
 
+    // Calculate remaining amount
     _remainingAmount = _totalAmount - _totalPaid;
 
-    _paidInstallments = _paymentSchedule.where((s) => s.isPaid).length;
+    _paidInstallments = _paymentSchedule
+        .where((s) => s.status == 'paid' || s.isPaid)
+        .length;
 
     if (_totalInstallments > 0) {
       _progressPercentage = _paidInstallments / _totalInstallments;
     }
+
+    print(
+      '📊 Totals: Total=$_totalAmount, Paid=$_totalPaid, Remaining=$_remainingAmount',
+    );
   }
 
   @override
@@ -301,10 +430,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                 ),
                 Text(
                   CurrencyFormatter.formatCurrency(
-                    _totalInstallments > 0
-                        ? (_installmentPlan?.financedAmount ?? 0) /
-                              _totalInstallments
-                        : 0,
+                    _installmentAmount.toDouble(),
                   ),
                   style: const TextStyle(
                     fontFamily: 'Tajawal',

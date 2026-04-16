@@ -4,6 +4,8 @@ import 'package:intl/intl.dart' as intl;
 import '../models/customer_model.dart';
 import '../models/product_model.dart';
 import '../services/thabit_local_db_service.dart';
+import '../services/product_service.dart';
+import '../controllers/products_controller.dart';
 import 'add_customer_screen.dart';
 
 class CartItem {
@@ -33,9 +35,12 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
   final List<CartItem> _cart = [];
   bool _isIQD = true; // Currency toggle: true = IQD, false = USD
 
-  final _monthsController = TextEditingController();
+  final _installmentAmountController = TextEditingController();
   final _downPaymentController = TextEditingController();
   DateTime _firstPaymentDate = DateTime.now();
+
+  // Payment frequency: daily, weekly, monthly
+  String _paymentFrequency = 'monthly'; // default
 
   @override
   void initState() {
@@ -45,20 +50,34 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    
+
     try {
       await _localDB.init();
-      
+
       // Load customers from local storage
       final customerMaps = _localDB.getAllCustomers();
-      customers = customerMaps.map((map) => CustomerModel.fromJson(map)).toList();
-      
-      // TODO: Load products from local storage when product service is ready
-      // For now, products list remains empty
-      products = [];
-      
+      customers = customerMaps
+          .map((map) => CustomerModel.fromJson(map))
+          .toList();
+
+      // Load products from API via ProductService
+      final productService = ProductService();
+      final productController = ProductsController();
+
+      // Try to sync products first, then get from local
+      await productService.syncProducts();
+      products = productController.getAllProducts();
+
+      print('✅ AddInstallmentScreen: Loaded ${products.length} products');
     } catch (e) {
       debugPrint('Error loading data: $e');
+      // Try to get cached products if API fails
+      try {
+        final productController = ProductsController();
+        products = productController.getAllProducts();
+      } catch (_) {
+        products = [];
+      }
     } finally {
       setState(() => _isLoading = false);
     }
@@ -66,18 +85,28 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
 
   double get _totalAmount {
     return _cart.fold(0, (sum, item) {
-      final price = _isIQD ? item.product.priceIQD : item.product.priceUSD;
+      // Use installment price (sell_price_install_iqd) instead of cash price
+      final price = _isIQD
+          ? item.product.sellPriceInstallIqd
+          : item.product.sellPriceInstallUsd;
       return sum + (price * item.quantity);
     });
   }
 
-  double get _monthlyInstallment {
-    final months = int.tryParse(_monthsController.text) ?? 0;
+  int get _numberOfPayments {
+    final installmentAmount =
+        double.tryParse(_installmentAmountController.text) ?? 0;
     final downPayment = double.tryParse(_downPaymentController.text) ?? 0;
-    if (months > 0) {
-      return (_totalAmount - downPayment) / months;
+    final remaining = _totalAmount - downPayment;
+
+    if (installmentAmount > 0 && remaining > 0) {
+      return (remaining / installmentAmount).ceil();
     }
     return 0;
+  }
+
+  double get _installmentAmount {
+    return double.tryParse(_installmentAmountController.text) ?? 0;
   }
 
   String _formatNumber(double amount) {
@@ -157,12 +186,36 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
   }
 
   DateTime _calculateEndDate() {
-    final months = int.tryParse(_monthsController.text) ?? 0;
-    return DateTime(
-      _firstPaymentDate.year,
-      _firstPaymentDate.month + months,
-      _firstPaymentDate.day,
-    );
+    final numberOfPayments = _numberOfPayments;
+    if (numberOfPayments <= 0) return _firstPaymentDate;
+
+    switch (_paymentFrequency) {
+      case 'daily':
+        return _firstPaymentDate.add(Duration(days: numberOfPayments - 1));
+      case 'weekly':
+        return _firstPaymentDate.add(
+          Duration(days: (numberOfPayments - 1) * 7),
+        );
+      case 'monthly':
+      default:
+        return DateTime(
+          _firstPaymentDate.year,
+          _firstPaymentDate.month + numberOfPayments - 1,
+          _firstPaymentDate.day,
+        );
+    }
+  }
+
+  String get _frequencyDisplay {
+    switch (_paymentFrequency) {
+      case 'daily':
+        return 'يومي';
+      case 'weekly':
+        return 'أسبوعي';
+      case 'monthly':
+      default:
+        return 'شهري';
+    }
   }
 
   void _showConfirmationDialog() {
@@ -205,7 +258,14 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
                 'الدفعة المقدمة:',
                 '${_formatNumber(double.tryParse(_downPaymentController.text) ?? 0)} $currency',
               ),
-              _buildConfirmItem('عدد الأشهر:', '${_monthsController.text} شهر'),
+              _buildConfirmItem(
+                'مبلغ القسط:',
+                '${_formatNumber(_installmentAmount)} $currency',
+              ),
+              _buildConfirmItem(
+                'عدد الدفعات:',
+                '$_numberOfPayments دفعة ($_frequencyDisplay)',
+              ),
               const Divider(height: 24),
               Container(
                 padding: const EdgeInsets.all(16),
@@ -217,7 +277,7 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
-                      'القسط الشهري:',
+                      'مبلغ القسط:',
                       style: TextStyle(
                         fontFamily: 'Tajawal',
                         fontWeight: FontWeight.bold,
@@ -225,7 +285,7 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
                       ),
                     ),
                     Text(
-                      '${_formatNumber(_monthlyInstallment)} $currency',
+                      '${_formatNumber(_installmentAmount)} $currency',
                       style: const TextStyle(
                         fontFamily: 'Tajawal',
                         fontWeight: FontWeight.bold,
@@ -434,12 +494,47 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          subtitle: Text(
-                            'المخزن: ${product.stockQuantity} | ${_isIQD ? "${_formatNumber(product.priceIQD)} د.ع" : "${_formatNumber(product.priceUSD)} \$"}',
-                            style: const TextStyle(fontFamily: 'Tajawal'),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'المخزن: ${product.quantity}',
+                                style: const TextStyle(fontFamily: 'Tajawal'),
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  // Show INSTALLMENT prices (not cash prices)
+                                  if (product.sellPriceInstallIqd > 0)
+                                    Text(
+                                      '${_formatNumber(product.sellPriceInstallIqd)} د.ع',
+                                      style: const TextStyle(
+                                        fontFamily: 'Tajawal',
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF0A192F),
+                                      ),
+                                    ),
+                                  if (product.sellPriceInstallIqd > 0 &&
+                                      product.sellPriceInstallUsd > 0)
+                                    const Text(
+                                      ' | ',
+                                      style: TextStyle(color: Colors.grey),
+                                    ),
+                                  if (product.sellPriceInstallUsd > 0)
+                                    Text(
+                                      '\$${_formatNumber(product.sellPriceInstallUsd)}',
+                                      style: const TextStyle(
+                                        fontFamily: 'Tajawal',
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF3B82F6),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ],
                           ),
                           trailing: ElevatedButton(
-                            onPressed: product.stockQuantity > 0
+                            onPressed: product.quantity > 0
                                 ? () {
                                     _addToCart(product);
                                     Navigator.pop(context);
@@ -543,15 +638,18 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
                   const SizedBox(width: 16),
                   Expanded(
                     child: _buildInputField(
-                      label: 'عدد الأشهر',
-                      controller: _monthsController,
-                      icon: LucideIcons.calendarDays,
+                      label: 'مبلغ القسط',
+                      controller: _installmentAmountController,
+                      icon: LucideIcons.wallet,
                       hint: '0',
                       keyboardType: TextInputType.number,
+                      suffixText: _isIQD ? 'د.ع' : '\$',
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 20),
+              _buildFrequencySelector(),
               const SizedBox(height: 20),
               _buildDatePickerField(),
               const SizedBox(height: 32),
@@ -668,7 +766,9 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFFFEF2F2),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
+              border: Border.all(
+                color: const Color(0xFFEF4444).withValues(alpha: 0.3),
+              ),
             ),
             child: Row(
               children: [
@@ -807,8 +907,8 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
             itemBuilder: (context, index) {
               final item = _cart[index];
               final price = _isIQD
-                  ? item.product.priceIQD
-                  : item.product.priceUSD;
+                  ? item.product.sellPriceInstallIqd
+                  : item.product.sellPriceInstallUsd;
               final total = price * item.quantity;
 
               return ListTile(
@@ -886,18 +986,17 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
       width: double.infinity,
       child: ElevatedButton.icon(
         onPressed: _showProductSelector,
-        icon: const Icon(LucideIcons.plus, color: Color(0xFF0A192F)),
+        icon: const Icon(LucideIcons.plus, color: Colors.white),
         label: const Text(
           'إضافة منتج للسلة',
-          style: TextStyle(fontFamily: 'Tajawal', color: Color(0xFF0A192F)),
+          style: TextStyle(fontFamily: 'Tajawal', color: Colors.white),
         ),
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: const Color(0xFF0A192F),
+          backgroundColor: const Color(0xFF0A192F),
+          foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: Color(0xFF0A192F)),
           ),
           elevation: 0,
         ),
@@ -965,6 +1064,83 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
                 width: 1.5,
               ),
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFrequencySelector() {
+    final frequencies = [
+      {'value': 'monthly', 'label': 'شهري', 'icon': LucideIcons.calendar},
+      {'value': 'weekly', 'label': 'أسبوعي', 'icon': LucideIcons.calendarDays},
+      {'value': 'daily', 'label': 'يومي', 'icon': LucideIcons.clock},
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'نظام الدفع',
+          style: TextStyle(
+            color: Color(0xFF64748B),
+            fontFamily: 'Tajawal',
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Row(
+            children: frequencies.map((freq) {
+              final isSelected = _paymentFrequency == freq['value'];
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(
+                    () => _paymentFrequency = freq['value'] as String,
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? const Color(0xFF0A192F)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          freq['icon'] as IconData,
+                          size: 16,
+                          color: isSelected
+                              ? Colors.white
+                              : const Color(0xFF64748B),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          freq['label'] as String,
+                          style: TextStyle(
+                            fontFamily: 'Tajawal',
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: isSelected
+                                ? Colors.white
+                                : const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
           ),
         ),
       ],
@@ -1058,7 +1234,7 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
           ),
           const SizedBox(height: 16),
           const Text(
-            'قيمة القسط الشهري:',
+            'مبلغ القسط:',
             style: TextStyle(
               color: Colors.white,
               fontFamily: 'Tajawal',
@@ -1067,7 +1243,7 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            '${_formatNumber(_monthlyInstallment)} $currency',
+            '${_formatNumber(_installmentAmount)} $currency',
             style: const TextStyle(
               color: Colors.white,
               fontFamily: 'Tajawal',
@@ -1075,9 +1251,9 @@ class _AddInstallmentScreenState extends State<AddInstallmentScreen> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          if (_monthsController.text.isNotEmpty)
+          if (_numberOfPayments > 0)
             Text(
-              '(${_monthsController.text} دفعة شهرية)',
+              '($_numberOfPayments دفعة $_frequencyDisplay)',
               style: const TextStyle(
                 color: Colors.white70,
                 fontFamily: 'Tajawal',

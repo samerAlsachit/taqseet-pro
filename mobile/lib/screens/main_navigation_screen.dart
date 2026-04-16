@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'dashboard_screen.dart';
 import 'installments_screen.dart';
-import 'inventory_screen.dart';
+import 'products_screen.dart';
 import 'customers_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
@@ -18,16 +18,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   final List<Widget> _screens = const [
     DashboardScreen(),
     InstallmentsScreen(),
-    InventoryScreen(),
+    ProductsScreen(),
     CustomersScreen(),
   ];
 
-  final List<String> _titles = [
-    'الرئيسية',
-    'الأقساط',
-    'المخزن',
-    'العملاء',
-  ];
+  final List<String> _titles = ['الرئيسية', 'الأقساط', 'المخزن', 'العملاء'];
 
   final List<IconData> _icons = [
     LucideIcons.home,
@@ -39,10 +34,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -66,7 +58,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   onTap: () => setState(() => _currentIndex = index),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: isSelected
                           ? const Color(0xFF0A192F).withValues(alpha: 0.1)
@@ -89,7 +84,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                           style: TextStyle(
                             fontFamily: 'Tajawal',
                             fontSize: 12,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                             color: isSelected
                                 ? const Color(0xFF0A192F)
                                 : const Color(0xFF94A3B8),

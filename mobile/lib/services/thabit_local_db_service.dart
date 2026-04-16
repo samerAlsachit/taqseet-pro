@@ -519,6 +519,24 @@ class ThabitLocalDBService {
     return count;
   }
 
+  /// Clear all products and save new ones (atomic operation)
+  Future<int> clearAndSaveProducts(List<Map<String, dynamic>> products) async {
+    await _ensureInitialized();
+    // Clear existing products
+    await _productsBox!.clear();
+    // Add all new products
+    int count = 0;
+    for (final product in products) {
+      final id = product['id']?.toString() ?? '';
+      if (id.isNotEmpty) {
+        await _productsBox!.put(id, product);
+        count++;
+      }
+    }
+    print('✅ ThabitLocalDB: Cleared and saved $count products');
+    return count;
+  }
+
   /// Get all products
   List<Map<String, dynamic>> getAllProducts() {
     _ensureInitializedSync();
@@ -539,6 +557,9 @@ class ThabitLocalDBService {
 
     return Map<String, dynamic>.from(data);
   }
+
+  /// Get products box for ValueListenableBuilder
+  Box<Map>? get productsBox => _productsBox;
 
   /// Get low stock products
   List<Map<String, dynamic>> getLowStockProducts() {

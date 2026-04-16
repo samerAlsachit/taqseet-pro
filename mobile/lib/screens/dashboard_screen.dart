@@ -201,6 +201,100 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
+  /// Force full sync - clears all local data and re-fetches from server
+  /// مزامنة كاملة - مسح جميع البيانات المحلية وإعادة الجلب من السيرفر
+  Future<void> _forceFullSync() async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'مزامنة كاملة',
+          style: TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'سيتم مسح جميع البيانات المحلية وإعادة جلبها من السيرفر.\n\nهل أنت متأكد؟',
+          style: TextStyle(fontFamily: 'Tajawal'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء', style: TextStyle(fontFamily: 'Tajawal')),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0A192F),
+            ),
+            child: const Text(
+              'مزامنة',
+              style: TextStyle(fontFamily: 'Tajawal', color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      // Force full sync with cache clearing
+      final result = await _marsaSyncService.fetchLatestData(clearCache: true);
+
+      // Refresh dashboard stats
+      await _fetchDashboardStats();
+
+      // Refresh provider data
+      if (mounted) {
+        await context.read<InstallmentProvider>().loadInstallments();
+      }
+
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      // Show result message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result.success
+                  ? 'تمت المزامنة بنجاح: ${result.totalRecords} سجل'
+                  : 'فشل المزامنة: ${result.error}',
+              style: const TextStyle(fontFamily: 'Tajawal'),
+            ),
+            backgroundColor: result.success
+                ? const Color(0xFF10B981)
+                : Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'فشل المزامنة: $e',
+              style: const TextStyle(fontFamily: 'Tajawal'),
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -481,9 +575,10 @@ class _DashboardScreenState extends State<DashboardScreen>
             // Sync Status Icon with Badge
             _buildSyncStatusIcon(),
             const SizedBox(width: 12),
-            _buildCircleIcon(LucideIcons.bell),
+            // Force Sync Menu
+            _buildForceSyncMenu(),
             const SizedBox(width: 12),
-            _buildCircleIcon(LucideIcons.user),
+            _buildCircleIcon(LucideIcons.bell),
             const SizedBox(width: 12),
             _buildLogoutIcon(),
           ],
@@ -596,6 +691,82 @@ class _DashboardScreenState extends State<DashboardScreen>
           size: 20,
         ),
       ),
+    );
+  }
+
+  /// Build force sync menu button
+  Widget _buildForceSyncMenu() {
+    return PopupMenuButton<String>(
+      icon: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Icon(
+          LucideIcons.refreshCw,
+          color: Color(0xFF0A192F),
+          size: 20,
+        ),
+      ),
+      offset: const Offset(0, 40),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'sync',
+          child: Row(
+            children: [
+              const Icon(
+                LucideIcons.refreshCw,
+                size: 18,
+                color: Color(0xFF0A192F),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'مزامنة سريعة',
+                style: TextStyle(fontFamily: 'Tajawal'),
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'force_sync',
+          child: Row(
+            children: [
+              const Icon(
+                LucideIcons.rotateCcw,
+                size: 18,
+                color: Color(0xFF3B82F6),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'مزامنة كاملة (مسح وجلب)',
+                style: TextStyle(
+                  fontFamily: 'Tajawal',
+                  color: Color(0xFF3B82F6),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+      onSelected: (value) {
+        switch (value) {
+          case 'sync':
+            _refreshData();
+            break;
+          case 'force_sync':
+            _forceFullSync();
+            break;
+        }
+      },
     );
   }
 
