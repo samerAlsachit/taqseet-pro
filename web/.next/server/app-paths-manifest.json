@@ -1,10 +1,8 @@
 {
   "/page": "app/page.js",
   "/login/page": "app/login/page.js",
-  "/register/page": "app/register/page.js",
   "/(store)/dashboard/page": "app/(store)/dashboard/page.js",
-  "/(store)/products/page": "app/(store)/products/page.js",
   "/(store)/installments/page": "app/(store)/installments/page.js",
-  "/(store)/installments/new/page": "app/(store)/installments/new/page.js",
-  "/(store)/cash-sales/new/page": "app/(store)/cash-sales/new/page.js"
+  "/(store)/installments/[id]/page": "app/(store)/installments/[id]/page.js",
+  "/(store)/customers/new/page": "app/(store)/customers/new/page.js"
 }

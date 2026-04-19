@@ -1,4 +1,4 @@
-// File: C:\Users\Lenovo\Taqseet pro\web\src\app\(store)\dashboard\page.tsx
+// File: C:\Projects\taqseet-pro\web\src\app\(store)\dashboard\page.tsx
 import * as entry from '../../../../../src/app/(store)/dashboard/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

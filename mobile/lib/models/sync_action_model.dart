@@ -56,7 +56,7 @@ class SyncAction {
       id: json['id'] as String,
       endpoint: json['endpoint'] as String,
       action: SyncActionType.values.firstWhere(
-        (e) => e.name == json['action'],
+        (e) => e.name == (json['action'] as String? ?? 'insert'),
         orElse: () => SyncActionType.insert,
       ),
       data: Map<String, dynamic>.from(json['data'] as Map),
