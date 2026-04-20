@@ -275,14 +275,9 @@ class MarsaSyncService {
   /// Fetch all data for a specific customer (for statement)
   Future<bool> fetchCustomerData(String customerId) async {
     if (!await _isOnline()) return false;
-    if (_dio == null) return false;
-
     try {
-      print('🔍 MarsaSyncService: Fetching data for customer: $customerId');
-
-      // 1. Fetch installment plans for this customer
       final plansResponse = await _dio!.get(
-        '/installment-plans',
+        '/installments',
         queryParameters: {'customer_id': customerId},
       );
 

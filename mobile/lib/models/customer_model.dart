@@ -9,11 +9,15 @@ class CustomerModel {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
-  // Image paths for documentation (من جداول منفصلة)
+  // Local image paths for documentation
   final String? customerImagePath;
   final String? docFrontPath;
   final String? docBackPath;
   final String? residenceCardPath;
+
+  // Supabase Storage URLs
+  final String? avatarUrl; // رابط صورة العميل في Supabase
+  final List<String>? documentsUrls; // روابط المستمسكات في Supabase
 
   // Financial summary (calculated from installments)
   final double? totalDebt;
@@ -33,6 +37,8 @@ class CustomerModel {
     this.docFrontPath,
     this.docBackPath,
     this.residenceCardPath,
+    this.avatarUrl,
+    this.documentsUrls,
     this.totalDebt,
     this.totalPaid,
   });
@@ -61,6 +67,13 @@ class CustomerModel {
       residenceCardPath:
           json['residence_card_path']?.toString() ??
           json['residenceCardPath'] as String?,
+      avatarUrl:
+          json['avatar_url']?.toString() ?? json['avatarUrl']?.toString(),
+      documentsUrls: json['documents_urls'] != null
+          ? List<String>.from(json['documents_urls'] as List)
+          : json['documentsUrls'] != null
+          ? List<String>.from(json['documentsUrls'] as List)
+          : null,
       totalDebt: json['total_debt'] != null
           ? double.tryParse(json['total_debt'].toString())
           : null,
@@ -85,6 +98,8 @@ class CustomerModel {
       'doc_front_path': docFrontPath,
       'doc_back_path': docBackPath,
       'residence_card_path': residenceCardPath,
+      'avatar_url': avatarUrl,
+      'documents_urls': documentsUrls,
       'total_debt': totalDebt,
       'total_paid': totalPaid,
     };
@@ -100,6 +115,8 @@ class CustomerModel {
       'address': address,
       'email': email,
       'notes': notes,
+      'avatar_url': avatarUrl,
+      'documents_urls': documentsUrls,
     };
   }
 
@@ -117,6 +134,8 @@ class CustomerModel {
     String? docFrontPath,
     String? docBackPath,
     String? residenceCardPath,
+    String? avatarUrl,
+    List<String>? documentsUrls,
     double? totalDebt,
     double? totalPaid,
   }) {
@@ -134,6 +153,8 @@ class CustomerModel {
       docFrontPath: docFrontPath ?? this.docFrontPath,
       docBackPath: docBackPath ?? this.docBackPath,
       residenceCardPath: residenceCardPath ?? this.residenceCardPath,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      documentsUrls: documentsUrls ?? this.documentsUrls,
       totalDebt: totalDebt ?? this.totalDebt,
       totalPaid: totalPaid ?? this.totalPaid,
     );

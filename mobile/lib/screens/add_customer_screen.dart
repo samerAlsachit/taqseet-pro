@@ -365,6 +365,14 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
               ),
               const SizedBox(height: 20),
               _buildInputField(
+                label: 'الرقم الوطني',
+                controller: _nationalIdController,
+                icon: LucideIcons.contact,
+                hint: 'أدخل الرقم الوطني للعميل',
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 20),
+              _buildInputField(
                 label: 'العنوان',
                 controller: _addressController,
                 icon: LucideIcons.mapPin,
@@ -777,12 +785,16 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                         docFrontPath: _docFrontPath,
                         docBackPath: _docBackPath,
                         residenceCardPath: _residenceCardPath,
+                        existingAvatarUrl: widget.customer!.avatarUrl,
+                        existingDocumentsUrls: widget.customer!.documentsUrls,
                       );
 
                       if (!result['success']) {
                         throw Exception(result['message']);
                       }
 
+                      // استخراج الروابط الجديدة من الاستجابة
+                      final responseData = result['data'] ?? {};
                       final customer = CustomerModel(
                         id: widget.customer!.id,
                         fullName: _nameController.text,
@@ -795,6 +807,12 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                         docFrontPath: _docFrontPath,
                         docBackPath: _docBackPath,
                         residenceCardPath: _residenceCardPath,
+                        avatarUrl:
+                            responseData['avatar_url'] ??
+                            widget.customer!.avatarUrl,
+                        documentsUrls: responseData['documents_urls'] != null
+                            ? List<String>.from(responseData['documents_urls'])
+                            : widget.customer!.documentsUrls,
                         createdAt: widget.customer!.createdAt,
                         updatedAt: DateTime.now(),
                       );
@@ -812,7 +830,40 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                         Navigator.pop(context, customer);
                       }
                     } else {
-                      // إنشاء عميل جديد - لا نرسل ID
+                      // ✅ الخطوة 1: رفع الصور أولاً إلى Supabase Storage
+                      String? avatarUrl;
+                      List<String> documentsUrls = [];
+
+                      // رفع صورة العميل (الصورة الشخصية)
+                      if (_customerImagePath != null &&
+                          _customerImagePath!.isNotEmpty) {
+                        avatarUrl = await customerService.uploadImage(
+                          _customerImagePath!,
+                          folder: 'avatars',
+                        );
+                        if (avatarUrl == null) {
+                          throw Exception(
+                            'فشل رفع صورة العميل إلى Supabase Storage. '
+                            'تحقق من: 1) اتصال الإنترنت 2) تسجيل الدخول 3) صلاحيات البكت',
+                          );
+                        }
+                      }
+
+                      // رفع صور المستمسكات
+                      final docPaths =
+                          [_docFrontPath, _docBackPath, _residenceCardPath]
+                              .where((path) => path != null && path.isNotEmpty)
+                              .toList();
+
+                      if (docPaths.isNotEmpty) {
+                        final docUrls = await customerService.uploadImages(
+                          docPaths.cast<String>(),
+                          folder: 'documents',
+                        );
+                        documentsUrls = docUrls;
+                      }
+
+                      // ✅ الخطوة 2: إنشاء العميل مع روابط الصور
                       final result = await customerService.createCustomer(
                         fullName: _nameController.text,
                         phone: _phoneController.text,
@@ -824,14 +875,19 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                         docFrontPath: _docFrontPath,
                         docBackPath: _docBackPath,
                         residenceCardPath: _residenceCardPath,
+                        avatarUrl: avatarUrl,
+                        documentsUrls: documentsUrls.isNotEmpty
+                            ? documentsUrls
+                            : null,
                       );
 
                       if (!result['success']) {
                         throw Exception(result['message']);
                       }
 
-                      // السيرفر يرجع UUID جديد
-                      final newCustomerId = result['data']?['id'] ?? '';
+                      // السيرفر يرجع UUID جديد والروابط
+                      final responseData = result['data'] ?? {};
+                      final newCustomerId = responseData['id'] ?? '';
 
                       final customer = CustomerModel(
                         id: newCustomerId,
@@ -845,6 +901,12 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                         docFrontPath: _docFrontPath,
                         docBackPath: _docBackPath,
                         residenceCardPath: _residenceCardPath,
+                        avatarUrl: responseData['avatar_url'] ?? avatarUrl,
+                        documentsUrls: responseData['documents_urls'] != null
+                            ? List<String>.from(responseData['documents_urls'])
+                            : documentsUrls.isNotEmpty
+                            ? documentsUrls
+                            : null,
                         createdAt: DateTime.now(),
                         updatedAt: DateTime.now(),
                       );
@@ -863,15 +925,28 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                       }
                     }
                   } catch (e) {
+                    // ✅ معالجة خاصة لخطأ رفع الصورة - عرض رسالة الخطأ الحقيقية
+                    final errorMsg = e.toString();
+                    // طباعة الخطأ الكامل في الترمنال للتشخيص
+                    print('Detailed Storage Error: $e');
+                    // عرض رسالة الخطأ الحقيقية القادمة من السيرفر
+                    final displayMessage = errorMsg.isNotEmpty
+                        ? '❌ $errorMsg'
+                        : 'حدث خطأ غير متوقع أثناء رفع الصورة';
+
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                            'حدث خطأ: $e',
-                            style: const TextStyle(fontFamily: 'Tajawal'),
+                            displayMessage,
+                            style: const TextStyle(
+                              fontFamily: 'Tajawal',
+                              fontSize: 14,
+                            ),
                           ),
                           backgroundColor: Colors.red,
                           behavior: SnackBarBehavior.floating,
+                          duration: const Duration(seconds: 5),
                           shape: const RoundedRectangleBorder(
                             borderRadius: BorderRadius.all(Radius.circular(12)),
                           ),

@@ -26,7 +26,7 @@ class AppConfig {
   /// للمحاكي: '10.0.2.2'
   /// للإنتاج: 'your-domain.com'
   ///
-  static const String API_IP = '192.168.0.196';
+  static const String API_IP = '192.168.0.100';
 
   /// Port الخادم
   static const String API_PORT = '3000';

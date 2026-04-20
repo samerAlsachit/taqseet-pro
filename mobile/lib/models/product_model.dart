@@ -150,4 +150,7 @@ class ProductModel {
     }
     return isInstallment ? sellPriceInstallIqd : sellPriceCashIqd;
   }
+
+  @override
+  String toString() => name;
 }

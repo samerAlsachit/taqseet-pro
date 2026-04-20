@@ -54,12 +54,23 @@ class ProductService {
         '📦 ProductService: Received ${productsList.length} products from API',
       );
 
+      // ✅ Validate we got products before wiping local data
+      if (productsList.isEmpty) {
+        print('⚠️ ProductService: API returned 0 products, keeping local data');
+        // Return success but don't wipe local data
+        final localProducts = _localDB.getAllProducts();
+        return SyncResult.success(
+          count: localProducts.length,
+          message: 'لا توجد منتجات جديدة، المحلية: ${localProducts.length}',
+        );
+      }
+
       // Convert to ProductModel list
       final products = productsList
           .map((json) => ProductModel.fromJson(json as Map<String, dynamic>))
           .toList();
 
-      // Clear existing and save new products (atomic operation)
+      // ✅ Only clear after confirming we have valid data from API
       await _localDB.init();
       final productsData = products.map((p) => p.toJson()).toList();
       final savedCount = await _localDB.clearAndSaveProducts(productsData);

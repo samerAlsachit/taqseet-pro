@@ -7,6 +7,7 @@ import '../models/installment_plan_model.dart';
 import '../models/payment_schedule_model.dart';
 import '../services/thabit_local_db_service.dart';
 import '../services/marsa_sync_service.dart';
+import '../services/customer_service.dart';
 import 'add_customer_screen.dart';
 
 class CustomerDetailsScreen extends StatefulWidget {
@@ -21,7 +22,9 @@ class CustomerDetailsScreen extends StatefulWidget {
 class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
   final ThabitLocalDBService _thabitDB = ThabitLocalDBService();
   final MarsaSyncService _marsaSync = MarsaSyncService();
+  final CustomerService _customerService = CustomerService();
   bool _isGeneratingStatement = false;
+  bool _isDeleting = false;
 
   CustomerModel get customer => widget.customer;
 
@@ -46,6 +49,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
         ),
         centerTitle: true,
         actions: [
+          // Edit Button
           IconButton(
             icon: const Icon(LucideIcons.edit3, color: Color(0xFF0A192F)),
             onPressed: () async {
@@ -62,6 +66,20 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                 Navigator.pop(context, result);
               }
             },
+          ),
+          // Delete Button
+          IconButton(
+            icon: _isDeleting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.red,
+                    ),
+                  )
+                : const Icon(LucideIcons.trash2, color: Colors.red),
+            onPressed: _isDeleting ? null : _showDeleteConfirmationDialog,
           ),
         ],
       ),
@@ -89,6 +107,8 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
             // Address Section
             _buildSectionTitle('معلومات الاتصال'),
             const SizedBox(height: 16),
+            _buildNationalIdCard(),
+            const SizedBox(height: 12),
             _buildAddressCard(),
             const SizedBox(height: 32),
           ],
@@ -490,6 +510,69 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
     );
   }
 
+  Widget _buildNationalIdCard() {
+    if (customer.nationalId == null || customer.nationalId!.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0A192F).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              LucideIcons.contact,
+              color: Color(0xFF0A192F),
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'الرقم الوطني',
+                  style: TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontSize: 12,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  customer.nationalId!,
+                  style: const TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF0A192F),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAddressCard() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -828,6 +911,125 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
     } finally {
       if (mounted) {
         setState(() => _isGeneratingStatement = false);
+      }
+    }
+  }
+
+  /// Show delete confirmation dialog
+  void _showDeleteConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(LucideIcons.alertTriangle, color: Colors.red, size: 28),
+            SizedBox(width: 12),
+            Text(
+              'تأكيد الحذف',
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0A192F),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'هل أنت متأكد من حذف العميل "${customer.fullName}"؟',
+              style: const TextStyle(fontFamily: 'Tajawal', fontSize: 16),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              '⚠️ هذا الإجراء لا يمكن التراجع عنه. سيتم حذف جميع بيانات العميل وأقساطه.',
+              style: TextStyle(
+                fontFamily: 'Tajawal',
+                fontSize: 14,
+                color: Colors.red,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'إلغاء',
+              style: TextStyle(fontFamily: 'Tajawal', color: Color(0xFF64748B)),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteCustomer();
+            },
+            icon: const Icon(LucideIcons.trash2, color: Colors.white, size: 18),
+            label: const Text(
+              'حذف',
+              style: TextStyle(fontFamily: 'Tajawal', color: Colors.white),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Delete customer from API and delete images from Storage
+  Future<void> _deleteCustomer() async {
+    setState(() => _isDeleting = true);
+
+    try {
+      // حذف العميل مع صوره من Supabase Storage
+      final result = await _customerService.deleteCustomerWithImages(
+        customer.id,
+        avatarUrl: customer.avatarUrl,
+        documentsUrls: customer.documentsUrls,
+      );
+
+      if (result['success'] == true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'تم حذف العميل بنجاح',
+                style: TextStyle(fontFamily: 'Tajawal'),
+              ),
+              backgroundColor: Colors.green,
+            ),
+          );
+          // Pop back to refresh the list
+          Navigator.pop(context, 'deleted');
+        }
+      } else {
+        throw Exception(result['message'] ?? 'فشل حذف العميل');
+      }
+    } catch (e) {
+      debugPrint('❌ Error deleting customer: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'فشل حذف العميل: ${e.toString()}',
+              style: const TextStyle(fontFamily: 'Tajawal'),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isDeleting = false);
       }
     }
   }
