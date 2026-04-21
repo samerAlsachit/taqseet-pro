@@ -39,16 +39,18 @@ class MarsaSyncService {
   };
 
   /// Initialize the service
-  /// Wipes data on first login to ensure fresh start
+  /// ✅ لا تمسح البيانات تلقائياً - تبقى البيانات محفوظة
   Future<void> init() async {
     await _localDB.init();
     _apiClient.init();
     _dio = _apiClient.dio;
 
-    // Check if this is first login and wipe old data
+    // ✅ التحقق من أول دخول فقط (للتسجيل) - لا تمسح البيانات
     if (_localDB.isFirstLogin()) {
-      print('🗑️ MarsaSyncService: First login detected - wiping old data...');
-      await _localDB.wipeAllDataAndMarkFirstLogin();
+      print(
+        '🆕 MarsaSyncService: First login detected - keeping existing data',
+      );
+      // await _localDB.wipeAllDataAndMarkFirstLogin(); // ⛔ إيقاف المسح التلقائي
     }
 
     print('✅ MarsaSyncService: Initialized with ApiClient (auto-token)');
@@ -58,9 +60,9 @@ class MarsaSyncService {
   /// Main Fetch Method - جلب البيانات الرئيسي
   /// ============================================
 
-  /// Fetch latest data from all tables with cache clearing
-  /// الجلب الكامل مع مسح الذاكرة المؤقتة أولاً (افتراضياً true للحصول على بيانات جديدة)
-  Future<MarsaSyncResult> fetchLatestData({bool clearCache = true}) async {
+  /// Fetch latest data from all tables with optional cache clearing
+  /// ✅ توقف عن المسح الافتراضي للبيانات - استخدم upsert فقط
+  Future<MarsaSyncResult> fetchLatestData({bool clearCache = false}) async {
     if (!await _isOnline()) {
       return MarsaSyncResult.offline();
     }
@@ -72,9 +74,11 @@ class MarsaSyncService {
     }
 
     try {
-      // 1. Clear cache if requested (لتجنب تضارب البيانات)
+      // ✅ لا تمسح البيانات إلا إذا طُلب ذلك صراحة (مثل تسجيل خروج/دخول جديد)
       if (clearCache) {
-        print('🗑️ MarsaSyncService: Clearing cache before fetch...');
+        print(
+          '🗑️ MarsaSyncService: Clearing cache before fetch (requested)...',
+        );
         await _localDB.clearAllCache();
       }
 
@@ -117,7 +121,8 @@ class MarsaSyncService {
   /// ============================================
 
   /// Fetch all data in one request to /api/sync endpoint
-  Future<MarsaSyncResult> fetchSync({bool clearCache = true}) async {
+  /// ✅ توقف عن المسح الافتراضي للبيانات
+  Future<MarsaSyncResult> fetchSync({bool clearCache = false}) async {
     if (!await _isOnline()) {
       return MarsaSyncResult.offline();
     }
@@ -129,9 +134,11 @@ class MarsaSyncService {
     }
 
     try {
-      // Clear cache if requested
+      // ✅ لا تمسح البيانات إلا إذا طُلب ذلك صراحة
       if (clearCache) {
-        print('🗑️ MarsaSyncService: Clearing cache before fetch...');
+        print(
+          '🗑️ MarsaSyncService: Clearing cache before fetch (requested)...',
+        );
         await _localDB.clearAllCache();
       }
 
@@ -265,6 +272,15 @@ class MarsaSyncService {
     final customers = records.map((data) {
       return Map<String, dynamic>.from(data);
     }).toList();
+
+    // ✅ Log first customer to verify extra_docs
+    if (customers.isNotEmpty) {
+      final first = customers.first;
+      print('📥 [SYNC] Processing customer: ${first['id']}');
+      print('📥 [SYNC] extra_docs: ${first['extra_docs']}');
+      print('📥 [SYNC] id_doc_url: ${first['id_doc_url']}');
+    }
+
     return await _localDB.batchSaveCustomers(customers);
   }
 

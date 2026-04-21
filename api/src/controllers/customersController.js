@@ -43,6 +43,16 @@ const getCustomers = async (req, res) => {
     // حساب عدد الصفحات
     const totalPages = Math.ceil(count / limitNum);
 
+    // ✅ Log first customer to verify extra_docs
+    if (customers && customers.length > 0) {
+      console.log('📤 [GET /customers] Pulled', customers.length, 'customers');
+      console.log('📤 [GET /customers] Sample:', {
+        id: customers[0].id,
+        extra_docs: customers[0].extra_docs,
+        extra_docs_count: customers[0].extra_docs?.length || 0
+      });
+    }
+
     res.json({
       success: true,
       data: {
@@ -72,6 +82,7 @@ const createCustomer = async (req, res) => {
   try {
     const storeId = req.user.store_id;
     const {
+      id,  // ✅ قبول ID من الموبايل (اختياري)
       full_name,
       phone,
       phone_alt,
@@ -91,6 +102,17 @@ const createCustomer = async (req, res) => {
         code: ERROR_CODES.VALIDATION_ERROR
       });
     }
+
+    // ✅ Log incoming data for debugging
+    console.log('🔥 [API] Creating customer:', {
+      id: id || '(will generate)',
+      full_name,
+      phone,
+      id_doc_url: id_doc_url || '(none)',
+      extra_docs: extra_docs?.length || 0,
+      extra_docs_type: typeof extra_docs,
+      extra_docs_sample: extra_docs?.slice(0, 2)
+    });
 
     // التحقق من عدم تكرار رقم الهاتف في نفس المحل
     const { data: existingCustomer, error: checkError } = await supabase
@@ -117,11 +139,19 @@ const createCustomer = async (req, res) => {
       });
     }
 
+    // ✅ استخدام ID من الموبايل أو توليد جديد
+    const customerId = id || uuidv4();
+    if (id) {
+      console.log('✅ [API] Using mobile-provided ID:', customerId);
+    } else {
+      console.log('⚠️ [API] No ID from mobile, generated new ID:', customerId);
+    }
+
     // إنشاء العميل الجديد
     const { data: customer, error } = await supabaseAdmin
       .from('customers')
       .insert({
-        id: uuidv4(),
+        id: customerId,
         store_id: storeId,
         full_name,
         phone,
@@ -134,17 +164,26 @@ const createCustomer = async (req, res) => {
         local_id: local_id || null,
         created_at: new Date().toISOString()
       })
-      .select()
+      .select('*')  // ✅ تأكد من إرجاع جميع الحقول
       .single();
 
     if (error) {
-      console.error('خطأ في إنشاء العميل:', error);
+      console.error('❌ [API] خطأ في إنشاء العميل:', error);
       return res.status(500).json({
         success: false,
         error: 'فشل في إنشاء العميل',
         code: ERROR_CODES.INTERNAL_ERROR
       });
     }
+
+    // ✅ Log saved customer data to verify id_doc_url and extra_docs
+    console.log('✅ [API] Customer created successfully:', {
+      id: customer.id,
+      id_doc_url: customer.id_doc_url,
+      extra_docs: customer.extra_docs,
+      extra_docs_count: customer.extra_docs?.length || 0,
+      extra_docs_type: typeof customer.extra_docs
+    });
 
     // تسجيل العملية في سجل التدقيق
     await supabaseAdmin
@@ -292,6 +331,14 @@ const updateCustomer = async (req, res) => {
       extra_docs
     } = req.body;
 
+    // ✅ Log incoming update data
+    console.log('🔥 [API] Updating customer:', {
+      id,
+      id_doc_url: id_doc_url || '(unchanged)',
+      extra_docs: extra_docs?.length || '(unchanged)',
+      national_id: national_id || '(unchanged)'
+    });
+
     // التحقق من الصلاحية
     if (!req.user.can_edit) {
       return res.status(403).json({
@@ -367,13 +414,20 @@ const updateCustomer = async (req, res) => {
       .single();
 
     if (error) {
-      console.error('خطأ في تحديث العميل:', error);
+      console.error('❌ [API] خطأ في تحديث العميل:', error);
       return res.status(500).json({
         success: false,
         error: 'فشل في تحديث العميل',
         code: ERROR_CODES.INTERNAL_ERROR
       });
     }
+
+    // ✅ Log updated customer data
+    console.log('✅ [API] Customer updated successfully:', {
+      id: updatedCustomer.id,
+      id_doc_url: updatedCustomer.id_doc_url,
+      extra_docs_count: updatedCustomer.extra_docs?.length || 0
+    });
 
     // تسجيل العملية في سجل التدقيق
     await supabaseAdmin

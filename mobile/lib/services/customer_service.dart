@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 import 'package:path/path.dart' as path;
 import 'api_client.dart';
 
@@ -15,11 +16,13 @@ class CustomerService {
   /// [filePath]: مسار الملف المحلي
   /// [bucketName]: اسم الـ bucket (افتراضي: 'customers')
   /// [folder]: المجلد الفرعي (مثال: 'avatars' أو 'documents')
+  /// [customFileName]: اسم ملف مخصص (اختياري - يستخدم ID العميل مثلاً)
   /// تعيد: رابط URL العام للصورة أو null في حال الفشل
   Future<String?> uploadImage(
     String filePath, {
     String bucketName = 'customers',
     String? folder,
+    String? customFileName,
   }) async {
     try {
       debugPrint('📤 Starting upload without auth check (anon access enabled)');
@@ -30,11 +33,12 @@ class CustomerService {
         return null;
       }
 
-      // Generate clean unique filename (timestamp only, no hash)
-      final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+      // ✅ استخدام اسم ملف مخصص إذا تم تمريره (مثل ID العميل)
       final String originalName = path.basename(filePath);
       final String extension = path.extension(originalName).toLowerCase();
-      final String fileName = '$timestamp$extension';
+      final String fileName = customFileName != null
+          ? '$customFileName$extension'
+          : '${DateTime.now().millisecondsSinceEpoch}$extension';
 
       // Build storage path
       final String storagePath = folder != null
@@ -64,13 +68,10 @@ class CustomerService {
             ),
           );
 
-      // Get public URL
-      final String publicUrl = _supabase.storage
-          .from(bucketName)
-          .getPublicUrl(storagePath);
-
-      debugPrint('✅ Image uploaded successfully: $publicUrl');
-      return publicUrl;
+      // ✅ إرجاع المسار النسبي (folder/filename.jpg) بدلاً من الرابط الكامل
+      // ليتم تخزينه في قاعدة البيانات بشكل نظيف
+      debugPrint('✅ Image uploaded successfully: $storagePath');
+      return storagePath;
     } on StorageException catch (e) {
       debugPrint('❌ Supabase Storage Error:');
       debugPrint('   Message: ${e.message}');
@@ -98,6 +99,7 @@ class CustomerService {
     String? folder,
   }) async {
     final List<String> urls = [];
+    print('📤 Uploading ${filePaths.length} images to $bucketName/$folder');
 
     for (final filePath in filePaths) {
       final url = await uploadImage(
@@ -107,14 +109,20 @@ class CustomerService {
       );
       if (url != null) {
         urls.add(url);
+        print('   ✅ Uploaded: $url');
+      } else {
+        print('   ❌ Failed: $filePath');
       }
     }
 
+    print('📤 Total uploaded: ${urls.length}/${filePaths.length}');
     return urls;
   }
 
   /// إنشاء عميل جديد - مع دعم روابط الصور المرفوعة مسبقاً
+  /// [customerId]: معرف العميل (مولد مسبقاً في الموبايل)
   Future<Map<String, dynamic>> createCustomer({
+    String? customerId, // ← معرف العميل المولد مسبقاً (اختياري)
     required String fullName,
     required String phone,
     String? nationalId,
@@ -123,23 +131,36 @@ class CustomerService {
     String? docFrontPath,
     String? docBackPath,
     String? residenceCardPath,
-    String? avatarUrl, // ← رابط صورة مرفوع مسبقاً
+    String? idDocUrl, // ← رابط صورة الهوية/العميل (id_doc_url)
     List<String>? documentsUrls, // ← روابط مستمسكات مرفوعة مسبقاً
   }) async {
     try {
+      // ✅ استخدام ID ممرر أو توليد جديد
+      final String finalCustomerId = customerId ?? const Uuid().v4();
+      debugPrint('🆕 Using customer ID: $finalCustomerId');
+
       // إذا تم تمرير روابط مسبقاً، استخدمها مباشرة
       // وإلا ارفع الصور الآن (للتوافق مع الاستدعاءات القديمة)
-      String? finalAvatarUrl = avatarUrl;
+      String? finalIdDocUrl = idDocUrl;
       List<String> finalDocumentsUrls = documentsUrls ?? [];
 
-      // رفع الصور فقط إذا لم يتم تمرير روابط مسبقاً
-      if (finalAvatarUrl == null &&
+      // ✅ رفع الصورة باستخدام customerId كاسم ملف (توحيد الاسم)
+      if (finalIdDocUrl == null &&
           customerImagePath != null &&
           customerImagePath.isNotEmpty) {
-        finalAvatarUrl = await uploadImage(
+        finalIdDocUrl = await uploadImage(
           customerImagePath,
           folder: 'avatars',
+          customFileName: finalCustomerId, // ✅ استخدام ID كاسم ملف
         );
+        debugPrint(
+          '📤 Uploaded image with customerId filename: $finalIdDocUrl',
+        );
+      }
+
+      // ✅ إذا تم الرفع بنجاح، نستخدم نفس المسار في id_doc_url
+      if (finalIdDocUrl != null && !finalIdDocUrl.contains('/')) {
+        finalIdDocUrl = 'avatars/$finalIdDocUrl';
       }
 
       if (finalDocumentsUrls.isEmpty) {
@@ -160,6 +181,7 @@ class CustomerService {
 
       // بناء البيانات مع روابط URLs
       final requestData = {
+        'id': finalCustomerId, // ✅ إرسال ID العميل للسيرفر
         'full_name': fullName,
         'phone': phone,
         if (nationalId != null && nationalId.isNotEmpty)
@@ -171,12 +193,39 @@ class CustomerService {
         if (docBackPath != null) 'doc_back_path': docBackPath,
         if (residenceCardPath != null) 'residence_card_path': residenceCardPath,
         // إرسال روابط Supabase URLs للسيرفر
-        if (finalAvatarUrl != null) 'avatar_url': finalAvatarUrl,
+        if (finalIdDocUrl != null) 'id_doc_url': finalIdDocUrl,
         if (finalDocumentsUrls.isNotEmpty) 'documents_urls': finalDocumentsUrls,
       };
 
+      // ✅ التحقق من البيانات المرسلة
+      final docsUrls = requestData['documents_urls'] as List<String>?;
+      print('📤 [Mobile→Server] Request Data:');
+      print('   ID: ${requestData['id']}');
+      print('   id_doc_url: ${requestData['id_doc_url']}');
+      print('   documents_urls: $docsUrls');
+      print('   documents_urls count: ${docsUrls?.length ?? 0}');
+      print('   full_name: ${requestData['full_name']}');
+
+      // ✅ التحقق من إرسال روابط كاملة (تبدأ بـ https://)
+      if (finalIdDocUrl != null) {
+        debugPrint('📤 ID Doc URL: $finalIdDocUrl');
+        if (!finalIdDocUrl.startsWith('http')) {
+          debugPrint('⚠️ Warning: ID Doc URL does not start with http');
+        }
+      }
+      if (finalDocumentsUrls.isNotEmpty) {
+        debugPrint('📤 Documents URLs: ${finalDocumentsUrls.length} images');
+        for (final url in finalDocumentsUrls) {
+          debugPrint('   - $url');
+        }
+      }
+
+      // ✅ Log before sending to server
+      print('🔥 Sending to Server: id = $finalCustomerId');
+      print('🔥 Sending to Server: id_doc_url = $finalIdDocUrl');
+
       debugPrint(
-        '📤 Creating customer with images: avatar=$finalAvatarUrl, docs=${finalDocumentsUrls.length}',
+        '📤 Creating customer with images: id_doc=$finalIdDocUrl, docs=${finalDocumentsUrls.length}',
       );
 
       debugPrint('📤 Creating customer via API: ${requestData['full_name']}');
@@ -187,9 +236,25 @@ class CustomerService {
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
+        final responseData = response.data?['data'];
+        print('📥 [Server→Mobile] Response Data:');
+        print('   ID: ${responseData?['id']}');
+        print('   id_doc_url: ${responseData?['id_doc_url']}');
+        print('   extra_docs: ${responseData?['extra_docs']}');
+        print(
+          '   extra_docs count: ${(responseData?['extra_docs'] as List?)?.length ?? 0}',
+        );
+
+        // ✅ التحقق من تطابق الـ ID
+        if (responseData?['id'] != finalCustomerId) {
+          print('⚠️ WARNING: Server returned different ID!');
+          print('   Sent: $finalCustomerId');
+          print('   Received: ${responseData?['id']}');
+        }
+
         return {
           'success': true,
-          'data': response.data?['data'],
+          'data': responseData,
           'message': response.data?['message'] ?? 'تم إنشاء العميل بنجاح',
         };
       } else {
@@ -222,19 +287,31 @@ class CustomerService {
     String? docFrontPath,
     String? docBackPath,
     String? residenceCardPath,
-    String? existingAvatarUrl,
+    String? existingIdDocUrl,
     List<String>? existingDocumentsUrls,
   }) async {
     try {
       // 1. رفع الصور الجديدة إلى Supabase Storage أولاً
-      String? avatarUrl = existingAvatarUrl;
+      String? idDocUrl = existingIdDocUrl;
       List<String> documentsUrls = existingDocumentsUrls ?? [];
 
-      // رفع صورة العميل الشخصية إذا تم تغييرها (مسار جديد)
+      // ✅ رفع صورة العميل باستخدام customerId كاسم ملف (توحيد الاسم)
       if (customerImagePath != null &&
           customerImagePath.isNotEmpty &&
           !customerImagePath.startsWith('http')) {
-        avatarUrl = await uploadImage(customerImagePath, folder: 'avatars');
+        idDocUrl = await uploadImage(
+          customerImagePath,
+          folder: 'avatars',
+          customFileName: customerId, // ✅ استخدام ID كاسم ملف
+        );
+        debugPrint(
+          '📤 Update: Uploaded image with customerId filename: $idDocUrl',
+        );
+      }
+
+      // ✅ تأكد من أن id_doc_url يحتوي على المسار الكامل
+      if (idDocUrl != null && !idDocUrl.contains('/')) {
+        idDocUrl = 'avatars/$idDocUrl';
       }
 
       // رفع المستمسكات الجديدة (المسارات التي لا تبدأ بـ http)
@@ -270,12 +347,14 @@ class CustomerService {
         if (docBackPath != null) 'doc_back_path': docBackPath,
         if (residenceCardPath != null) 'residence_card_path': residenceCardPath,
         // إرسال روابط Supabase URLs للسيرفر
-        if (avatarUrl != null) 'avatar_url': avatarUrl,
+        if (idDocUrl != null) 'id_doc_url': idDocUrl,
         if (documentsUrls.isNotEmpty) 'documents_urls': documentsUrls,
       };
 
+      print('🔥 Update - Sending to Server: id_doc_url = $idDocUrl');
+
       debugPrint(
-        '📤 Updating customer $customerId with images: avatar=$avatarUrl, docs=${documentsUrls.length}',
+        '📤 Updating customer $customerId with images: id_doc=$idDocUrl, docs=${documentsUrls.length}',
       );
 
       final response = await _apiClient.dio.put(
@@ -384,13 +463,13 @@ class CustomerService {
   /// حذف عميل مع صوره من Storage
   Future<Map<String, dynamic>> deleteCustomerWithImages(
     String customerId, {
-    String? avatarUrl,
+    String? idDocUrl,
     List<String>? documentsUrls,
   }) async {
     try {
       // 1. حذف الصور من Storage أولاً
-      if (avatarUrl != null && avatarUrl.isNotEmpty) {
-        await deleteImage(avatarUrl);
+      if (idDocUrl != null && idDocUrl.isNotEmpty) {
+        await deleteImage(idDocUrl);
       }
 
       if (documentsUrls != null && documentsUrls.isNotEmpty) {

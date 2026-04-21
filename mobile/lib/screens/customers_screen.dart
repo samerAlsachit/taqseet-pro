@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/customer_model.dart';
 import '../services/thabit_local_db_service.dart';
 import '../services/marsa_sync_service.dart';
@@ -441,6 +442,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
     final installmentsCount = customerData['installmentsCount'] as int;
     final hasDebt = totalDebt > 0;
 
+    // ✅ Log image URL being loaded
+    print('UI Image Link: ${customer.profileImageUrl}');
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -471,15 +475,42 @@ class _CustomersScreenState extends State<CustomersScreen> {
             children: [
               Row(
                 children: [
+                  // ✅ عرض صورة العميل من Supabase أو أيقونة افتراضية
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
                       color: const Color(0xFF0A192F).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(
-                      LucideIcons.user,
-                      color: Color(0xFF0A192F),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: CachedNetworkImage(
+                        imageUrl: customer.profileImageUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          color: const Color(
+                            0xFF0A192F,
+                          ).withValues(alpha: 0.05),
+                          child: const Center(
+                            child: Icon(
+                              LucideIcons.user,
+                              color: Color(0xFF0A192F),
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          color: const Color(
+                            0xFF0A192F,
+                          ).withValues(alpha: 0.05),
+                          child: const Icon(
+                            LucideIcons.user,
+                            color: Color(0xFF0A192F),
+                            size: 24,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),

@@ -63,6 +63,8 @@ dependencies:
   arabic_reshaper: ^0.0.1
   # مكتبة التقاط الصورة (Screenshot for receipt as image)
   screenshot: ^3.0.0
+  # مكتبة عرض الصور من الإنترنت مع التخزين المؤقت
+  cached_network_image: ^3.4.1
 
 
 dev_dependencies:

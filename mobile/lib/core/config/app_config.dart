@@ -45,10 +45,19 @@ class AppConfig {
   // ============================================
 
   /// Supabase URL - اتركه فارغاً إذا كنت تستخدم خادمك المحلي
-  static const String SUPABASE_URL = '';
+  static const String SUPABASE_URL = 'https://sdygpgchcyxkgqmswgyb.supabase.co';
 
   /// Supabase Anon Key
-  static const String SUPABASE_ANON_KEY = '';
+  static const String SUPABASE_ANON_KEY =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkeWdwZ2NoY3l4a2dxbXN3Z3liIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyODM4MTUsImV4cCI6MjA4OTg1OTgxNX0.3gsWQTejmO2YtrhB6VnSkdAp0Du3TJQAsoJiI9beVaY';
+
+  /// Supabase Storage Bucket Name
+  static const String SUPABASE_STORAGE_BUCKET = 'customers';
+
+  /// Supabase Storage Public URL Base
+  /// Format: https://[PROJECT_ID].supabase.co/storage/v1/object/public/[BUCKET]/
+  static const String SUPABASE_STORAGE_URL =
+      '$SUPABASE_URL/storage/v1/object/public/$SUPABASE_STORAGE_BUCKET';
 
   // ============================================
   // App Settings
@@ -86,6 +95,36 @@ class AppConfig {
     }
     final cleanPath = imagePath.startsWith('/') ? imagePath : '/$imagePath';
     return '$API_BASE_URL$cleanPath';
+  }
+
+  /// بناء رابط Supabase Storage كامل
+  /// يحول اسم الملف إلى رابط كامل
+  ///
+  /// مثال:
+  /// ```dart
+  /// final url = AppConfig.buildStorageUrl('avatars/image.jpg');
+  /// // النتيجة: https://xxx.supabase.co/storage/v1/object/public/customers/avatars/image.jpg
+  /// ```
+  static String buildStorageUrl(String path) {
+    if (path.startsWith('http')) {
+      return path;
+    }
+    // إزالة / في البداية إذا وجدت
+    final cleanPath = path.startsWith('/') ? path.substring(1) : path;
+    return '$SUPABASE_STORAGE_URL/$cleanPath';
+  }
+
+  /// بناء رابط Supabase Storage مع مجلد
+  static String buildStorageUrlWithFolder(String folder, String fileName) {
+    if (fileName.startsWith('http')) {
+      return fileName;
+    }
+    // إزالة / في البداية إذا وجدت
+    final cleanFolder = folder.startsWith('/') ? folder.substring(1) : folder;
+    final cleanFileName = fileName.startsWith('/')
+        ? fileName.substring(1)
+        : fileName;
+    return '$SUPABASE_STORAGE_URL/$cleanFolder/$cleanFileName';
   }
 
   /// التحقق من إعدادات الـ API

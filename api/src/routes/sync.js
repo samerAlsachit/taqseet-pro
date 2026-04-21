@@ -29,6 +29,18 @@ router.get('/pull', auth, async (req, res) => {
       .select('*')
       .eq('store_id', storeId);
 
+    // ✅ Log first customer to verify extra_docs is included
+    if (customers && customers.length > 0) {
+      console.log('📤 [SYNC] Pulled', customers.length, 'customers');
+      console.log('📤 [SYNC] Sample customer:', {
+        id: customers[0].id,
+        full_name: customers[0].full_name,
+        id_doc_url: customers[0].id_doc_url,
+        extra_docs: customers[0].extra_docs,
+        extra_docs_type: typeof customers[0].extra_docs
+      });
+    }
+
     // جلب المنتجات
     const { data: products } = await supabase
       .from('products')

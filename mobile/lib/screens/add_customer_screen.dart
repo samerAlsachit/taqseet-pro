@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
+import 'package:uuid/uuid.dart';
 import '../models/customer_model.dart';
 import '../services/customer_service.dart';
 
@@ -772,7 +773,11 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
 
                   try {
                     if (_isEditMode) {
-                      // تحديث عميل موجود
+                      // ✅ تحديث عميل موجود - استخدام نفس ID للصورة
+                      print('📝 Updating customer: ${widget.customer!.id}');
+                      print(
+                        '🔗 Current idDocUrl: ${widget.customer!.idDocUrl}',
+                      );
                       final result = await customerService.updateCustomer(
                         customerId: widget.customer!.id,
                         fullName: _nameController.text,
@@ -785,7 +790,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                         docFrontPath: _docFrontPath,
                         docBackPath: _docBackPath,
                         residenceCardPath: _residenceCardPath,
-                        existingAvatarUrl: widget.customer!.avatarUrl,
+                        existingIdDocUrl: widget.customer!.idDocUrl,
                         existingDocumentsUrls: widget.customer!.documentsUrls,
                       );
 
@@ -795,6 +800,10 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
 
                       // استخراج الروابط الجديدة من الاستجابة
                       final responseData = result['data'] ?? {};
+                      print(
+                        '✅ Update response id_doc_url: ${responseData['id_doc_url']}',
+                      );
+
                       final customer = CustomerModel(
                         id: widget.customer!.id,
                         fullName: _nameController.text,
@@ -807,15 +816,23 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                         docFrontPath: _docFrontPath,
                         docBackPath: _docBackPath,
                         residenceCardPath: _residenceCardPath,
-                        avatarUrl:
-                            responseData['avatar_url'] ??
-                            widget.customer!.avatarUrl,
+                        idDocUrl:
+                            responseData['id_doc_url'] ??
+                            widget.customer!.idDocUrl,
                         documentsUrls: responseData['documents_urls'] != null
                             ? List<String>.from(responseData['documents_urls'])
+                            : responseData['extra_docs'] != null
+                            ? List<String>.from(responseData['extra_docs'])
                             : widget.customer!.documentsUrls,
                         createdAt: widget.customer!.createdAt,
                         updatedAt: DateTime.now(),
                       );
+
+                      // ✅ التحقق من الرابط بعد التحديث
+                      print(
+                        '🔗 Updated ProfileImageUrl: ${customer.profileImageUrl}',
+                      );
+                      print('📄 Updated Documents: ${customer.documentUrls}');
 
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -830,17 +847,25 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                         Navigator.pop(context, customer);
                       }
                     } else {
-                      // ✅ الخطوة 1: رفع الصور أولاً إلى Supabase Storage
+                      // ✅ توليد ID للعميل الجديد مسبقاً (لتوحيد اسم الملف)
+                      final customerId = const Uuid().v4();
+                      print(
+                        '🆕 Generated customer ID for new customer: $customerId',
+                      );
+
+                      // ✅ الخطوة 1: رفع الصور أولاً إلى Supabase Storage باستخدام customerId كاسم ملف
                       String? avatarUrl;
                       List<String> documentsUrls = [];
 
-                      // رفع صورة العميل (الصورة الشخصية)
+                      // رفع صورة العميل (الصورة الشخصية) باستخدام customerId كاسم ملف
                       if (_customerImagePath != null &&
                           _customerImagePath!.isNotEmpty) {
                         avatarUrl = await customerService.uploadImage(
                           _customerImagePath!,
                           folder: 'avatars',
+                          customFileName: customerId, // ✅ استخدام ID كاسم ملف
                         );
+                        print('📤 Uploaded avatar to: $avatarUrl');
                         if (avatarUrl == null) {
                           throw Exception(
                             'فشل رفع صورة العميل إلى Supabase Storage. '
@@ -864,7 +889,14 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                       }
 
                       // ✅ الخطوة 2: إنشاء العميل مع روابط الصور
+                      // بناء id_doc_url باستخدام customerId
+                      final idDocUrl = avatarUrl != null
+                          ? 'avatars/$customerId.jpg'
+                          : null;
+                      print('🔗 id_doc_url to be sent: $idDocUrl');
+
                       final result = await customerService.createCustomer(
+                        customerId: customerId, // ✅ إرسال ID المولد للسيرفر
                         fullName: _nameController.text,
                         phone: _phoneController.text,
                         nationalId: _nationalIdController.text.isNotEmpty
@@ -875,7 +907,7 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                         docFrontPath: _docFrontPath,
                         docBackPath: _docBackPath,
                         residenceCardPath: _residenceCardPath,
-                        avatarUrl: avatarUrl,
+                        idDocUrl: idDocUrl, // ✅ إرسال المسار الصحيح
                         documentsUrls: documentsUrls.isNotEmpty
                             ? documentsUrls
                             : null,
@@ -885,12 +917,28 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                         throw Exception(result['message']);
                       }
 
-                      // السيرفر يرجع UUID جديد والروابط
+                      // السيرفر يرجع UUID والروابط
                       final responseData = result['data'] ?? {};
-                      final newCustomerId = responseData['id'] ?? '';
+                      final returnedCustomerId = responseData['id'] ?? '';
 
+                      // ✅ التحقق من تطابق الـ ID
+                      if (returnedCustomerId.isNotEmpty &&
+                          returnedCustomerId != customerId) {
+                        print('⚠️ WARNING: Server returned different ID!');
+                        print('   Mobile ID: $customerId');
+                        print('   Server ID: $returnedCustomerId');
+                      }
+
+                      // ✅ دائماً استخدم الـ ID المولد في الموبايل (ليتطابق مع اسم الصورة)
+                      final finalCustomerId = customerId;
+                      print('✅ Using mobile-generated ID: $finalCustomerId');
+                      print(
+                        '✅ id_doc_url returned: ${responseData['id_doc_url']}',
+                      );
+
+                      // ✅ بناء CustomerModel مع الـ ID الصحيح (الذي يطابق اسم الصورة)
                       final customer = CustomerModel(
-                        id: newCustomerId,
+                        id: finalCustomerId,
                         fullName: _nameController.text,
                         phone: _phoneController.text,
                         nationalId: _nationalIdController.text.isNotEmpty
@@ -901,15 +949,22 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                         docFrontPath: _docFrontPath,
                         docBackPath: _docBackPath,
                         residenceCardPath: _residenceCardPath,
-                        avatarUrl: responseData['avatar_url'] ?? avatarUrl,
+                        idDocUrl: responseData['id_doc_url'] ?? idDocUrl,
                         documentsUrls: responseData['documents_urls'] != null
                             ? List<String>.from(responseData['documents_urls'])
+                            : responseData['extra_docs'] != null
+                            ? List<String>.from(responseData['extra_docs'])
                             : documentsUrls.isNotEmpty
                             ? documentsUrls
                             : null,
                         createdAt: DateTime.now(),
                         updatedAt: DateTime.now(),
                       );
+
+                      // ✅ التحقق من أن الرابط يبني بشكل صحيح
+                      print('🔗 ProfileImageUrl: ${customer.profileImageUrl}');
+                      print('📄 DocumentsUrls: ${customer.documentsUrls}');
+                      print('📄 DocumentUrls (full): ${customer.documentUrls}');
 
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/customer_model.dart';
 import '../models/installment_plan_model.dart';
 import '../models/payment_schedule_model.dart';
@@ -30,6 +31,11 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Log customer extra_docs for debugging
+    print('📄 [CustomerDetails] Customer ID: ${customer.id}');
+    print('📄 [CustomerDetails] documentsUrls: ${customer.documentsUrls}');
+    print('📄 [CustomerDetails] documentUrls (full): ${customer.documentUrls}');
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       appBar: AppBar(
@@ -187,70 +193,50 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
   }
 
   Widget _buildProfileImage(BuildContext context) {
-    final bool hasImage =
-        customer.customerImagePath != null &&
-        customer.customerImagePath!.isNotEmpty;
+    // ✅ استخدام رابط البروفايل المباشر من Supabase
+    final String avatarImageUrl = customer.profileImageUrl;
+
+    // ✅ Log image URL being loaded
+    print('UI Image Link: $avatarImageUrl');
 
     return GestureDetector(
-      onTap: hasImage
-          ? () => _openFullScreenImage(
-              context,
-              customer.customerImagePath!,
-              'صورة العميل',
-            )
-          : null,
+      onTap: () => _openFullScreenImage(context, avatarImageUrl, 'صورة العميل'),
       child: Container(
         width: 120,
         height: 120,
         decoration: BoxDecoration(
-          color: hasImage ? null : const Color(0xFFE2E8F0),
           borderRadius: BorderRadius.circular(60),
-          border: Border.all(
-            color: hasImage ? const Color(0xFF0A192F) : const Color(0xFFE2E8F0),
-            width: hasImage ? 3 : 2,
-          ),
-          image: hasImage
-              ? DecorationImage(
-                  image: FileImage(File(customer.customerImagePath!)),
-                  fit: BoxFit.cover,
-                )
-              : null,
+          border: Border.all(color: const Color(0xFF0A192F), width: 3),
         ),
-        child: !hasImage
-            ? const Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(LucideIcons.user, color: Color(0xFF94A3B8), size: 40),
-                  SizedBox(height: 4),
-                  Text(
-                    'لا توجد صورة',
-                    style: TextStyle(
-                      fontFamily: 'Tajawal',
-                      color: Color(0xFF94A3B8),
-                      fontSize: 10,
-                    ),
-                  ),
-                ],
-              )
-            : Stack(
-                alignment: Alignment.bottomRight,
-                children: [
-                  // Zoom indicator
-                  Container(
-                    margin: const EdgeInsets.all(8),
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0A192F),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      LucideIcons.zoomIn,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                  ),
-                ],
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(60),
+          // ✅ دائماً حاول تحميل الصورة - errorWidget يتعامل مع عدم وجودها
+          child: CachedNetworkImage(
+            imageUrl: avatarImageUrl,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => const Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Color(0xFF0A192F),
               ),
+            ),
+            errorWidget: (context, url, error) => const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(LucideIcons.user, color: Color(0xFF94A3B8), size: 40),
+                SizedBox(height: 4),
+                Text(
+                  'لا توجد صورة',
+                  style: TextStyle(
+                    fontFamily: 'Tajawal',
+                    color: Color(0xFF94A3B8),
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -394,13 +380,25 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
   }
 
   Widget _buildDocumentGallery(BuildContext context) {
+    // ✅ استخدام الروابط الكاملة من Supabase
+    final List<String> docUrls = customer.fullDocumentsUrls;
+
+    // ✅ Log document URLs being loaded
+    if (docUrls.isNotEmpty) {
+      print('📸 Loading Documents URLs (${docUrls.length}): $docUrls');
+    } else {
+      print('⚠️ No documents found for customer: ${customer.id}');
+      print('   documentsUrls: ${customer.documentsUrls}');
+      print('   extra_docs: ${customer.fullDocumentsUrls}');
+    }
+
     return Row(
       children: [
         Expanded(
           child: _buildDocumentImageCard(
             context: context,
             label: 'واجهة الهوية',
-            imagePath: customer.docFrontPath,
+            imageUrl: docUrls.isNotEmpty ? docUrls[0] : null,
             placeholderIcon: LucideIcons.fileText,
           ),
         ),
@@ -409,7 +407,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
           child: _buildDocumentImageCard(
             context: context,
             label: 'ظهر الهوية',
-            imagePath: customer.docBackPath,
+            imageUrl: docUrls.length > 1 ? docUrls[1] : null,
             placeholderIcon: LucideIcons.fileText,
           ),
         ),
@@ -418,7 +416,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
           child: _buildDocumentImageCard(
             context: context,
             label: 'بطاقة السكن',
-            imagePath: customer.residenceCardPath,
+            imageUrl: docUrls.length > 2 ? docUrls[2] : null,
             placeholderIcon: LucideIcons.home,
           ),
         ),
@@ -429,14 +427,14 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
   Widget _buildDocumentImageCard({
     required BuildContext context,
     required String label,
-    required String? imagePath,
+    required String? imageUrl,
     required IconData placeholderIcon,
   }) {
-    final bool hasImage = imagePath != null && imagePath.isNotEmpty;
+    final bool hasImage = imageUrl != null && imageUrl.isNotEmpty;
 
     return GestureDetector(
       onTap: hasImage
-          ? () => _openFullScreenImage(context, imagePath, label)
+          ? () => _openFullScreenImage(context, imageUrl, label)
           : null,
       child: Column(
         children: [
@@ -451,50 +449,62 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
                     : const Color(0xFFE2E8F0),
                 width: hasImage ? 2 : 1,
               ),
-              image: hasImage
-                  ? DecorationImage(
-                      image: FileImage(File(imagePath)),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
             ),
-            child: !hasImage
-                ? Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        placeholderIcon,
-                        color: const Color(0xFF94A3B8),
-                        size: 28,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'لا توجد صورة',
-                        style: const TextStyle(
-                          fontFamily: 'Tajawal',
-                          color: Color(0xFF94A3B8),
-                          fontSize: 10,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  )
-                : Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(15),
-                          color: Colors.black.withValues(alpha: 0.2),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(15),
+              child: hasImage
+                  ? CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      placeholder: (context, url) => const Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFF0A192F),
                         ),
                       ),
-                      const Icon(
-                        LucideIcons.zoomIn,
-                        color: Colors.white,
-                        size: 28,
+                      errorWidget: (context, url, error) => Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            placeholderIcon,
+                            color: const Color(0xFF94A3B8),
+                            size: 28,
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'خطأ في التحميل',
+                            style: TextStyle(
+                              fontFamily: 'Tajawal',
+                              color: Color(0xFF94A3B8),
+                              fontSize: 10,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    )
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          placeholderIcon,
+                          color: const Color(0xFF94A3B8),
+                          size: 28,
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'لا توجد صورة',
+                          style: TextStyle(
+                            fontFamily: 'Tajawal',
+                            color: Color(0xFF94A3B8),
+                            fontSize: 10,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -993,7 +1003,7 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
       // حذف العميل مع صوره من Supabase Storage
       final result = await _customerService.deleteCustomerWithImages(
         customer.id,
-        avatarUrl: customer.avatarUrl,
+        idDocUrl: customer.idDocUrl,
         documentsUrls: customer.documentsUrls,
       );
 
@@ -1048,6 +1058,9 @@ class FullScreenImageViewer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ التحقق إذا كان الرابط من الإنترنت (https) أو ملف محلي
+    final bool isNetworkUrl = imagePath.startsWith('http');
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -1071,7 +1084,18 @@ class FullScreenImageViewer extends StatelessWidget {
         child: Center(
           child: Hero(
             tag: imagePath,
-            child: Image.file(File(imagePath), fit: BoxFit.contain),
+            child: isNetworkUrl
+                ? CachedNetworkImage(
+                    imageUrl: imagePath,
+                    fit: BoxFit.contain,
+                    placeholder: (context, url) => const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    ),
+                    errorWidget: (context, url, error) => const Center(
+                      child: Icon(Icons.error, color: Colors.red, size: 50),
+                    ),
+                  )
+                : Image.file(File(imagePath), fit: BoxFit.contain),
           ),
         ),
       ),

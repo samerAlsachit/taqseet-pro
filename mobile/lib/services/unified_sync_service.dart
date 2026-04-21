@@ -437,8 +437,9 @@ class UnifiedSyncService {
   void dispose() {
     _syncStatusController.close();
     _queueChangeController.close();
-    _syncQueueBox?.close();
-    _metaBox?.close();
+    // ✅ لا تغلق الصناديق - تبقى مفتوحة طوال فترة عمل التطبيق
+    // _syncQueueBox?.close();
+    // _metaBox?.close();
   }
 }
 
