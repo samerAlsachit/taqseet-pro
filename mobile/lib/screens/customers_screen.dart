@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/customer_model.dart';
 import '../services/thabit_local_db_service.dart';
 import '../services/marsa_sync_service.dart';
+import '../services/customer_service.dart';
 import 'add_customer_screen.dart';
 import 'customer_details_screen.dart';
 
@@ -19,6 +20,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ThabitLocalDBService _localDB = ThabitLocalDBService();
   final MarsaSyncService _marsaSync = MarsaSyncService();
+  final CustomerService _customerService = CustomerService();
 
   String _searchQuery = '';
   List<Map<String, dynamic>> _customers = [];
@@ -564,25 +566,11 @@ class _CustomersScreenState extends State<CustomersScreen> {
                           ),
                         );
                       } else if (value == 'edit') {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'سيتم فتح شاشة التعديل قريباً',
-                              style: TextStyle(fontFamily: 'Tajawal'),
-                            ),
-                            backgroundColor: Color(0xFF0A192F),
-                          ),
-                        );
+                        // ✅ فتح شاشة التعديل
+                        _editCustomer(customer);
                       } else if (value == 'delete') {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'سيتم حذف العميل قريباً',
-                              style: TextStyle(fontFamily: 'Tajawal'),
-                            ),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
+                        // ✅ تنفيذ الحذف
+                        _deleteCustomer(customer);
                       }
                     },
                     itemBuilder: (context) => [
@@ -738,6 +726,92 @@ class _CustomersScreenState extends State<CustomersScreen> {
         ),
       ),
     );
+  }
+
+  /// ✅ دالة لعرض SnackBar في الأعلى (Top Banner)
+  void _showTopSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(fontFamily: 'Tajawal')),
+        backgroundColor: isError ? Colors.red : const Color(0xFF0A192F),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 0),
+        duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  /// ✅ دالة حذف العميل مع إعادة تحميل القائمة
+  Future<void> _deleteCustomer(CustomerModel customer) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'تأكيد الحذف',
+          style: TextStyle(fontFamily: 'Tajawal'),
+        ),
+        content: Text(
+          'هل أنت متأكد من حذف العميل ${customer.fullName}؟\nسيتم حذف جميع البيانات والصور المتعلقة به.',
+          style: const TextStyle(fontFamily: 'Tajawal'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء', style: TextStyle(fontFamily: 'Tajawal')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'حذف',
+              style: TextStyle(fontFamily: 'Tajawal', color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() => _isLoading = true);
+      try {
+        final result = await _customerService.deleteCustomerWithImages(
+          customer.id,
+          idDocUrl: customer.idDocUrl,
+          documentsUrls: customer.documentsUrls,
+        );
+
+        if (result['success'] == true) {
+          _showTopSnackBar('تم حذف العميل بنجاح');
+          // ✅ إعادة تحميل القائمة بعد الحذف
+          await _loadCustomers();
+        } else {
+          _showTopSnackBar(
+            result['message'] ?? 'فشل حذف العميل',
+            isError: true,
+          );
+          setState(() => _isLoading = false);
+        }
+      } catch (e) {
+        _showTopSnackBar('حدث خطأ أثناء الحذف: $e', isError: true);
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  /// ✅ دالة تعديل العميل (فتح شاشة التعديل)
+  Future<void> _editCustomer(CustomerModel customer) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddCustomerScreen(customer: customer),
+      ),
+    );
+
+    // ✅ إذا تم التعديل بنجاح، أعد تحميل القائمة
+    if (result != null && result is CustomerModel && mounted) {
+      _showTopSnackBar('تم تعديل العميل بنجاح');
+      await _loadCustomers();
+    }
   }
 
   Widget _buildEmptyState() {

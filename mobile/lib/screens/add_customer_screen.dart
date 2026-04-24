@@ -804,29 +804,58 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                         '✅ Update response id_doc_url: ${responseData['id_doc_url']}',
                       );
 
-                      final customer = CustomerModel(
-                        id: widget.customer!.id,
-                        fullName: _nameController.text,
-                        phone: _phoneController.text,
-                        nationalId: _nationalIdController.text.isNotEmpty
-                            ? _nationalIdController.text
-                            : null,
-                        address: _addressController.text,
-                        customerImagePath: _customerImagePath,
-                        docFrontPath: _docFrontPath,
-                        docBackPath: _docBackPath,
-                        residenceCardPath: _residenceCardPath,
-                        idDocUrl:
-                            responseData['id_doc_url'] ??
-                            widget.customer!.idDocUrl,
-                        documentsUrls: responseData['documents_urls'] != null
-                            ? List<String>.from(responseData['documents_urls'])
-                            : responseData['extra_docs'] != null
-                            ? List<String>.from(responseData['extra_docs'])
-                            : widget.customer!.documentsUrls,
-                        createdAt: widget.customer!.createdAt,
-                        updatedAt: DateTime.now(),
-                      );
+                      // ✅ بناء CustomerModel مع الروابط الجديدة من السيرفر
+                      CustomerModel customer;
+                      try {
+                        customer = CustomerModel(
+                          id: widget.customer!.id,
+                          fullName: _nameController.text,
+                          phone: _phoneController.text,
+                          nationalId: _nationalIdController.text.isNotEmpty
+                              ? _nationalIdController.text
+                              : null,
+                          address: _addressController.text,
+                          // ✅ استخدام المسارات المحلية للعرض، والروابط من السيرفر
+                          customerImagePath: _customerImagePath,
+                          docFrontPath: _docFrontPath,
+                          docBackPath: _docBackPath,
+                          residenceCardPath: _residenceCardPath,
+                          idDocUrl:
+                              responseData['id_doc_url'] ??
+                              widget.customer!.idDocUrl,
+                          documentsUrls: responseData['documents_urls'] != null
+                              ? List<String>.from(
+                                  responseData['documents_urls'],
+                                )
+                              : responseData['extra_docs'] != null
+                              ? List<String>.from(responseData['extra_docs'])
+                              : widget.customer!.documentsUrls,
+                          createdAt: widget.customer!.createdAt,
+                          updatedAt: DateTime.now(),
+                        );
+                      } catch (e) {
+                        print(
+                          '⚠️ [Update] Parsing warning (but saved successfully): $e',
+                        );
+                        // ✅ fallback إذا فشل الـ parsing
+                        customer = CustomerModel(
+                          id: widget.customer!.id,
+                          fullName: _nameController.text,
+                          phone: _phoneController.text,
+                          nationalId: _nationalIdController.text.isNotEmpty
+                              ? _nationalIdController.text
+                              : null,
+                          address: _addressController.text,
+                          customerImagePath: _customerImagePath,
+                          docFrontPath: _docFrontPath,
+                          docBackPath: _docBackPath,
+                          residenceCardPath: _residenceCardPath,
+                          idDocUrl: widget.customer!.idDocUrl,
+                          documentsUrls: widget.customer!.documentsUrls,
+                          createdAt: widget.customer!.createdAt,
+                          updatedAt: DateTime.now(),
+                        );
+                      }
 
                       // ✅ التحقق من الرابط بعد التحديث
                       print(
@@ -836,12 +865,23 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
 
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
+                          SnackBar(
+                            content: const Text(
                               'تم تحديث بيانات العميل بنجاح!',
                               style: TextStyle(fontFamily: 'Tajawal'),
                             ),
-                            backgroundColor: Color(0xFF0A192F),
+                            backgroundColor: const Color(0xFF0A192F),
+                            behavior: SnackBarBehavior.floating,
+                            margin: const EdgeInsets.only(
+                              top: 16,
+                              left: 16,
+                              right: 16,
+                              bottom: 0,
+                            ),
+                            duration: const Duration(seconds: 3),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         );
                         Navigator.pop(context, customer);
@@ -936,30 +976,59 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                         '✅ id_doc_url returned: ${responseData['id_doc_url']}',
                       );
 
-                      // ✅ بناء CustomerModel مع الـ ID الصحيح (الذي يطابق اسم الصورة)
-                      final customer = CustomerModel(
-                        id: finalCustomerId,
-                        fullName: _nameController.text,
-                        phone: _phoneController.text,
-                        nationalId: _nationalIdController.text.isNotEmpty
-                            ? _nationalIdController.text
-                            : null,
-                        address: _addressController.text,
-                        customerImagePath: _customerImagePath,
-                        docFrontPath: _docFrontPath,
-                        docBackPath: _docBackPath,
-                        residenceCardPath: _residenceCardPath,
-                        idDocUrl: responseData['id_doc_url'] ?? idDocUrl,
-                        documentsUrls: responseData['documents_urls'] != null
-                            ? List<String>.from(responseData['documents_urls'])
-                            : responseData['extra_docs'] != null
-                            ? List<String>.from(responseData['extra_docs'])
-                            : documentsUrls.isNotEmpty
-                            ? documentsUrls
-                            : null,
-                        createdAt: DateTime.now(),
-                        updatedAt: DateTime.now(),
-                      );
+                      CustomerModel customer;
+                      try {
+                        // ✅ بناء CustomerModel مع الـ ID الصحيح (الذي يطابق اسم الصورة)
+                        customer = CustomerModel(
+                          id: finalCustomerId,
+                          fullName: _nameController.text,
+                          phone: _phoneController.text,
+                          nationalId: _nationalIdController.text.isNotEmpty
+                              ? _nationalIdController.text
+                              : null,
+                          address: _addressController.text,
+                          customerImagePath: _customerImagePath,
+                          docFrontPath: _docFrontPath,
+                          docBackPath: _docBackPath,
+                          residenceCardPath: _residenceCardPath,
+                          idDocUrl: responseData['id_doc_url'] ?? idDocUrl,
+                          documentsUrls: responseData['documents_urls'] != null
+                              ? List<String>.from(
+                                  responseData['documents_urls'],
+                                )
+                              : responseData['extra_docs'] != null
+                              ? List<String>.from(responseData['extra_docs'])
+                              : documentsUrls.isNotEmpty
+                              ? documentsUrls
+                              : null,
+                          createdAt: DateTime.now(),
+                          updatedAt: DateTime.now(),
+                        );
+                      } catch (e) {
+                        // ✅ حتى لو فشل بناء الـ Model، نعتبر العملية ناجحة
+                        print(
+                          '⚠️ [AddCustomer] Parsing warning (but saved successfully): $e',
+                        );
+                        customer = CustomerModel(
+                          id: finalCustomerId,
+                          fullName: _nameController.text,
+                          phone: _phoneController.text,
+                          nationalId: _nationalIdController.text.isNotEmpty
+                              ? _nationalIdController.text
+                              : null,
+                          address: _addressController.text,
+                          customerImagePath: _customerImagePath,
+                          docFrontPath: _docFrontPath,
+                          docBackPath: _docBackPath,
+                          residenceCardPath: _residenceCardPath,
+                          idDocUrl: idDocUrl,
+                          documentsUrls: documentsUrls.isNotEmpty
+                              ? documentsUrls
+                              : null,
+                          createdAt: DateTime.now(),
+                          updatedAt: DateTime.now(),
+                        );
+                      }
 
                       // ✅ التحقق من أن الرابط يبني بشكل صحيح
                       print('🔗 ProfileImageUrl: ${customer.profileImageUrl}');
@@ -968,12 +1037,23 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
 
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'تم إضافة العميل بنجاح!',
+                          SnackBar(
+                            content: const Text(
+                              'تم حفظ العميل وصوره بنجاح',
                               style: TextStyle(fontFamily: 'Tajawal'),
                             ),
-                            backgroundColor: Color(0xFF0A192F),
+                            backgroundColor: Colors.green, // ✅ لون أخضر للنجاح
+                            behavior: SnackBarBehavior.floating,
+                            margin: const EdgeInsets.only(
+                              top: 16,
+                              left: 16,
+                              right: 16,
+                              bottom: 0,
+                            ),
+                            duration: const Duration(seconds: 3),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         );
                         Navigator.pop(context, customer);
@@ -1001,6 +1081,12 @@ class _AddCustomerScreenState extends State<AddCustomerScreen> {
                           ),
                           backgroundColor: Colors.red,
                           behavior: SnackBarBehavior.floating,
+                          margin: const EdgeInsets.only(
+                            top: 16,
+                            left: 16,
+                            right: 16,
+                            bottom: 0,
+                          ),
                           duration: const Duration(seconds: 5),
                           shape: const RoundedRectangleBorder(
                             borderRadius: BorderRadius.all(Radius.circular(12)),

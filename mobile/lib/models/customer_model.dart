@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class CustomerModel {
   // ✅ Supabase Storage Configuration (Hardcoded)
   static const String _supabaseBaseUrl =
@@ -60,13 +62,30 @@ class CustomerModel {
     );
     print('📄 [fromJson] documents_urls raw: $documentsUrlsRaw');
 
-    final documentsUrls = documentsUrlsRaw != null
-        ? List<String>.from(documentsUrlsRaw as List)
+    // Priority: documents_urls > documentsUrls > extra_docs
+    // ✅ Robust parsing for extra_docs (handles List or String JSON)
+    List<String> parseDocuments(dynamic raw) {
+      if (raw == null) return [];
+      try {
+        if (raw is List) {
+          return raw.map((e) => e.toString()).toList();
+        } else if (raw is String && raw.isNotEmpty) {
+          final decoded = jsonDecode(raw);
+          if (decoded is List) {
+            return decoded.map((e) => e.toString()).toList();
+          }
+        }
+      } catch (e) {
+        print('⚠️ [fromJson] Error parsing documents: $e');
+      }
+      return [];
+    }
+
+    final List<String> documentsUrls = documentsUrlsRaw != null
+        ? parseDocuments(documentsUrlsRaw)
         : json['documentsUrls'] != null
-        ? List<String>.from(json['documentsUrls'] as List)
-        : extraDocsRaw != null
-        ? List<String>.from(extraDocsRaw as List)
-        : null;
+        ? parseDocuments(json['documentsUrls'])
+        : parseDocuments(extraDocsRaw);
 
     print('📄 [fromJson] Parsed documentsUrls: $documentsUrls');
 

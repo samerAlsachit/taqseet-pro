@@ -43,20 +43,40 @@ const getCustomers = async (req, res) => {
     // حساب عدد الصفحات
     const totalPages = Math.ceil(count / limitNum);
 
+    // ✅ Parse extra_docs if stored as JSON string and ensure it's an array
+    const processedCustomers = customers?.map(customer => {
+      let extraDocs = customer.extra_docs;
+      if (typeof extraDocs === 'string') {
+        try {
+          extraDocs = JSON.parse(extraDocs);
+        } catch (e) {
+          console.warn('⚠️ Failed to parse extra_docs for customer:', customer.id);
+          extraDocs = [];
+        }
+      }
+      if (!Array.isArray(extraDocs)) {
+        extraDocs = extraDocs ? [extraDocs] : [];
+      }
+      return {
+        ...customer,
+        extra_docs: extraDocs
+      };
+    }) || [];
+
     // ✅ Log first customer to verify extra_docs
-    if (customers && customers.length > 0) {
-      console.log('📤 [GET /customers] Pulled', customers.length, 'customers');
+    if (processedCustomers.length > 0) {
+      console.log('📤 [GET /customers] Pulled', processedCustomers.length, 'customers');
       console.log('📤 [GET /customers] Sample:', {
-        id: customers[0].id,
-        extra_docs: customers[0].extra_docs,
-        extra_docs_count: customers[0].extra_docs?.length || 0
+        id: processedCustomers[0].id,
+        extra_docs: processedCustomers[0].extra_docs,
+        extra_docs_count: processedCustomers[0].extra_docs?.length || 0
       });
     }
 
     res.json({
       success: true,
       data: {
-        customers: customers || [],
+        customers: processedCustomers,
         total: count || 0,
         page: parseInt(page),
         totalPages,
@@ -91,8 +111,12 @@ const createCustomer = async (req, res) => {
       notes,
       id_doc_url,
       extra_docs,
+      documents_urls,  // ← من الموبايل
       local_id
     } = req.body;
+
+    // ✅ استخدام documents_urls من الموبايل إذا لم يكن extra_docs موجوداً
+    const finalExtraDocs = extra_docs || documents_urls || [];
 
     // التحقق من الحقول المطلوبة
     if (!full_name || !phone) {
@@ -109,9 +133,10 @@ const createCustomer = async (req, res) => {
       full_name,
       phone,
       id_doc_url: id_doc_url || '(none)',
-      extra_docs: extra_docs?.length || 0,
-      extra_docs_type: typeof extra_docs,
-      extra_docs_sample: extra_docs?.slice(0, 2)
+      extra_docs: finalExtraDocs?.length || 0,
+      extra_docs_type: typeof finalExtraDocs,
+      extra_docs_sample: finalExtraDocs?.slice(0, 2),
+      source: extra_docs ? 'extra_docs' : (documents_urls ? 'documents_urls' : 'none')
     });
 
     // التحقق من عدم تكرار رقم الهاتف في نفس المحل
@@ -147,6 +172,10 @@ const createCustomer = async (req, res) => {
       console.log('⚠️ [API] No ID from mobile, generated new ID:', customerId);
     }
 
+    // ✅ تحويل extra_docs إلى نص JSON لـ PostgreSQL JSONB
+    const extraDocsForDb = finalExtraDocs.length > 0 ? JSON.stringify(finalExtraDocs) : '[]';
+    console.log('🔥 [API] extra_docs for DB:', extraDocsForDb);
+
     // إنشاء العميل الجديد
     const { data: customer, error } = await supabaseAdmin
       .from('customers')
@@ -160,7 +189,7 @@ const createCustomer = async (req, res) => {
         national_id: national_id || '',
         notes: notes || '',
         id_doc_url: id_doc_url || '',
-        extra_docs: extra_docs || [],
+        extra_docs: extraDocsForDb,  // ✅ JSON string for PostgreSQL
         local_id: local_id || null,
         created_at: new Date().toISOString()
       })
@@ -176,13 +205,33 @@ const createCustomer = async (req, res) => {
       });
     }
 
+    // ✅ Parse extra_docs if it's a JSON string from PostgreSQL
+    let parsedExtraDocs = customer.extra_docs;
+    if (typeof customer.extra_docs === 'string') {
+      try {
+        parsedExtraDocs = JSON.parse(customer.extra_docs);
+      } catch (e) {
+        console.warn('⚠️ Failed to parse extra_docs for response:', customer.id);
+        parsedExtraDocs = [];
+      }
+    }
+    if (!Array.isArray(parsedExtraDocs)) {
+      parsedExtraDocs = parsedExtraDocs ? [parsedExtraDocs] : [];
+    }
+
+    // ✅ Create response customer object with parsed extra_docs
+    const responseCustomer = {
+      ...customer,
+      extra_docs: parsedExtraDocs  // ✅ Array for mobile client
+    };
+
     // ✅ Log saved customer data to verify id_doc_url and extra_docs
     console.log('✅ [API] Customer created successfully:', {
       id: customer.id,
       id_doc_url: customer.id_doc_url,
-      extra_docs: customer.extra_docs,
-      extra_docs_count: customer.extra_docs?.length || 0,
-      extra_docs_type: typeof customer.extra_docs
+      extra_docs: responseCustomer.extra_docs,
+      extra_docs_count: responseCustomer.extra_docs?.length || 0,
+      extra_docs_type: typeof responseCustomer.extra_docs
     });
 
     // تسجيل العملية في سجل التدقيق
@@ -203,7 +252,7 @@ const createCustomer = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      data: customer,
+      data: responseCustomer,  // ✅ Send parsed customer data
       message: 'تم إنشاء العميل بنجاح'
     });
 
@@ -328,14 +377,19 @@ const updateCustomer = async (req, res) => {
       national_id,
       notes,
       id_doc_url,
-      extra_docs
+      extra_docs,
+      documents_urls  // ← من الموبايل
     } = req.body;
+
+    // ✅ استخدام documents_urls من الموبايل إذا أُرسل
+    const finalExtraDocs = documents_urls || extra_docs;
 
     // ✅ Log incoming update data
     console.log('🔥 [API] Updating customer:', {
       id,
       id_doc_url: id_doc_url || '(unchanged)',
-      extra_docs: extra_docs?.length || '(unchanged)',
+      extra_docs: finalExtraDocs?.length || '(unchanged)',
+      source: documents_urls ? 'documents_urls' : (extra_docs ? 'extra_docs' : 'none'),
       national_id: national_id || '(unchanged)'
     });
 
@@ -393,6 +447,11 @@ const updateCustomer = async (req, res) => {
     }
 
     // تحديث بيانات العميل
+    // ✅ تحويل extra_docs إلى نص JSON إذا كان يتم تحديثه
+    const extraDocsForDb = finalExtraDocs !== undefined && finalExtraDocs !== null
+      ? JSON.stringify(finalExtraDocs)
+      : currentCustomer.extra_docs;
+
     const updateData = {
       full_name: full_name || currentCustomer.full_name,
       phone: phone || currentCustomer.phone,
@@ -401,7 +460,7 @@ const updateCustomer = async (req, res) => {
       national_id: national_id !== undefined ? national_id : currentCustomer.national_id,
       notes: notes !== undefined ? notes : currentCustomer.notes,
       id_doc_url: id_doc_url !== undefined ? id_doc_url : currentCustomer.id_doc_url,
-      extra_docs: extra_docs !== undefined ? extra_docs : currentCustomer.extra_docs,
+      extra_docs: extraDocsForDb,  // ✅ JSON string for PostgreSQL
       updated_at: new Date().toISOString()
     };
 
@@ -518,6 +577,45 @@ const deleteCustomer = async (req, res) => {
         error: 'لا يمكن حذف زبون لديه أقساط نشطة',
         code: ERROR_CODES.VALIDATION_ERROR
       });
+    }
+
+    // ✅ حذف ملفات الصور من Supabase Storage قبل حذف السجل
+    try {
+      const filesToDelete = [];
+
+      // حذف صورة Avatar إذا وجدت
+      if (customer.id_doc_url) {
+        const avatarPath = customer.id_doc_url.replace('avatars/', '');
+        if (avatarPath) filesToDelete.push(`avatars/${avatarPath}`);
+      }
+
+      // حذف المستمسكات الإضافية إذا وجدت
+      if (customer.extra_docs && Array.isArray(customer.extra_docs)) {
+        customer.extra_docs.forEach(doc => {
+          if (typeof doc === 'string' && doc.includes('documents/')) {
+            const docPath = doc.replace('documents/', '');
+            if (docPath) filesToDelete.push(`documents/${docPath}`);
+          }
+        });
+      }
+
+      if (filesToDelete.length > 0) {
+        console.log('🗑️ Deleting files from storage:', filesToDelete);
+        const { error: storageError } = await supabaseAdmin
+          .storage
+          .from('customers')
+          .remove(filesToDelete);
+
+        if (storageError) {
+          console.warn('⚠️ Failed to delete some files from storage:', storageError);
+          // نستمر في حذف السجل حتى لو فشل حذف الملفات
+        } else {
+          console.log('✅ Files deleted from storage successfully');
+        }
+      }
+    } catch (storageCleanupError) {
+      console.warn('⚠️ Storage cleanup error (continuing with delete):', storageCleanupError);
+      // نستمر في حذف السجل حتى لو فشل تنظيف التخزين
     }
 
     // حذف العميل

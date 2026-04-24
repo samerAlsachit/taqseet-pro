@@ -29,15 +29,36 @@ router.get('/pull', auth, async (req, res) => {
       .select('*')
       .eq('store_id', storeId);
 
+    // ✅ Parse extra_docs if stored as JSON string and ensure it's an array
+    const processedCustomers = customers?.map(customer => {
+      let extraDocs = customer.extra_docs;
+      if (typeof extraDocs === 'string') {
+        try {
+          extraDocs = JSON.parse(extraDocs);
+        } catch (e) {
+          console.warn('⚠️ Failed to parse extra_docs for customer:', customer.id);
+          extraDocs = [];
+        }
+      }
+      // Ensure it's always an array
+      if (!Array.isArray(extraDocs)) {
+        extraDocs = extraDocs ? [extraDocs] : [];
+      }
+      return {
+        ...customer,
+        extra_docs: extraDocs
+      };
+    }) || [];
+
     // ✅ Log first customer to verify extra_docs is included
-    if (customers && customers.length > 0) {
-      console.log('📤 [SYNC] Pulled', customers.length, 'customers');
+    if (processedCustomers.length > 0) {
+      console.log('📤 [SYNC] Pulled', processedCustomers.length, 'customers');
       console.log('📤 [SYNC] Sample customer:', {
-        id: customers[0].id,
-        full_name: customers[0].full_name,
-        id_doc_url: customers[0].id_doc_url,
-        extra_docs: customers[0].extra_docs,
-        extra_docs_type: typeof customers[0].extra_docs
+        id: processedCustomers[0].id,
+        full_name: processedCustomers[0].full_name,
+        id_doc_url: processedCustomers[0].id_doc_url,
+        extra_docs: processedCustomers[0].extra_docs,
+        extra_docs_type: typeof processedCustomers[0].extra_docs
       });
     }
 
@@ -68,7 +89,7 @@ router.get('/pull', auth, async (req, res) => {
     res.json({
       success: true,
       data: {
-        customers: customers || [],
+        customers: processedCustomers,
         products: products || [],
         installment_plans: installment_plans || [],
         payment_schedule: payment_schedule || [],

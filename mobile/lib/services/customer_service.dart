@@ -236,27 +236,50 @@ class CustomerService {
       );
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        final responseData = response.data?['data'];
-        print('📥 [Server→Mobile] Response Data:');
-        print('   ID: ${responseData?['id']}');
-        print('   id_doc_url: ${responseData?['id_doc_url']}');
-        print('   extra_docs: ${responseData?['extra_docs']}');
-        print(
-          '   extra_docs count: ${(responseData?['extra_docs'] as List?)?.length ?? 0}',
-        );
+        // ✅ طباعة الـ Response القادم من السيرفر كاملاً
+        print('📥 Server Response Raw: ${response.data}');
+        print('📥 Server Response Status: ${response.statusCode}');
 
-        // ✅ التحقق من تطابق الـ ID
-        if (responseData?['id'] != finalCustomerId) {
-          print('⚠️ WARNING: Server returned different ID!');
-          print('   Sent: $finalCustomerId');
-          print('   Received: ${responseData?['id']}');
+        try {
+          final responseData = response.data?['data'];
+          print('📥 [Server→Mobile] Response Data:');
+          print('   ID: ${responseData?['id']}');
+          print('   id_doc_url: ${responseData?['id_doc_url']}');
+          print('   extra_docs: ${responseData?['extra_docs']}');
+          print(
+            '   extra_docs type: ${responseData?['extra_docs']?.runtimeType}',
+          );
+          print(
+            '   extra_docs count: ${(responseData?['extra_docs'] as List?)?.length ?? 0}',
+          );
+
+          // ✅ التحقق من تطابق الـ ID
+          if (responseData?['id'] != finalCustomerId) {
+            print('⚠️ WARNING: Server returned different ID!');
+            print('   Sent: $finalCustomerId');
+            print('   Received: ${responseData?['id']}');
+          }
+
+          return {
+            'success': true,
+            'data': responseData,
+            'message': response.data?['message'] ?? 'تم إنشاء العميل بنجاح',
+          };
+        } catch (e) {
+          // ✅ حتى لو فشل الـ Parsing، نعتبر العملية ناجحة لأن الـ Status 201
+          print(
+            '⚠️ [CustomerService] Parsing warning (but saved successfully): $e',
+          );
+          return {
+            'success': true,
+            'data': {
+              'id': finalCustomerId,
+              'id_doc_url': finalIdDocUrl,
+              'documents_urls': finalDocumentsUrls,
+            },
+            'message': 'تم حفظ العميل وصوره بنجاح',
+          };
         }
-
-        return {
-          'success': true,
-          'data': responseData,
-          'message': response.data?['message'] ?? 'تم إنشاء العميل بنجاح',
-        };
       } else {
         return {
           'success': false,
@@ -363,11 +386,28 @@ class CustomerService {
       );
 
       if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'data': response.data?['data'],
-          'message': response.data?['message'] ?? 'تم تحديث العميل بنجاح',
-        };
+        // ✅ معالجة مرنة للـ Response (مثل createCustomer)
+        try {
+          final responseData = response.data?['data'];
+          return {
+            'success': true,
+            'data': responseData,
+            'message': response.data?['message'] ?? 'تم تحديث العميل بنجاح',
+          };
+        } catch (e) {
+          print(
+            '⚠️ [CustomerService] Update parsing warning (but saved successfully): $e',
+          );
+          return {
+            'success': true,
+            'data': {
+              'id': customerId,
+              'id_doc_url': idDocUrl,
+              'documents_urls': documentsUrls,
+            },
+            'message': 'تم تحديث العميل بنجاح',
+          };
+        }
       } else {
         return {
           'success': false,

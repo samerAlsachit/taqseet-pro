@@ -465,6 +465,51 @@ class ThabitLocalDBService {
     return count;
   }
 
+  /// ✅ Full Sync Customers - مزامنة كاملة للعملاء
+  /// تحفظ العملاء القادمين من السيرفر وتزيل العملاء المحليين غير الموجودين في السيرفر
+  Future<Map<String, int>> syncCustomersFull(
+    List<Map<String, dynamic>> remoteCustomers,
+  ) async {
+    await _ensureInitialized();
+
+    // 1. استخراج IDs القادمة من السيرفر
+    final remoteIds = remoteCustomers
+        .map((c) => c['id']?.toString())
+        .where((id) => id != null && id.isNotEmpty)
+        .toSet();
+
+    // 2. الحصول على جميع المفاتيح المحلية
+    final localKeys = _customersBox!.keys.toList();
+    final localIds = localKeys.map((k) => k.toString()).toSet();
+
+    // 3. تحديد العملاء المحذوفين (موجودون محلياً وغير موجودين في السيرفر)
+    final deletedIds = localIds.where((id) => !remoteIds.contains(id)).toList();
+
+    // 4. حذف العملاء المحذوفين
+    int deletedCount = 0;
+    for (final id in deletedIds) {
+      await _customersBox!.delete(id);
+      deletedCount++;
+    }
+
+    // 5. حفظ العملاء القادمين من السيرفر
+    int savedCount = 0;
+    for (final customer in remoteCustomers) {
+      final id = customer['id']?.toString() ?? '';
+      if (id.isNotEmpty) {
+        await _customersBox!.put(id, customer);
+        savedCount++;
+      }
+    }
+
+    print(
+      '🗑️ [FULL SYNC] Deleted $deletedCount local customers not in server',
+    );
+    print('✅ [FULL SYNC] Saved $savedCount remote customers');
+
+    return {'saved': savedCount, 'deleted': deletedCount};
+  }
+
   /// Get all customers
   List<Map<String, dynamic>> getAllCustomers() {
     _ensureInitializedSync();

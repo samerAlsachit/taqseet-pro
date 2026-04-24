@@ -32,9 +32,23 @@ class _CustomerDetailsScreenState extends State<CustomerDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     // ✅ Log customer extra_docs for debugging
+    print('📄 [CustomerDetails] =========================================');
     print('📄 [CustomerDetails] Customer ID: ${customer.id}');
-    print('📄 [CustomerDetails] documentsUrls: ${customer.documentsUrls}');
-    print('📄 [CustomerDetails] documentUrls (full): ${customer.documentUrls}');
+    print('📄 [CustomerDetails] Full Name: ${customer.fullName}');
+    print('📄 [CustomerDetails] Raw documentsUrls: ${customer.documentsUrls}');
+    print(
+      '📄 [CustomerDetails] Raw extra_docs count: ${customer.documentsUrls?.length ?? 0}',
+    );
+    print(
+      '📄 [CustomerDetails] documentUrls (full URLs): ${customer.documentUrls}',
+    );
+    print(
+      '📄 [CustomerDetails] documentUrls count: ${customer.documentUrls.length}',
+    );
+    print(
+      '📄 [CustomerDetails] Final Document URLs to display: ${customer.documentUrls}',
+    );
+    print('📄 [CustomerDetails] =========================================');
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),

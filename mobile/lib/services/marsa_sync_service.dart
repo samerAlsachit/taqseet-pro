@@ -179,11 +179,18 @@ class MarsaSyncService {
           syncData['payment_schedules'];
       final productsData = syncData['products'] ?? syncData['products'];
 
-      // Process customers
+      // Process customers with full sync
       if (customersData != null && customersData is List) {
-        final count = await _processCustomers(customersData);
-        tableResults['customers'] = count;
-        totalCount += count;
+        final result = await _processCustomers(customersData);
+        final saved = result['saved'] ?? 0;
+        final deleted = result['deleted'] ?? 0;
+        tableResults['customers'] = saved + deleted;
+        totalCount += saved + deleted;
+
+        // ✅ إشعار خاص إذا تم حذف عملاء
+        if (deleted > 0) {
+          onPullSuccess?.call('تم حذف $deleted عميل غير موجود في السيرفر');
+        }
         await _localDB.updateLastIncrementalSyncTime('customers');
       }
 
@@ -268,7 +275,9 @@ class MarsaSyncService {
     return await _localDB.batchSavePayments(payments);
   }
 
-  Future<int> _processCustomers(List<dynamic> records) async {
+  /// ✅ معالجة العملاء بالمزامنة الكاملة (Full Sync)
+  /// تُرجع Map تحتوي على عدد المحفوظين والمحذوفين
+  Future<Map<String, int>> _processCustomers(List<dynamic> records) async {
     final customers = records.map((data) {
       return Map<String, dynamic>.from(data);
     }).toList();
@@ -281,7 +290,14 @@ class MarsaSyncService {
       print('📥 [SYNC] id_doc_url: ${first['id_doc_url']}');
     }
 
-    return await _localDB.batchSaveCustomers(customers);
+    // ✅ استخدام المزامنة الكاملة (Full Sync) - تحذف العملاء المحليين غير الموجودين في السيرفر
+    final result = await _localDB.syncCustomersFull(customers);
+    print(
+      '🗑️ [SYNC] Removed ${result['deleted']} customers deleted from server',
+    );
+    print('✅ [SYNC] Saved ${result['saved']} customers from server');
+
+    return result;
   }
 
   /// ============================================
