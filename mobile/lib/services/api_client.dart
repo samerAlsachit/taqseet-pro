@@ -125,6 +125,47 @@ class ApiClient {
             }
           }
 
+          // Handle 403 STORE_NOT_FOUND - Force logout to refresh token
+          if (error.response?.statusCode == 403) {
+            final errorData = error.response?.data;
+            final errorCode = errorData?['code'] ?? errorData?['error_code'];
+
+            if (errorCode == 'STORE_NOT_FOUND' ||
+                errorData?['error']?.toString().contains('المحل غير موجود') ==
+                    true) {
+              print(
+                '🏪 ApiClient: 403 STORE_NOT_FOUND - Store missing in database',
+              );
+              print(
+                '🔄 ApiClient: Forcing logout to refresh token with correct store_id',
+              );
+
+              // Clear stored token
+              await _secureStorage.delete(key: _tokenKey);
+              await _secureStorage.delete(key: 'store_id');
+              await _secureStorage.delete(key: 'user_data');
+
+              // Show message and navigate to login if context is available
+              if (_context != null && _context!.mounted) {
+                ScaffoldMessenger.of(_context!).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'جلسة العمل منتهية. يرجى تسجيل الدخول مرة أخرى.',
+                      style: TextStyle(fontFamily: 'Tajawal'),
+                    ),
+                    backgroundColor: Colors.orange,
+                    duration: Duration(seconds: 5),
+                  ),
+                );
+                Navigator.pushAndRemoveUntil(
+                  _context!,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (route) => false,
+                );
+              }
+            }
+          }
+
           return handler.next(error);
         },
       ),

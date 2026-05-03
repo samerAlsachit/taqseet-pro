@@ -11,10 +11,18 @@ class InstallmentPlanModel {
   final int downPayment;
   final int financedAmount;
   final int installmentsCount;
+  final int? installmentAmount;
+  final String? frequency;
   final DateTime startDate;
   final DateTime endDate;
   final String status; // active, completed, cancelled
   final String? notes;
+  final int? remainingAmount;
+  final String? currency;
+
+  // Data from API with joined tables
+  final Map<String, dynamic>? summary; // ملخص الأقساط من payments
+  final List<Map<String, dynamic>>? payments; // قائمة الدفعات
 
   // Offline-first sync fields
   final bool isSynced;
@@ -30,10 +38,16 @@ class InstallmentPlanModel {
     required this.downPayment,
     required this.financedAmount,
     required this.installmentsCount,
+    this.installmentAmount,
+    this.frequency,
     required this.startDate,
     required this.endDate,
     this.status = 'active',
     this.notes,
+    this.remainingAmount,
+    this.currency = 'IQD',
+    this.summary,
+    this.payments,
     this.isSynced = false,
     this.localId,
     this.createdAt,
@@ -41,21 +55,51 @@ class InstallmentPlanModel {
   });
 
   factory InstallmentPlanModel.fromJSON(Map<String, dynamic> json) {
+    // ✅ استخراج اسم العميل من الـ customers object أو من customer_name مباشرة
+    String customerName = '';
+    if (json['customers'] != null && json['customers'] is Map) {
+      customerName = json['customers']['full_name']?.toString() ?? '';
+    }
+    if (customerName.isEmpty) {
+      customerName =
+          json['customer_name']?.toString() ??
+          json['customerName']?.toString() ??
+          '';
+    }
+
     return InstallmentPlanModel(
       id: json['id']?.toString() ?? '',
-      customerId: json['customer_id']?.toString() ?? '',
-      customerName: json['customers']?['full_name']?.toString() ?? 
-                    json['customer_name']?.toString() ?? '',
+      customerId:
+          json['customer_id']?.toString() ??
+          json['customerId']?.toString() ??
+          '',
+      customerName: customerName.isNotEmpty ? customerName : null,
       totalPrice: (json['total_price'] as num?)?.toInt() ?? 0,
       downPayment: (json['down_payment'] as num?)?.toInt() ?? 0,
       financedAmount: (json['financed_amount'] as num?)?.toInt() ?? 0,
       installmentsCount: (json['installments_count'] as num?)?.toInt() ?? 0,
-      startDate: DateTime.tryParse(json['start_date']?.toString() ?? '') ?? DateTime.now(),
-      endDate: DateTime.tryParse(json['end_date']?.toString() ?? '') ?? DateTime.now(),
+      startDate:
+          DateTime.tryParse(json['start_date']?.toString() ?? '') ??
+          DateTime.now(),
+      endDate:
+          DateTime.tryParse(json['end_date']?.toString() ?? '') ??
+          DateTime.now(),
       status: json['status']?.toString() ?? 'active',
       notes: json['notes']?.toString(),
+      remainingAmount:
+          (json['remaining_amount'] as num?)?.toInt() ??
+          (json['remainingAmount'] as num?)?.toInt(),
+      currency: json['currency']?.toString() ?? 'IQD',
       isSynced: json['is_synced'] as bool? ?? true,
       localId: json['local_id']?.toString(),
+      summary: json['summary'] as Map<String, dynamic>?,
+      payments: json['payment_schedule'] != null
+          ? List<Map<String, dynamic>>.from(json['payment_schedule'] as List)
+          : json['payments'] != null
+          ? List<Map<String, dynamic>>.from(json['payments'] as List)
+          : json['installments'] != null
+          ? List<Map<String, dynamic>>.from(json['installments'] as List)
+          : null,
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
       updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? ''),
     );
@@ -76,6 +120,8 @@ class InstallmentPlanModel {
       'notes': notes,
       'is_synced': isSynced,
       'local_id': localId,
+      'summary': summary,
+      'payments': payments,
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
     };
@@ -99,16 +145,50 @@ class InstallmentPlanModel {
     };
   }
 
+  /// Get paid amount from summary or calculate from payments
+  double get calculatedPaidAmount {
+    if (summary != null) {
+      return (summary!['total_paid'] as num?)?.toDouble() ??
+          (summary!['totalPaid'] as num?)?.toDouble() ??
+          0.0;
+    }
+    // Calculate from payments list
+    if (payments != null && payments!.isNotEmpty) {
+      return payments!.fold<double>(
+        0.0,
+        (sum, p) =>
+            sum +
+            ((p['paid_amount'] ?? p['amount_paid'] ?? 0) as num).toDouble(),
+      );
+    }
+    return 0.0;
+  }
+
+  /// Get remaining amount from summary (double for precise calculations)
+  double get calculatedRemainingAmount {
+    if (summary != null) {
+      return (summary!['remaining_balance'] as num?)?.toDouble() ??
+          (summary!['remainingBalance'] as num?)?.toDouble() ??
+          (remainingAmount?.toDouble() ?? financedAmount.toDouble());
+    }
+    // Calculate from payments
+    return (remainingAmount?.toDouble() ?? financedAmount.toDouble()) -
+        calculatedPaidAmount;
+  }
+
   // Getters for formatted display
-  String get formattedTotalPrice => CurrencyFormatter.formatCurrency(totalPrice.toDouble());
-  String get formattedDownPayment => CurrencyFormatter.formatCurrency(downPayment.toDouble());
-  String get formattedFinancedAmount => CurrencyFormatter.formatCurrency(financedAmount.toDouble());
-  String get formattedStartDate => '${startDate.day}/${startDate.month}/${startDate.year}';
-  String get formattedEndDate => '${endDate.day}/${endDate.month}/${endDate.year}';
+  String get formattedTotalPrice =>
+      CurrencyFormatter.formatCurrency(totalPrice.toDouble());
+  String get formattedDownPayment =>
+      CurrencyFormatter.formatCurrency(downPayment.toDouble());
+  String get formattedFinancedAmount =>
+      CurrencyFormatter.formatCurrency(financedAmount.toDouble());
+  String get formattedStartDate =>
+      '${startDate.day}/${startDate.month}/${startDate.year}';
+  String get formattedEndDate =>
+      '${endDate.day}/${endDate.month}/${endDate.year}';
 
-  // Calculated remaining amount
-  int get remainingAmount => financedAmount; // سيتم حسابها من جدول payments
-
+  // Calculated remaining amount - استخدم calculatedRemainingAmount getter للحساب الديناميكي
   bool get isActive => status == 'active';
   bool get isCompleted => status == 'completed';
   bool get isCancelled => status == 'cancelled';
@@ -147,10 +227,16 @@ class InstallmentPlanModel {
     int? downPayment,
     int? financedAmount,
     int? installmentsCount,
+    int? installmentAmount,
+    String? frequency,
     DateTime? startDate,
     DateTime? endDate,
     String? status,
     String? notes,
+    int? remainingAmount,
+    String? currency,
+    Map<String, dynamic>? summary,
+    List<Map<String, dynamic>>? payments,
     bool? isSynced,
     String? localId,
     DateTime? createdAt,
@@ -164,10 +250,16 @@ class InstallmentPlanModel {
       downPayment: downPayment ?? this.downPayment,
       financedAmount: financedAmount ?? this.financedAmount,
       installmentsCount: installmentsCount ?? this.installmentsCount,
+      installmentAmount: installmentAmount ?? this.installmentAmount,
+      frequency: frequency ?? this.frequency,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       status: status ?? this.status,
       notes: notes ?? this.notes,
+      remainingAmount: remainingAmount ?? this.remainingAmount,
+      currency: currency ?? this.currency,
+      summary: summary ?? this.summary,
+      payments: payments ?? this.payments,
       isSynced: isSynced ?? this.isSynced,
       localId: localId ?? this.localId,
       createdAt: createdAt ?? this.createdAt,

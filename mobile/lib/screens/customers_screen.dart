@@ -97,7 +97,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
       // Calculate total debt (remaining amount)
       double totalDebt = 0;
       for (final plan in plans) {
-        totalDebt += plan.remainingAmount;
+        totalDebt += (plan.remainingAmount ?? 0).toDouble();
       }
 
       enriched.add({

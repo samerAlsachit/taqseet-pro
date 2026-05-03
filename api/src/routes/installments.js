@@ -431,12 +431,24 @@ router.get('/:id', auth, checkSubscription, async (req, res) => {
       data: {
         plan: {
           ...plan,
-          customer_name: plan.customers?.full_name,
+          customer: {
+            id: plan.customer_id,
+            name: plan.customers?.full_name || 'غير معروف',
+            phone: plan.customers?.phone || ''
+          },
+          customer_name: plan.customers?.full_name || 'غير معروف',
           customer_phone: plan.customers?.phone,
-          products: plan.products // إرجاع قائمة المنتجات الكاملة
+          products: plan.products || []
         },
-        installments: schedule || [],
-        payments: payments || []
+        payment_schedule: schedule || [],  // Mobile app expects this key
+        installments: schedule || [],     // Keep for backward compatibility
+        payments: (payments || []).map(p => ({
+          id: p.id,
+          amount_paid: p.amount_paid || p.amount || 0,
+          payment_date: p.payment_date,
+          receipt_number: p.receipt_number || '',
+          notes: p.notes || ''
+        }))
       },
       message: 'تم جلب تفاصيل القسط بنجاح'
     });

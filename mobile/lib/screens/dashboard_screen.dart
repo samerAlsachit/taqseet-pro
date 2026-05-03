@@ -164,23 +164,46 @@ class _DashboardScreenState extends State<DashboardScreen>
   Future<void> _fetchDashboardStats() async {
     setState(() => _isLoadingStats = true);
 
-    final stats = await _dashboardService.fetchDashboardStats();
+    try {
+      final stats = await _dashboardService.fetchDashboardStats();
 
-    if (mounted) {
-      setState(() {
-        _dashboardStats = stats;
-        _isLoadingStats = false;
-      });
+      if (mounted) {
+        setState(() {
+          _dashboardStats = stats;
+          _isLoadingStats = false;
+        });
 
-      if (stats != null) {
-        print('✅ DashboardScreen: Stats loaded');
-        print('   Total Debt (IQD): ${stats.totalDebtIQD}');
-        print('   Daily Collection (IQD): ${stats.dailyCollectionIQD}');
-        print('   Overdue (IQD): ${stats.overdueIQD}');
-        print('   Total Customers: ${stats.totalCustomers}');
-        print('   Active Installments: ${stats.activeInstallments}');
-      } else {
-        print('⚠️ DashboardScreen: Failed to load stats');
+        if (stats != null) {
+          print('✅ DashboardScreen: Stats loaded');
+          print('   Total Debt (IQD): ${stats.totalDebtIQD}');
+          print('   Daily Collection (IQD): ${stats.dailyCollectionIQD}');
+          print('   Overdue (IQD): ${stats.overdueIQD}');
+          print('   Total Customers: ${stats.totalCustomers}');
+          print('   Active Installments: ${stats.activeInstallments}');
+        } else {
+          print('⚠️ DashboardScreen: Failed to load stats');
+        }
+      }
+    } catch (e, stackTrace) {
+      print('❌ DashboardScreen: Error fetching stats: $e');
+      print('📋 Stack trace: $stackTrace');
+
+      if (mounted) {
+        setState(() {
+          _dashboardStats = null;
+          _isLoadingStats = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'خطأ في تحميل الإحصائيات: ${e.toString()}',
+              style: const TextStyle(fontFamily: 'Tajawal'),
+            ),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
+          ),
+        );
       }
     }
   }
@@ -523,7 +546,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildHeader(),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 16),
+                  // Sync status indicator at top
+                  if (_pendingSyncCount > 0) _buildSyncStatusCard(),
+                  if (_pendingSyncCount > 0) const SizedBox(height: 16),
                   _buildSummarySection(provider),
                   const SizedBox(height: 24),
                   _buildUrgentAlertCard(provider),
@@ -531,9 +557,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                   _buildQuickActionsWithSearch(),
                   const SizedBox(height: 24),
                   _buildRecentTransactions(provider, displayInstallments),
-                  const SizedBox(height: 24),
-                  // Sync status indicator
-                  if (_pendingSyncCount > 0) _buildSyncStatusCard(),
                 ],
               ),
             ),

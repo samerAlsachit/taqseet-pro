@@ -26,17 +26,11 @@ class InstallmentService {
     try {
       // التحقق من البيانات الأساسية
       if (customerId.isEmpty) {
-        return {
-          'success': false,
-          'message': 'يجب اختيار العميل',
-        };
+        return {'success': false, 'message': 'يجب اختيار العميل'};
       }
 
       if (products.isEmpty) {
-        return {
-          'success': false,
-          'message': 'يجب اختيار منتج واحد على الأقل',
-        };
+        return {'success': false, 'message': 'يجب اختيار منتج واحد على الأقل'};
       }
 
       if (installmentAmount <= 0) {
@@ -49,11 +43,15 @@ class InstallmentService {
       // بناء البيانات للإرسال - تتوافق مع السيرفر
       final requestData = {
         'customer_id': customerId.toString(),
-        'products': products.map((p) => {
-          'product_id': p['product_id'].toString(),
-          'quantity': (p['quantity'] as num).toInt(),
-          'price': (p['price'] as num).toDouble(),
-        }).toList(),
+        'products': products
+            .map(
+              (p) => {
+                'product_id': p['product_id'].toString(),
+                'quantity': (p['quantity'] as num).toInt(),
+                'price': (p['price'] as num).toDouble(),
+              },
+            )
+            .toList(),
         'total_price': totalPrice.toDouble(),
         'down_payment': downPayment.toDouble(),
         'installment_amount': installmentAmount.toDouble(),
@@ -120,15 +118,12 @@ class InstallmentService {
 
       return {
         'success': false,
-        'message': e.response?.data?['error'] ??
-            'فشل الاتصال بالخادم: ${e.message}',
+        'message':
+            e.response?.data?['error'] ?? 'فشل الاتصال بالخادم: ${e.message}',
       };
     } catch (e) {
       debugPrint('❌ InstallmentService Exception: $e');
-      return {
-        'success': false,
-        'message': 'حدث خطأ: $e',
-      };
+      return {'success': false, 'message': 'حدث خطأ: $e'};
     }
   }
 
@@ -155,10 +150,7 @@ class InstallmentService {
       );
 
       if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'data': response.data?['data'],
-        };
+        return {'success': true, 'data': response.data?['data']};
       }
       return {'success': false, 'message': 'فشل الحساب'};
     } catch (e) {
@@ -180,6 +172,33 @@ class InstallmentService {
     } catch (e) {
       debugPrint('❌ getInstallments error: $e');
       return [];
+    }
+  }
+
+  /// ✅ جلب جميع الأقساط مع بيانات العملاء
+  Future<Map<String, dynamic>> fetchInstallmentsWithCustomer() async {
+    try {
+      debugPrint('🌐 Fetching installments with customer data...');
+      final response = await _apiClient.dio.get('/installments');
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        debugPrint('✅ Installments fetched successfully');
+        return {'success': true, 'data': data['data'] ?? {}};
+      }
+      return {
+        'success': false,
+        'message': response.data?['error'] ?? 'فشل جلب الأقساط',
+      };
+    } on DioException catch (e) {
+      debugPrint('❌ fetchInstallmentsWithCustomer error: ${e.message}');
+      return {
+        'success': false,
+        'message': e.response?.data?['error'] ?? 'فشل الاتصال بالخادم',
+      };
+    } catch (e) {
+      debugPrint('❌ fetchInstallmentsWithCustomer error: $e');
+      return {'success': false, 'message': 'حدث خطأ: $e'};
     }
   }
 

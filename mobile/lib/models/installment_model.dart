@@ -33,43 +33,113 @@ class InstallmentModel {
   });
 
   factory InstallmentModel.fromJSON(Map<String, dynamic> json) {
-    return InstallmentModel(
-      id: json['id']?.toString() ?? '',
-      customerId:
-          json['customer_id']?.toString() ??
-          json['customerId']?.toString() ??
-          '',
-      customerName:
-          json['customer_name']?.toString() ??
-          json['customerName']?.toString() ??
-          '',
-      totalAmount:
-          (json['total_amount'] as num?)?.toDouble() ??
-          (json['totalAmount'] as num?)?.toDouble() ??
-          0.0,
-      paidAmount:
-          (json['paid_amount'] as num?)?.toDouble() ??
-          (json['paidAmount'] as num?)?.toDouble() ??
-          0.0,
-      remainingAmount:
-          (json['remaining_amount'] as num?)?.toDouble() ??
-          (json['remainingAmount'] as num?)?.toDouble() ??
-          0.0,
-      dueDate:
-          DateTime.tryParse(
-            json['due_date']?.toString() ?? json['dueDate']?.toString() ?? '',
-          ) ??
-          DateTime.now(),
-      status: json['status']?.toString() ?? 'pending',
-      isSynced: json['is_synced'] as bool? ?? json['isSynced'] as bool? ?? true,
-      localId: json['local_id']?.toString() ?? json['localId']?.toString(),
-      createdAt: DateTime.tryParse(
-        json['created_at']?.toString() ?? json['createdAt']?.toString() ?? '',
-      ),
-      updatedAt: DateTime.tryParse(
-        json['updated_at']?.toString() ?? json['updatedAt']?.toString() ?? '',
-      ),
-    );
+    try {
+      // ✅ استخراج اسم العميل مع معالجة آمنة للـ null
+      String customerName = 'غير معروف';
+
+      // محاولة 1: من كائن customer
+      if (json['customer'] != null && json['customer'] is Map) {
+        customerName =
+            json['customer']['name']?.toString() ??
+            json['customer']['full_name']?.toString() ??
+            '';
+      }
+      // محاولة 2: من customers object (Supabase relation)
+      else if (json['customers'] != null && json['customers'] is Map) {
+        customerName =
+            json['customers']['full_name']?.toString() ??
+            json['customers']['customer_name']?.toString() ??
+            '';
+      }
+      // محاولة 3: من حقل مباشر
+      if (customerName.isEmpty) {
+        customerName =
+            json['customer_name']?.toString() ??
+            json['customerName']?.toString() ??
+            '';
+      }
+      // قيمة افتراضية
+      if (customerName.isEmpty) {
+        customerName = 'غير معروف';
+      }
+
+      // ✅ استخراج القيم المالية بأمان
+      double parseAmount(dynamic value) {
+        if (value == null) return 0.0;
+        if (value is num) return value.toDouble();
+        if (value is String) return double.tryParse(value) ?? 0.0;
+        return 0.0;
+      }
+
+      // استخراج من summary أولاً
+      final summary = json['summary'];
+      double paidAmount = 0.0;
+      double remainingAmount = 0.0;
+
+      if (summary != null && summary is Map) {
+        paidAmount = parseAmount(summary['total_paid'] ?? summary['totalPaid']);
+        remainingAmount = parseAmount(
+          summary['remaining_balance'] ?? summary['remainingBalance'],
+        );
+      }
+
+      // Fallback للقيم المباشرة
+      if (paidAmount == 0.0) {
+        paidAmount = parseAmount(json['paid_amount'] ?? json['paidAmount']);
+      }
+      if (remainingAmount == 0.0) {
+        remainingAmount = parseAmount(
+          json['remaining_amount'] ?? json['remainingAmount'],
+        );
+      }
+
+      return InstallmentModel(
+        id: json['id']?.toString() ?? '',
+        customerId:
+            json['customer_id']?.toString() ??
+            json['customerId']?.toString() ??
+            json['customer']?['id']?.toString() ??
+            '',
+        customerName: customerName,
+        totalAmount: parseAmount(json['total_amount'] ?? json['totalAmount']),
+        paidAmount: paidAmount,
+        remainingAmount: remainingAmount,
+        dueDate:
+            DateTime.tryParse(
+              json['due_date']?.toString() ?? json['dueDate']?.toString() ?? '',
+            ) ??
+            DateTime.now(),
+        status: json['status']?.toString() ?? 'pending',
+        isSynced:
+            json['is_synced'] as bool? ?? json['isSynced'] as bool? ?? true,
+        localId: json['local_id']?.toString() ?? json['localId']?.toString(),
+        createdAt: DateTime.tryParse(
+          json['created_at']?.toString() ?? json['createdAt']?.toString() ?? '',
+        ),
+        updatedAt: DateTime.tryParse(
+          json['updated_at']?.toString() ?? json['updatedAt']?.toString() ?? '',
+        ),
+      );
+    } catch (e, stackTrace) {
+      print('❌ Error parsing InstallmentModel: $e');
+      print('📋 Stack trace: $stackTrace');
+      print('📦 JSON data: $json');
+
+      // Return default model on error
+      return InstallmentModel(
+        id:
+            json['id']?.toString() ??
+            'error-${DateTime.now().millisecondsSinceEpoch}',
+        customerId: '',
+        customerName: 'خطأ في البيانات',
+        totalAmount: 0.0,
+        paidAmount: 0.0,
+        remainingAmount: 0.0,
+        dueDate: DateTime.now(),
+        status: 'error',
+        isSynced: true,
+      );
+    }
   }
 
   Map<String, dynamic> toJSON() {

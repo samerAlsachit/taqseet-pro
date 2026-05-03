@@ -153,6 +153,11 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
           for (final schedule in _paymentSchedule) {
             await _localDB.savePaymentSchedule(schedule);
           }
+        } else if (_installmentPlan != null) {
+          // Generate payment schedule programmatically if empty
+          print('⚠️ No schedule from API - generating programmatically...');
+          _paymentSchedule = _generatePaymentSchedule(_installmentPlan!);
+          print('✅ Generated ${_paymentSchedule.length} schedule items');
         }
 
         print('✅ Fetched ${_paymentSchedule.length} schedule items from API');
@@ -219,8 +224,71 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
     );
   }
 
+  /// Generate payment schedule programmatically when API returns empty
+  List<PaymentScheduleModel> _generatePaymentSchedule(
+    InstallmentPlanModel plan,
+  ) {
+    final List<PaymentScheduleModel> schedule = [];
+    final int count = plan.installmentsCount;
+    final int totalAmount = plan.financedAmount;
+
+    if (count <= 0 || totalAmount <= 0) return schedule;
+
+    // Calculate installment amount
+    final int baseAmount = totalAmount ~/ count;
+    final int lastAmount = totalAmount - (baseAmount * (count - 1));
+
+    DateTime currentDate = plan.startDate;
+
+    for (int i = 1; i <= count; i++) {
+      final int amount = i == count ? lastAmount : baseAmount;
+
+      schedule.add(
+        PaymentScheduleModel(
+          id: '${plan.id}_$i',
+          installmentPlanId: plan.id,
+          installmentNo: i,
+          dueDate: currentDate,
+          amount: amount,
+          status: 'pending',
+        ),
+      );
+
+      // Increment date by month (frequency)
+      currentDate = DateTime(
+        currentDate.year,
+        currentDate.month + 1,
+        currentDate.day,
+      );
+    }
+
+    return schedule;
+  }
+
+  /// Get customer display name with fallback chain
+  String _getCustomerDisplayName() {
+    // First try widget customer (passed from list)
+    if (widget.customer.fullName.isNotEmpty &&
+        widget.customer.fullName != 'غير معروف') {
+      return widget.customer.fullName;
+    }
+    // Then try installment plan customerName
+    if (_installmentPlan?.customerName != null &&
+        _installmentPlan!.customerName!.isNotEmpty) {
+      return _installmentPlan!.customerName!;
+    }
+    // Finally fallback
+    return 'عميل غير معروف';
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Debug logs
+    print('DEBUG: Installment Data: ${_installmentPlan?.toJSON()}');
+    print('DEBUG: Customer from widget: ${widget.customer.fullName}');
+    print('DEBUG: Payments Schedule Count: ${_paymentSchedule.length}');
+    print('DEBUG: Raw Plan Data keys: ${_rawPlanData.keys.toList()}');
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -360,7 +428,7 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
                       ),
                     ),
                     Text(
-                      widget.customer.fullName,
+                      _getCustomerDisplayName(),
                       style: const TextStyle(
                         fontFamily: 'Tajawal',
                         fontSize: 20,
@@ -693,16 +761,41 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
           ),
 
           // Table Body
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _paymentSchedule.length,
-            separatorBuilder: (context, index) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final schedule = _paymentSchedule[index];
-              return _buildScheduleRow(schedule);
-            },
-          ),
+          _paymentSchedule.isEmpty
+              ? Container(
+                  padding: const EdgeInsets.all(24),
+                  child: const Center(
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.calendar_today_outlined,
+                          color: Colors.grey,
+                          size: 48,
+                        ),
+                        SizedBox(height: 12),
+                        Text(
+                          'لا يوجد جدول دفعات',
+                          style: TextStyle(
+                            fontFamily: 'Tajawal',
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _paymentSchedule.length,
+                  separatorBuilder: (context, index) =>
+                      const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final schedule = _paymentSchedule[index];
+                    return _buildScheduleRow(schedule);
+                  },
+                ),
         ],
       ),
     );

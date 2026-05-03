@@ -38,10 +38,16 @@ const auth = async (req, res, next) => {
       .single();
 
     if (storeError || !store) {
+      console.error('STORE_NOT_FOUND:', {
+        store_id: decoded.store_id,
+        storeError: storeError?.message,
+        user_id: decoded.user_id
+      });
       return res.status(403).json({
         success: false,
         error: 'المحل غير موجود',
-        code: 'STORE_NOT_FOUND'
+        code: 'STORE_NOT_FOUND',
+        details: { store_id: decoded.store_id }
       });
     }
 
