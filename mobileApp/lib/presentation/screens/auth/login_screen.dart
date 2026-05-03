@@ -132,14 +132,23 @@ class _LoginScreenState extends State<LoginScreen> {
 
               if (_error != null) ...[
                 const SizedBox(height: 16),
-                Text(
-                  _error!,
-                  style: const TextStyle(
-                    fontFamily: 'Tajawal',
-                    color: AppColors.danger,
-                    fontSize: 14,
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.danger.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border:
+                        Border.all(color: AppColors.danger.withOpacity(0.3)),
                   ),
-                  textAlign: TextAlign.center,
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(
+                      fontFamily: 'Tajawal',
+                      color: AppColors.danger,
+                      fontSize: 13,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ],
 

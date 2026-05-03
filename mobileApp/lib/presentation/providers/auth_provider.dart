@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
@@ -84,8 +85,10 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
         return false;
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       _error = 'فشل في تسجيل الدخول: $e';
+      debugPrint('❌ AuthProvider login error: $e');
+      debugPrint('📍 Stack trace: $stackTrace');
       _isLoading = false;
       notifyListeners();
       return false;
