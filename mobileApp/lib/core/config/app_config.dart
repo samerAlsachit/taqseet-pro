@@ -26,7 +26,7 @@ class AppConfig {
   /// للمحاكي: '10.0.2.2'
   /// للإنتاج: 'your-domain.com'
   ///
-  static const String API_IP = '192.168.0.123';
+  static const String API_IP = '192.168.0.127';
 
   /// Port الخادم
   static const String API_PORT = '3000';
@@ -121,9 +121,8 @@ class AppConfig {
     }
     // إزالة / في البداية إذا وجدت
     final cleanFolder = folder.startsWith('/') ? folder.substring(1) : folder;
-    final cleanFileName = fileName.startsWith('/')
-        ? fileName.substring(1)
-        : fileName;
+    final cleanFileName =
+        fileName.startsWith('/') ? fileName.substring(1) : fileName;
     return '$SUPABASE_STORAGE_URL/$cleanFolder/$cleanFileName';
   }
 

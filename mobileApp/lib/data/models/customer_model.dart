@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class CustomerModel {
   final String id;
   final String fullName;
@@ -30,17 +32,58 @@ class CustomerModel {
   });
 
   factory CustomerModel.fromJson(Map<String, dynamic> json) {
+    // Parse extra_docs which can be a JSON string or a list
+    List<String> extraDocs = [];
+    if (json['extra_docs'] != null) {
+      if (json['extra_docs'] is List) {
+        extraDocs =
+            List<String>.from(json['extra_docs'].map((e) => e.toString()));
+      } else if (json['extra_docs'] is String) {
+        try {
+          final decoded = jsonDecode(json['extra_docs']);
+          if (decoded is List) {
+            extraDocs = List<String>.from(decoded.map((e) => e.toString()));
+          }
+        } catch (_) {
+          // If parsing fails, treat as single item if not empty
+          if (json['extra_docs'].toString().isNotEmpty) {
+            extraDocs = [json['extra_docs'].toString()];
+          }
+        }
+      }
+    }
+
+    // Also check documents_urls from API
+    if (extraDocs.isEmpty && json['documents_urls'] != null) {
+      if (json['documents_urls'] is List) {
+        extraDocs =
+            List<String>.from(json['documents_urls'].map((e) => e.toString()));
+      }
+    }
+
+    // Map extra_docs to document URLs (first 4 items)
+    final idCardFrontUrl = extraDocs.isNotEmpty ? extraDocs[0] : null;
+    final idCardBackUrl = extraDocs.length > 1 ? extraDocs[1] : null;
+    final residenceFrontUrl = extraDocs.length > 2 ? extraDocs[2] : null;
+    final residenceBackUrl = extraDocs.length > 3 ? extraDocs[3] : null;
+
     return CustomerModel(
       id: json['id']?.toString() ?? '',
-      fullName: json['full_name']?.toString() ?? json['name']?.toString() ?? 'غير معروف',
+      fullName: json['full_name']?.toString() ??
+          json['name']?.toString() ??
+          'غير معروف',
       phone: json['phone']?.toString(),
       address: json['address']?.toString(),
-      idNumber: json['id_number']?.toString(),
-      avatarUrl: json['avatar_url']?.toString(),
-      idCardFrontUrl: json['id_card_front_url']?.toString(),
-      idCardBackUrl: json['id_card_back_url']?.toString(),
-      residenceFrontUrl: json['residence_front_url']?.toString(),
-      residenceBackUrl: json['residence_back_url']?.toString(),
+      idNumber:
+          json['id_number']?.toString() ?? json['national_id']?.toString(),
+      avatarUrl:
+          json['avatar_url']?.toString() ?? json['id_doc_url']?.toString(),
+      idCardFrontUrl: json['id_card_front_url']?.toString() ?? idCardFrontUrl,
+      idCardBackUrl: json['id_card_back_url']?.toString() ?? idCardBackUrl,
+      residenceFrontUrl:
+          json['residence_front_url']?.toString() ?? residenceFrontUrl,
+      residenceBackUrl:
+          json['residence_back_url']?.toString() ?? residenceBackUrl,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString())
           : null,

@@ -66,6 +66,9 @@ class AuthProvider extends ChangeNotifier {
         _token = result.token;
         _user = result.user;
 
+        debugPrint(
+            '✅ Login successful, saving token: ${_token?.substring(0, 10)}...');
+
         // Save to secure storage
         await _secureStorage.write(
           key: AppConstants.tokenKey,
@@ -75,6 +78,12 @@ class AuthProvider extends ChangeNotifier {
           key: AppConstants.userKey,
           value: jsonEncode(_user!.toJson()),
         );
+
+        // Verify token was saved
+        final savedToken =
+            await _secureStorage.read(key: AppConstants.tokenKey);
+        debugPrint(
+            '🔐 Token saved verification: ${savedToken != null ? 'success' : 'failed'}');
 
         _isLoading = false;
         notifyListeners();

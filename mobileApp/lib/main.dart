@@ -10,6 +10,7 @@ import 'core/constants/api_constants.dart';
 import 'core/constants/app_constants.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/providers/auth_provider.dart';
+import 'presentation/providers/customer_provider.dart';
 import 'presentation/providers/theme_provider.dart';
 import 'presentation/screens/landing/splash_screen.dart';
 import 'services/database/hive_service.dart';
@@ -66,6 +67,7 @@ class MarsaApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => CustomerProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {

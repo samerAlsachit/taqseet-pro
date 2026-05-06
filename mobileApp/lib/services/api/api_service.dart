@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/constants/app_constants.dart';
 import '../../data/models/user_model.dart';
@@ -49,8 +51,20 @@ class ApiService {
   }
 
   Future<String?> _getToken() async {
-    // Implementation using secure storage
-    return null;
+    try {
+      const secureStorage = FlutterSecureStorage(
+        aOptions: AndroidOptions(
+          encryptedSharedPreferences: true,
+        ),
+      );
+      final token = await secureStorage.read(key: AppConstants.tokenKey);
+      debugPrint(
+          '🔑 Token read: ${token != null ? 'exists (${token.substring(0, 10)}...)' : 'null'}');
+      return token;
+    } catch (e) {
+      debugPrint('❌ Error reading token: $e');
+      return null;
+    }
   }
 
   // Auth APIs
@@ -240,6 +254,187 @@ class ApiService {
         message: e.response?.data?['error'] ?? 'Network error',
       );
     }
+  }
+
+  // Customer APIs
+  Future<ApiResult> getCustomers() async {
+    return get(ApiConstants.customers);
+  }
+
+  Future<ApiResult> getCustomerById(String id) async {
+    return get(ApiConstants.customerById.replaceAll('{id}', id));
+  }
+
+  Future<ApiResult> createCustomer(Map<String, dynamic> data) async {
+    return post(ApiConstants.customers, data: data);
+  }
+
+  Future<ApiResult> updateCustomer(String id, Map<String, dynamic> data) async {
+    return put(ApiConstants.customerById.replaceAll('{id}', id), data: data);
+  }
+
+  Future<ApiResult> deleteCustomer(String id) async {
+    return delete(ApiConstants.customerById.replaceAll('{id}', id));
+  }
+
+  Future<ApiResult> createCustomerWithImages({
+    required Map<String, dynamic> data,
+    File? avatarFile,
+    File? idCardFrontFile,
+    File? idCardBackFile,
+    File? residenceFrontFile,
+    File? residenceBackFile,
+  }) async {
+    try {
+      final formData = FormData();
+
+      // Add text fields
+      data.forEach((key, value) {
+        if (value != null) {
+          formData.fields.add(MapEntry(key, value.toString()));
+        }
+      });
+
+      // Add files
+      if (avatarFile != null && await avatarFile.exists()) {
+        formData.files.add(MapEntry(
+          'avatar',
+          await MultipartFile.fromFile(avatarFile.path, filename: 'avatar.jpg'),
+        ));
+      }
+      if (idCardFrontFile != null && await idCardFrontFile.exists()) {
+        formData.files.add(MapEntry(
+          'id_card_front',
+          await MultipartFile.fromFile(idCardFrontFile.path,
+              filename: 'id_card_front.jpg'),
+        ));
+      }
+      if (idCardBackFile != null && await idCardBackFile.exists()) {
+        formData.files.add(MapEntry(
+          'id_card_back',
+          await MultipartFile.fromFile(idCardBackFile.path,
+              filename: 'id_card_back.jpg'),
+        ));
+      }
+      if (residenceFrontFile != null && await residenceFrontFile.exists()) {
+        formData.files.add(MapEntry(
+          'residence_front',
+          await MultipartFile.fromFile(residenceFrontFile.path,
+              filename: 'residence_front.jpg'),
+        ));
+      }
+      if (residenceBackFile != null && await residenceBackFile.exists()) {
+        formData.files.add(MapEntry(
+          'residence_back',
+          await MultipartFile.fromFile(residenceBackFile.path,
+              filename: 'residence_back.jpg'),
+        ));
+      }
+
+      final response = await _dio.post(
+        ApiConstants.customers,
+        data: formData,
+        options: Options(headers: await _getHeaders()),
+      );
+
+      return ApiResult(
+        success: response.statusCode == 200 || response.statusCode == 201,
+        data: response.data['data'],
+        message: response.data['message'],
+      );
+    } on DioException catch (e) {
+      return ApiResult(
+        success: false,
+        message: e.response?.data?['error'] ?? e.message ?? 'Upload failed',
+      );
+    } catch (e) {
+      return ApiResult(success: false, message: e.toString());
+    }
+  }
+
+  Future<ApiResult> updateCustomerWithImages({
+    required String id,
+    required Map<String, dynamic> data,
+    File? avatarFile,
+    File? idCardFrontFile,
+    File? idCardBackFile,
+    File? residenceFrontFile,
+    File? residenceBackFile,
+  }) async {
+    try {
+      final formData = FormData();
+
+      // Add text fields
+      data.forEach((key, value) {
+        if (value != null) {
+          formData.fields.add(MapEntry(key, value.toString()));
+        }
+      });
+
+      // Add files
+      if (avatarFile != null && await avatarFile.exists()) {
+        formData.files.add(MapEntry(
+          'avatar',
+          await MultipartFile.fromFile(avatarFile.path, filename: 'avatar.jpg'),
+        ));
+      }
+      if (idCardFrontFile != null && await idCardFrontFile.exists()) {
+        formData.files.add(MapEntry(
+          'id_card_front',
+          await MultipartFile.fromFile(idCardFrontFile.path,
+              filename: 'id_card_front.jpg'),
+        ));
+      }
+      if (idCardBackFile != null && await idCardBackFile.exists()) {
+        formData.files.add(MapEntry(
+          'id_card_back',
+          await MultipartFile.fromFile(idCardBackFile.path,
+              filename: 'id_card_back.jpg'),
+        ));
+      }
+      if (residenceFrontFile != null && await residenceFrontFile.exists()) {
+        formData.files.add(MapEntry(
+          'residence_front',
+          await MultipartFile.fromFile(residenceFrontFile.path,
+              filename: 'residence_front.jpg'),
+        ));
+      }
+      if (residenceBackFile != null && await residenceBackFile.exists()) {
+        formData.files.add(MapEntry(
+          'residence_back',
+          await MultipartFile.fromFile(residenceBackFile.path,
+              filename: 'residence_back.jpg'),
+        ));
+      }
+
+      final url = ApiConstants.customerById.replaceAll('{id}', id);
+      final response = await _dio.put(
+        url,
+        data: formData,
+        options: Options(headers: await _getHeaders()),
+      );
+
+      return ApiResult(
+        success: response.statusCode == 200,
+        data: response.data['data'],
+        message: response.data['message'],
+      );
+    } on DioException catch (e) {
+      return ApiResult(
+        success: false,
+        message: e.response?.data?['error'] ?? e.message ?? 'Upload failed',
+      );
+    } catch (e) {
+      return ApiResult(success: false, message: e.toString());
+    }
+  }
+
+  Future<Map<String, String>> _getHeaders() async {
+    final token = await _getToken();
+    return {
+      if (token != null) 'Authorization': 'Bearer $token',
+      'Accept': 'application/json',
+    };
   }
 }
 
