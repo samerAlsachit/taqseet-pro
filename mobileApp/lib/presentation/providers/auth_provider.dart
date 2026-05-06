@@ -9,13 +9,19 @@ import '../../data/models/user_model.dart';
 import '../../services/api/api_service.dart';
 
 class AuthProvider extends ChangeNotifier {
-  final _secureStorage = const FlutterSecureStorage();
+  // Use same secure storage instance across the app
+  static const _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+    ),
+  );
+
   final _localAuth = LocalAuthentication();
   final _apiService = ApiService();
 
   UserModel? _user;
   String? _token;
-  bool _isLoading = false;
+  bool _isLoading = true; // Start as true during initialization
   String? _error;
   bool _isBiometricEnabled = false;
 
@@ -27,13 +33,11 @@ class AuthProvider extends ChangeNotifier {
   bool get isBiometricEnabled => _isBiometricEnabled;
 
   AuthProvider() {
-    _loadStoredAuth();
+    // Load stored auth in background
+    Future.microtask(() => _loadStoredAuth());
   }
 
   Future<void> _loadStoredAuth() async {
-    _isLoading = true;
-    notifyListeners();
-
     try {
       final token = await _secureStorage.read(key: AppConstants.tokenKey);
       final userJson = await _secureStorage.read(key: AppConstants.userKey);
@@ -41,13 +45,32 @@ class AuthProvider extends ChangeNotifier {
         key: AppConstants.biometricEnabledKey,
       );
 
+      debugPrint('🔑 Stored Token: ${token != null ? 'found' : 'not found'}');
+      debugPrint('👤 Stored User: ${userJson != null ? 'found' : 'not found'}');
+
       if (token != null && userJson != null) {
-        _token = token;
-        _user = UserModel.fromJson(jsonDecode(userJson));
-        _isBiometricEnabled = biometricEnabled == 'true';
+        try {
+          _token = token;
+          _user = UserModel.fromJson(jsonDecode(userJson));
+          _isBiometricEnabled = biometricEnabled == 'true';
+          debugPrint('✅ Auth loaded successfully: ${_user?.username}');
+        } catch (e) {
+          debugPrint('❌ Error parsing stored user data: $e');
+          // Clear corrupted data
+          await _secureStorage.delete(key: AppConstants.tokenKey);
+          await _secureStorage.delete(key: AppConstants.userKey);
+          _token = null;
+          _user = null;
+        }
+      } else {
+        debugPrint('ℹ️ No stored auth found - user needs to login');
+        _token = null;
+        _user = null;
       }
     } catch (e) {
-      print('Error loading auth: $e');
+      debugPrint('❌ Error loading auth from secure storage: $e');
+      _token = null;
+      _user = null;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -62,34 +85,49 @@ class AuthProvider extends ChangeNotifier {
     try {
       final result = await _apiService.login(username, password);
 
-      if (result.success) {
+      if (result.success && result.token != null && result.user != null) {
         _token = result.token;
         _user = result.user;
 
         debugPrint(
             '✅ Login successful, saving token: ${_token?.substring(0, 10)}...');
 
-        // Save to secure storage
-        await _secureStorage.write(
-          key: AppConstants.tokenKey,
-          value: _token,
-        );
-        await _secureStorage.write(
-          key: AppConstants.userKey,
-          value: jsonEncode(_user!.toJson()),
-        );
+        try {
+          // Save to secure storage
+          await _secureStorage.write(
+            key: AppConstants.tokenKey,
+            value: _token!,
+          );
+          await _secureStorage.write(
+            key: AppConstants.userKey,
+            value: jsonEncode(_user!.toJson()),
+          );
 
-        // Verify token was saved
-        final savedToken =
-            await _secureStorage.read(key: AppConstants.tokenKey);
-        debugPrint(
-            '🔐 Token saved verification: ${savedToken != null ? 'success' : 'failed'}');
+          // Verify token was saved
+          final savedToken =
+              await _secureStorage.read(key: AppConstants.tokenKey);
+          debugPrint(
+              '🔐 Token saved verification: ${savedToken != null ? 'success ✓' : 'failed ✗'}');
+
+          if (savedToken == null) {
+            _error = 'فشل حفظ بيانات الدخول';
+            _isLoading = false;
+            notifyListeners();
+            return false;
+          }
+        } catch (storageError) {
+          debugPrint('❌ Storage error: $storageError');
+          _error = 'خطأ في حفظ البيانات: $storageError';
+          _isLoading = false;
+          notifyListeners();
+          return false;
+        }
 
         _isLoading = false;
         notifyListeners();
         return true;
       } else {
-        _error = result.message;
+        _error = result.message ?? 'فشل تسجيل الدخول';
         _isLoading = false;
         notifyListeners();
         return false;

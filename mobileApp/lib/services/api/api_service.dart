@@ -8,6 +8,11 @@ import '../../data/models/user_model.dart';
 
 class ApiService {
   late Dio _dio;
+  static const _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+    ),
+  );
 
   ApiService() {
     _initDio();
@@ -52,12 +57,7 @@ class ApiService {
 
   Future<String?> _getToken() async {
     try {
-      const secureStorage = FlutterSecureStorage(
-        aOptions: AndroidOptions(
-          encryptedSharedPreferences: true,
-        ),
-      );
-      final token = await secureStorage.read(key: AppConstants.tokenKey);
+      final token = await _secureStorage.read(key: AppConstants.tokenKey);
       debugPrint(
           '🔑 Token read: ${token != null ? 'exists (${token.substring(0, 10)}...)' : 'null'}');
       return token;
@@ -84,25 +84,45 @@ class ApiService {
       if (response.statusCode == 200 && response.data['success'] == true) {
         final data = response.data['data'];
         if (data == null) {
+          debugPrint('❌ Response data is null');
           return LoginResult(
             success: false,
             message: 'Invalid response: data is null',
           );
         }
+
+        final token = data['token'];
         final userData = data['user'];
+
+        debugPrint(
+            '🔐 Token from server: ${token != null ? 'received' : 'null'}');
+        debugPrint(
+            '👤 User from server: ${userData != null ? 'received' : 'null'}');
+
         if (userData == null || userData is! Map<String, dynamic>) {
+          debugPrint('❌ User data is invalid');
           return LoginResult(
             success: false,
             message: 'Invalid response: user data is missing or invalid',
           );
         }
+
+        if (token == null) {
+          debugPrint('❌ Token is null from server');
+          return LoginResult(
+            success: false,
+            message: 'Invalid response: token is missing',
+          );
+        }
+
         return LoginResult(
           success: true,
-          token: data['token']?.toString(),
+          token: token.toString(),
           user: UserModel.fromJson(userData),
           message: response.data['message']?.toString(),
         );
       } else {
+        debugPrint('❌ Login response not successful: ${response.data}');
         return LoginResult(
           success: false,
           message: response.data['error'] ??

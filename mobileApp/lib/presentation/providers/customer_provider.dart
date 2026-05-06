@@ -570,20 +570,30 @@ class CustomerProvider extends ChangeNotifier {
   Future<bool> fetchCustomerDetails(String customerId) async {
     _isLoading = true;
     _error = null;
+    _installmentPlans = [];
+    _installmentSummary = null;
     notifyListeners();
 
     try {
       final result = await _apiService.getCustomerById(customerId);
+
+      debugPrint('🔍 Fetching customer details for ID: $customerId');
+      debugPrint('📊 API Response - Success: ${result.success}');
+      debugPrint('📦 API Response - Data: ${result.data}');
 
       if (result.success && result.data != null) {
         // API returns: {success: true, data: {customer: ..., installment_plans: ..., summary: ...}}
         final responseData = result.data as Map<String, dynamic>?;
 
         if (responseData != null) {
+          debugPrint('📋 Response data keys: ${responseData.keys.toList()}');
+
           // Based on web app: customerData.data.customer and customerData.data.installment_plans
           final data = responseData['data'] as Map<String, dynamic>?;
 
           if (data != null) {
+            debugPrint('📋 Data keys: ${data.keys.toList()}');
+
             // Parse customer data
             if (data.containsKey('customer')) {
               _customerDetails = data['customer'] as Map<String, dynamic>?;
@@ -597,32 +607,48 @@ class CustomerProvider extends ChangeNotifier {
                   data['installment_plans'] as List<dynamic>? ?? [];
               debugPrint(
                   '✅ Installment plans loaded: ${_installmentPlans.length} plans');
-              debugPrint(
-                  '📊 First installment plan: ${_installmentPlans.isNotEmpty ? _installmentPlans[0] : 'none'}');
+
+              if (_installmentPlans.isNotEmpty) {
+                debugPrint(
+                    '📊 First installment plan: ${_installmentPlans[0]}');
+              } else {
+                debugPrint('⚠️ No installment plans returned from API');
+              }
             } else {
               _installmentPlans = [];
-              debugPrint('⚠️ No installment_plans found in data');
+              debugPrint(
+                  '⚠️ No installment_plans key found in data. Available keys: ${data.keys.toList()}');
             }
 
             // Parse summary
             if (data.containsKey('summary')) {
               _installmentSummary = data['summary'] as Map<String, dynamic>?;
               debugPrint('✅ Summary loaded: $_installmentSummary');
+            } else {
+              debugPrint('⚠️ No summary key found in data');
             }
 
             _isLoading = false;
             notifyListeners();
             return true;
+          } else {
+            debugPrint('❌ Data field is null in response');
           }
+        } else {
+          debugPrint('❌ Response data is null');
         }
+      } else {
+        debugPrint('❌ API call failed: ${result.message}');
       }
 
       _error = result.message ?? 'فشل في جلب تفاصيل العميل';
       _isLoading = false;
       notifyListeners();
       return false;
-    } catch (e) {
+    } catch (e, stack) {
       _error = 'فشل في جلب تفاصيل العميل: $e';
+      debugPrint('❌ Error fetching customer details: $e');
+      debugPrint('📍 Stack trace: $stack');
       _isLoading = false;
       notifyListeners();
       return false;

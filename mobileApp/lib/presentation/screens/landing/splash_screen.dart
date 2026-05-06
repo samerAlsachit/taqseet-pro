@@ -20,6 +20,7 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
+  bool _hasNavigated = false;
 
   @override
   void initState() {
@@ -46,23 +47,78 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    // Navigate based on auth status
-    Timer(AppConstants.splashDuration, () {
-      if (mounted) {
-        final authProvider = context.read<AuthProvider>();
-        if (authProvider.isAuthenticated) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const MainScreen()),
-          );
-        } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const LandingScreen()),
-          );
+    // Navigate based on auth status - wait for loading to complete
+    _navigateAfterDelay();
+
+    // Listen to auth provider changes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = context.read<AuthProvider>();
+      authProvider.addListener(_checkAndNavigate);
+    });
+  }
+
+  void _checkAndNavigate() {
+    if (mounted && !_hasNavigated) {
+      final authProvider = context.read<AuthProvider>();
+
+      // If still loading, wait longer
+      if (authProvider.isLoading) {
+        return;
+      }
+
+      _performNavigation(authProvider);
+    }
+  }
+
+  void _navigateAfterDelay() {
+    final authProvider = context.read<AuthProvider>();
+
+    // If still loading, check again
+    if (authProvider.isLoading) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          _navigateAfterDelay();
         }
+      });
+      return;
+    }
+
+    // Minimum splash duration
+    Future.delayed(AppConstants.splashDuration, () {
+      if (mounted && !_hasNavigated) {
+        _performNavigation(authProvider);
       }
     });
+  }
+
+  void _performNavigation(AuthProvider authProvider) {
+    if (!mounted || _hasNavigated) return;
+
+    _hasNavigated = true;
+
+    final isAuthenticated = authProvider.isAuthenticated;
+    final token = authProvider.token;
+    final user = authProvider.user;
+
+    debugPrint('🔐 Navigation Decision:');
+    debugPrint('   - isAuthenticated: $isAuthenticated');
+    debugPrint(
+        '   - token: ${token != null ? 'present (${token.substring(0, 10)}...)' : 'null'}');
+    debugPrint('   - user: ${user != null ? user.username : 'null'}');
+
+    if (isAuthenticated) {
+      debugPrint('✅ Navigating to MainScreen');
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+      );
+    } else {
+      debugPrint('❌ Navigating to LandingScreen');
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LandingScreen()),
+      );
+    }
   }
 
   @override

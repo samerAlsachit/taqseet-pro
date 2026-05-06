@@ -406,6 +406,7 @@ class _CustomerDetailsSheetState extends State<_CustomerDetailsSheet> {
     super.initState();
     // Fetch customer details with installments
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      debugPrint('🔄 Fetching customer details for ID: ${widget.customer.id}');
       context.read<CustomerProvider>().fetchCustomerDetails(widget.customer.id);
     });
   }
@@ -423,6 +424,10 @@ class _CustomerDetailsSheetState extends State<_CustomerDetailsSheet> {
         final details = provider.customerDetails;
         final plans = provider.installmentPlans;
         final summary = provider.installmentSummary;
+        final isLoading = provider.isLoading;
+
+        debugPrint(
+            '🎯 Building details sheet - Loading: $isLoading, Plans: ${plans.length}');
 
         // Use fetched details or fallback to passed customer
         final displayCustomer =
@@ -431,145 +436,204 @@ class _CustomerDetailsSheetState extends State<_CustomerDetailsSheet> {
         return Container(
           color: Colors.white,
           padding: const EdgeInsets.all(20),
-          child: ListView(
-            controller: widget.scrollController,
-            children: [
-              // Handle
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Avatar
-              Center(
-                child: CircleAvatar(
-                  radius: 50,
-                  backgroundColor: AppColors.navy.withOpacity(0.1),
-                  backgroundImage: displayCustomer.avatarUrl != null
-                      ? NetworkImage(displayCustomer.avatarUrl!)
-                      : null,
-                  child: displayCustomer.avatarUrl == null
-                      ? const Icon(Icons.person,
-                          color: AppColors.navy, size: 50)
-                      : null,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Name
-              Center(
-                child: Text(
-                  displayCustomer.fullName,
-                  style: const TextStyle(
-                    fontFamily: 'Tajawal',
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.navy,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Info Cards
-              _InfoCard(
-                icon: Icons.phone,
-                title: 'رقم الهاتف',
-                value: displayCustomer.phone ?? 'غير متوفر',
-              ),
-              _InfoCard(
-                icon: Icons.badge,
-                title: 'رقم الهوية',
-                value: displayCustomer.idNumber ?? 'غير متوفر',
-              ),
-              _InfoCard(
-                icon: Icons.location_on,
-                title: 'العنوان',
-                value: displayCustomer.address ?? 'غير متوفر',
-              ),
-              if (displayCustomer.createdAt != null)
-                _InfoCard(
-                  icon: Icons.calendar_today,
-                  title: 'تاريخ الإضافة',
-                  value:
-                      '${displayCustomer.createdAt!.day}/${displayCustomer.createdAt!.month}/${displayCustomer.createdAt!.year}',
-                ),
-
-              // Installment Summary
-              if (summary != null) ...[
-                const SizedBox(height: 24),
-                _buildSectionTitle('ملخص الأقساط'),
-                _buildSummaryCard(summary),
-              ],
-
-              // Document Images
-              if (displayCustomer.idCardFrontUrl != null ||
-                  displayCustomer.idCardBackUrl != null ||
-                  displayCustomer.residenceFrontUrl != null ||
-                  displayCustomer.residenceBackUrl != null) ...[
-                const SizedBox(height: 24),
-                _buildSectionTitle('المستمسكات'),
-                _buildDocumentsGrid(displayCustomer),
-              ],
-
-              // Installment Plans Table
-              if (plans.isNotEmpty) ...[
-                const SizedBox(height: 24),
-                _buildSectionTitle('الأقساط'),
-                _buildInstallmentsTable(plans),
-              ],
-
-              const SizedBox(height: 24),
-
-              // Actions
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        // TODO: Call customer
-                      },
-                      icon: const Icon(Icons.phone),
-                      label: const Text(
-                        'اتصال',
-                        style: TextStyle(fontFamily: 'Tajawal'),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.success,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+          child: isLoading && plans.isEmpty
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.navy),
+                )
+              : ListView(
+                  controller: widget.scrollController,
+                  children: [
+                    // Handle
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        // TODO: WhatsApp
-                      },
-                      icon: const Icon(Icons.message),
-                      label: const Text(
-                        'واتساب',
-                        style: TextStyle(fontFamily: 'Tajawal'),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.electric,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                    const SizedBox(height: 20),
+
+                    // Avatar
+                    Center(
+                      child: CircleAvatar(
+                        radius: 50,
+                        backgroundColor: AppColors.navy.withOpacity(0.1),
+                        backgroundImage: displayCustomer.avatarUrl != null
+                            ? NetworkImage(displayCustomer.avatarUrl!)
+                            : null,
+                        child: displayCustomer.avatarUrl == null
+                            ? const Icon(Icons.person,
+                                color: AppColors.navy, size: 50)
+                            : null,
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-            ],
-          ),
+                    const SizedBox(height: 16),
+
+                    // Name
+                    Center(
+                      child: Text(
+                        displayCustomer.fullName,
+                        style: const TextStyle(
+                          fontFamily: 'Tajawal',
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.navy,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Info Cards
+                    _InfoCard(
+                      icon: Icons.phone,
+                      title: 'رقم الهاتف',
+                      value: displayCustomer.phone ?? 'غير متوفر',
+                    ),
+                    _InfoCard(
+                      icon: Icons.badge,
+                      title: 'رقم الهوية',
+                      value: displayCustomer.idNumber ?? 'غير متوفر',
+                    ),
+                    _InfoCard(
+                      icon: Icons.location_on,
+                      title: 'العنوان',
+                      value: displayCustomer.address ?? 'غير متوفر',
+                    ),
+                    if (displayCustomer.createdAt != null)
+                      _InfoCard(
+                        icon: Icons.calendar_today,
+                        title: 'تاريخ الإضافة',
+                        value:
+                            '${displayCustomer.createdAt!.day}/${displayCustomer.createdAt!.month}/${displayCustomer.createdAt!.year}',
+                      ),
+
+                    // Installment Summary
+                    if (summary != null) ...[
+                      const SizedBox(height: 24),
+                      _buildSectionTitle('ملخص الأقساط'),
+                      _buildSummaryCard(summary),
+                      const SizedBox(height: 12),
+                      // Button to view all installments
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _navigateToInstallmentsScreen(
+                                context, widget.customer.id);
+                          },
+                          icon: const Icon(Icons.view_agenda),
+                          label: const Text(
+                            'عرض جدول جميع الأقساط',
+                            style: TextStyle(fontFamily: 'Tajawal'),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.electric,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    // Document Images
+                    if (displayCustomer.idCardFrontUrl != null ||
+                        displayCustomer.idCardBackUrl != null ||
+                        displayCustomer.residenceFrontUrl != null ||
+                        displayCustomer.residenceBackUrl != null) ...[
+                      const SizedBox(height: 24),
+                      _buildSectionTitle('المستمسكات'),
+                      _buildDocumentsGrid(displayCustomer),
+                    ],
+
+                    // Installment Plans Table
+                    if (plans.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      _buildSectionTitle('الأقساط النشطة'),
+                      _buildInstallmentsTable(plans, context),
+                    ] else if (!isLoading) ...[
+                      const SizedBox(height: 24),
+                      _buildSectionTitle('الأقساط'),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          'لا توجد أقساط مسجلة لهذا العميل',
+                          style: TextStyle(
+                            fontFamily: 'Tajawal',
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 24),
+
+                    // Actions
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              // TODO: Call customer
+                            },
+                            icon: const Icon(Icons.phone),
+                            label: const Text(
+                              'اتصال',
+                              style: TextStyle(fontFamily: 'Tajawal'),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.success,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              // TODO: WhatsApp
+                            },
+                            icon: const Icon(Icons.message),
+                            label: const Text(
+                              'واتساب',
+                              style: TextStyle(fontFamily: 'Tajawal'),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.electric,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
         );
       },
+    );
+  }
+
+  void _navigateToInstallmentsScreen(BuildContext context, String customerId) {
+    // TODO: Navigate to full installments list screen
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text(
+          'سيتم فتح جدول الأقساط قريباً',
+          style: TextStyle(fontFamily: 'Tajawal'),
+        ),
+        action: SnackBarAction(
+          label: 'حسناً',
+          onPressed: () {},
+        ),
+      ),
     );
   }
 
@@ -749,8 +813,24 @@ class _CustomerDetailsSheetState extends State<_CustomerDetailsSheet> {
     );
   }
 
-  Widget _buildInstallmentsTable(List<dynamic> plans) {
+  Widget _buildInstallmentsTable(List<dynamic> plans, BuildContext context) {
     debugPrint('📊 Building installments table with ${plans.length} plans');
+
+    if (plans.isEmpty) {
+      return Card(
+        color: Colors.grey[100],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: const Padding(
+          padding: EdgeInsets.all(16),
+          child: Center(
+            child: Text(
+              'لا توجد أقساط مسجلة',
+              style: TextStyle(fontFamily: 'Tajawal', color: Colors.grey),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Card(
       color: Colors.white,
