@@ -216,6 +216,7 @@ class CustomerProvider extends ChangeNotifier {
   }
 
   /// Compress and upload file to Supabase Storage
+  /// Unified naming pattern: ${customerId}_profile.jpg
   Future<String?> _uploadFile(
     File file,
     String bucket,
@@ -226,6 +227,20 @@ class CustomerProvider extends ChangeNotifier {
   }) async {
     try {
       final supabase = Supabase.instance.client;
+
+      // Ensure path has .jpg extension
+      String finalPath = path;
+      if (!finalPath.toLowerCase().endsWith('.jpg') &&
+          !finalPath.toLowerCase().endsWith('.jpeg')) {
+        finalPath = '$finalPath.jpg';
+        debugPrint('📝 Added .jpg extension: $finalPath');
+      }
+
+      // Sanitize path: remove spaces and special characters
+      finalPath = finalPath.replaceAll(RegExp(r'[^a-zA-Z0-9_/.-]'), '_');
+      debugPrint('🧹 Sanitized path: $finalPath');
+
+      debugPrint('📤 Starting upload to bucket: $bucket, path: $finalPath');
 
       // Compress image before upload
       List<int> compressedBytes;
@@ -247,16 +262,18 @@ class CustomerProvider extends ChangeNotifier {
 
       // Upload compressed image
       await supabase.storage.from(bucket).uploadBinary(
-            path,
+            finalPath,
             Uint8List.fromList(compressedBytes),
             fileOptions: const FileOptions(contentType: 'image/jpeg'),
           );
 
-      final url = supabase.storage.from(bucket).getPublicUrl(path);
-      debugPrint('✅ Uploaded: $url');
+      final url = supabase.storage.from(bucket).getPublicUrl(finalPath);
+      debugPrint('✅ Uploaded successfully: $url');
+      debugPrint('🔗 Storage Path: $finalPath');
       return url;
     } catch (e) {
       debugPrint('❌ Error uploading file: $e');
+      debugPrint('   Bucket: $bucket, Path: $path');
       return null;
     }
   }
@@ -280,12 +297,26 @@ class CustomerProvider extends ChangeNotifier {
 
       debugPrint('🗑️ Starting deletion of images for customer: $customerId');
 
-      // Delete avatar
+      // Sanitize ID for path
+      final sanitizedId = customerId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+
+      // Delete avatar - try new naming pattern first, then old pattern
+      final newAvatarPath = 'avatars/${sanitizedId}_profile.jpg';
+      final oldAvatarPath = 'avatars/$customerId.jpg';
+
       try {
-        await bucket.remove(['avatars/$customerId.jpg']);
-        debugPrint('✅ Deleted avatar: avatars/$customerId.jpg');
+        await bucket.remove([newAvatarPath]);
+        debugPrint('✅ Deleted avatar (new pattern): $newAvatarPath');
       } catch (e) {
-        debugPrint('⚠️ Failed to delete avatar: $e');
+        debugPrint('⚠️ Failed to delete avatar (new pattern): $e');
+      }
+
+      // Also try old pattern for backward compatibility
+      try {
+        await bucket.remove([oldAvatarPath]);
+        debugPrint('✅ Deleted avatar (old pattern): $oldAvatarPath');
+      } catch (e) {
+        debugPrint('⚠️ No old avatar found: $e');
       }
 
       // Delete documents
@@ -335,23 +366,50 @@ class CustomerProvider extends ChangeNotifier {
       }
 
       // Get the real customer ID from API response
-      final newCustomer = CustomerModel.fromJson(result.data);
+      // API may return nested data: { "data": { "id": "..." } }
+      final responseData = result.data is Map && result.data['data'] != null
+          ? result.data['data']
+          : result.data;
+
+      final newCustomer = CustomerModel.fromJson(responseData);
       final customerId = newCustomer.id;
 
       debugPrint('✅ Customer created with ID: $customerId');
+      debugPrint('📦 API Response: ${result.data}');
+      debugPrint('📦 Parsed data: $responseData');
+
+      // Guard: Don't upload if customerId is empty
+      if (customerId.isEmpty) {
+        debugPrint('❌ Customer ID is empty! Cannot upload images.');
+        _customers.insert(0, newCustomer);
+        _applySearch();
+        _isLoading = false;
+        notifyListeners();
+        return true; // Customer created but without images
+      }
 
       // Step 2: Upload images using the real customer ID
       final List<String> documentsUrls = [];
 
-      // Upload avatar
+      // Upload avatar - use unified naming: ${customerId}_profile.jpg
       if (avatarFile != null) {
+        final sanitizedId =
+            customerId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+        final avatarPath = 'avatars/${sanitizedId}_profile.jpg';
+
+        debugPrint('📸 Uploading avatar for customer $customerId');
+        debugPrint('   Sanitized ID: $sanitizedId');
+        debugPrint('   Storage path: $avatarPath');
+
         final url = await _uploadFile(
           avatarFile,
           'customers',
-          'avatars/$customerId.jpg',
+          avatarPath,
         );
         if (url != null) {
-          data['id_doc_url'] = url;
+          data['avatar_url'] = url;
+          debugPrint('✅ Avatar uploaded successfully');
+          debugPrint('🔗 URL: $url');
         }
       }
 
@@ -396,10 +454,10 @@ class CustomerProvider extends ChangeNotifier {
       }
 
       // Step 3: Update customer with image URLs if any were uploaded
-      if (documentsUrls.isNotEmpty || data['id_doc_url'] != null) {
+      if (documentsUrls.isNotEmpty || data['avatar_url'] != null) {
         final updateData = <String, dynamic>{};
-        if (data['id_doc_url'] != null) {
-          updateData['id_doc_url'] = data['id_doc_url'];
+        if (data['avatar_url'] != null) {
+          updateData['avatar_url'] = data['avatar_url'];
         }
         if (documentsUrls.isNotEmpty) {
           updateData['documents_urls'] = documentsUrls;
@@ -453,18 +511,29 @@ class CustomerProvider extends ChangeNotifier {
       final List<String> documentsUrls = [];
 
       // Upload avatar (delete old first if exists)
+      // Unified naming: ${id}_profile.jpg
       if (avatarFile != null) {
+        final sanitizedId = id.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+        final avatarPath = 'avatars/${sanitizedId}_profile.jpg';
+
         // Delete old avatar if exists
         if (oldCustomer?.avatarUrl != null) {
-          await _deleteFile('customers', 'avatars/$id.jpg');
+          await _deleteFile('customers', avatarPath);
         }
+
+        debugPrint('📸 Updating avatar for customer $id');
+        debugPrint('   Sanitized ID: $sanitizedId');
+        debugPrint('   Storage path: $avatarPath');
+
         final url = await _uploadFile(
           avatarFile,
           'customers',
-          'avatars/$id.jpg',
+          avatarPath,
         );
         if (url != null) {
-          data['id_doc_url'] = url;
+          data['avatar_url'] = url;
+          debugPrint('✅ Avatar updated successfully');
+          debugPrint('🔗 URL: $url');
         }
       }
 
@@ -575,76 +644,114 @@ class CustomerProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final result = await _apiService.getCustomerById(customerId);
-
       debugPrint('🔍 Fetching customer details for ID: $customerId');
-      debugPrint('📊 API Response - Success: ${result.success}');
-      debugPrint('📦 API Response - Data: ${result.data}');
 
-      if (result.success && result.data != null) {
-        // API returns: {success: true, data: {customer: ..., installment_plans: ..., summary: ...}}
-        final responseData = result.data as Map<String, dynamic>?;
+      // Step 1: جلب بيانات العميل (مثل الويب)
+      final customerResult = await _apiService.getCustomerById(customerId);
+      debugPrint('� Customer API - Success: ${customerResult.success}');
 
-        if (responseData != null) {
-          debugPrint('📋 Response data keys: ${responseData.keys.toList()}');
-
-          // Based on web app: customerData.data.customer and customerData.data.installment_plans
-          final data = responseData['data'] as Map<String, dynamic>?;
-
-          if (data != null) {
-            debugPrint('📋 Data keys: ${data.keys.toList()}');
-
-            // Parse customer data
-            if (data.containsKey('customer')) {
-              _customerDetails = data['customer'] as Map<String, dynamic>?;
-              debugPrint(
-                  '✅ Customer details loaded: ${_customerDetails?['full_name']}');
-            }
-
-            // Parse installment plans - matching web app structure
-            if (data.containsKey('installment_plans')) {
-              _installmentPlans =
-                  data['installment_plans'] as List<dynamic>? ?? [];
-              debugPrint(
-                  '✅ Installment plans loaded: ${_installmentPlans.length} plans');
-
-              if (_installmentPlans.isNotEmpty) {
-                debugPrint(
-                    '📊 First installment plan: ${_installmentPlans[0]}');
-              } else {
-                debugPrint('⚠️ No installment plans returned from API');
-              }
-            } else {
-              _installmentPlans = [];
-              debugPrint(
-                  '⚠️ No installment_plans key found in data. Available keys: ${data.keys.toList()}');
-            }
-
-            // Parse summary
-            if (data.containsKey('summary')) {
-              _installmentSummary = data['summary'] as Map<String, dynamic>?;
-              debugPrint('✅ Summary loaded: $_installmentSummary');
-            } else {
-              debugPrint('⚠️ No summary key found in data');
-            }
-
-            _isLoading = false;
-            notifyListeners();
-            return true;
-          } else {
-            debugPrint('❌ Data field is null in response');
-          }
-        } else {
-          debugPrint('❌ Response data is null');
-        }
-      } else {
-        debugPrint('❌ API call failed: ${result.message}');
+      if (!customerResult.success || customerResult.data == null) {
+        _error = customerResult.message ?? 'العميل غير موجود';
+        _isLoading = false;
+        notifyListeners();
+        return false;
       }
 
-      _error = result.message ?? 'فشل في جلب تفاصيل العميل';
+      // Parse customer data - matching web app structure
+      final responseData = customerResult.data as Map<String, dynamic>?;
+      final data = responseData?['data'] as Map<String, dynamic>?;
+
+      if (data != null && data.containsKey('customer')) {
+        _customerDetails = data['customer'] as Map<String, dynamic>?;
+        debugPrint('✅ Customer loaded: ${_customerDetails?['full_name']}');
+      }
+
+      // Step 2: جلب الأقساط بشكل منفصل من endpoint الأقساط (مثل الويب تماماً)
+      try {
+        debugPrint('🔄 Fetching installments from /installments endpoint...');
+
+        // محاولة 1: جلب بفلتر customer_id
+        final installmentsResult = await _apiService.get(
+          '/installments',
+          params: {
+            'customer_id': customerId,
+            'limit': 100,
+          },
+        );
+
+        debugPrint(
+            '� Installments API - Success: ${installmentsResult.success}');
+
+        if (installmentsResult.success && installmentsResult.data != null) {
+          final instData = installmentsResult.data as Map<String, dynamic>?;
+          final installments =
+              instData?['data']?['installments'] as List<dynamic>?;
+
+          if (installments != null && installments.isNotEmpty) {
+            _installmentPlans = installments;
+            debugPrint(
+                '✅ Installments loaded from /installments: ${_installmentPlans.length} plans');
+          } else {
+            // محاولة 2: جلب جميع الأقساط وفلترة client-side (مثل الويب)
+            debugPrint(
+                '⚠️ No installments with filter, trying client-side filtering...');
+
+            final allInstallmentsResult = await _apiService.get(
+              '/installments',
+              params: {'limit': 1000},
+            );
+
+            if (allInstallmentsResult.success &&
+                allInstallmentsResult.data != null) {
+              final allData =
+                  allInstallmentsResult.data as Map<String, dynamic>?;
+              final allInstallments =
+                  allData?['data']?['installments'] as List<dynamic>? ?? [];
+
+              // فلترة حسب customer_id (مثل الويب)
+              _installmentPlans = allInstallments.where((inst) {
+                final instCustomerId = inst['customer_id']?.toString() ??
+                    inst['customerId']?.toString();
+                return instCustomerId == customerId;
+              }).toList();
+
+              debugPrint(
+                  '✅ Found ${_installmentPlans.length} installments by client-side filtering');
+            }
+          }
+        }
+
+        // إذا لم نجد أقساط، نستخدم fallback من API العميل
+        if (_installmentPlans.isEmpty && data != null) {
+          final fallbackPlans =
+              data['installment_plans'] as List<dynamic>? ?? [];
+          if (fallbackPlans.isNotEmpty) {
+            _installmentPlans = fallbackPlans;
+            debugPrint(
+                '✅ Using fallback installments from customer API: ${_installmentPlans.length}');
+          }
+        }
+
+        // Parse summary
+        if (data != null && data.containsKey('summary')) {
+          _installmentSummary = data['summary'] as Map<String, dynamic>?;
+          debugPrint('✅ Summary loaded: $_installmentSummary');
+        }
+      } catch (instError) {
+        debugPrint('❌ Error fetching installments: $instError');
+        // Fallback: استخدام الأقساط من API العميل
+        if (data != null) {
+          final fallbackPlans =
+              data['installment_plans'] as List<dynamic>? ?? [];
+          _installmentPlans = fallbackPlans;
+          debugPrint(
+              '✅ Fallback: ${_installmentPlans.length} plans from customer API');
+        }
+      }
+
       _isLoading = false;
       notifyListeners();
-      return false;
+      return true;
     } catch (e, stack) {
       _error = 'فشل في جلب تفاصيل العميل: $e';
       debugPrint('❌ Error fetching customer details: $e');

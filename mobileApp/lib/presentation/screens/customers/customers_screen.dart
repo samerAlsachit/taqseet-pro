@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/customer_model.dart';
 import '../../providers/customer_provider.dart';
+import '../installments/installment_details_screen.dart';
 import 'customer_form_screen.dart';
 
 class CustomersScreen extends StatefulWidget {
@@ -170,153 +171,222 @@ class _CustomersScreenState extends State<CustomersScreen> {
   }
 }
 
-class _CustomerCard extends StatelessWidget {
+class _CustomerCard extends StatefulWidget {
   final CustomerModel customer;
 
   const _CustomerCard({required this.customer});
 
   @override
+  State<_CustomerCard> createState() => _CustomerCardState();
+}
+
+class _CustomerCardState extends State<_CustomerCard> {
+  bool _isDeleting = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.15),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    final customer = widget.customer;
+
+    return Stack(
+      children: [
+        Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.15),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: () => _showCustomerDetails(context),
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                // Avatar
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: AppColors.electric.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: customer.avatarUrl != null
-                      ? ClipOval(
-                          child: Image.network(
-                            customer.avatarUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const Icon(
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              onTap: _isDeleting ? null : () => _showCustomerDetails(context),
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    // Avatar
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: AppColors.electric.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: customer.profileImageUrl != null
+                          ? ClipOval(
+                              child: Image.network(
+                                customer.profileImageUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const Icon(
+                                  Icons.person,
+                                  color: AppColors.electric,
+                                  size: 28,
+                                ),
+                              ),
+                            )
+                          : const Icon(
                               Icons.person,
                               color: AppColors.electric,
                               size: 28,
                             ),
-                          ),
-                        )
-                      : const Icon(
-                          Icons.person,
-                          color: AppColors.electric,
-                          size: 28,
-                        ),
-                ),
-                const SizedBox(width: 16),
-                // Info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        customer.fullName,
-                        style: const TextStyle(
-                          fontFamily: 'Tajawal',
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.navy,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
+                    ),
+                    const SizedBox(width: 16),
+                    // Info
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.phone, size: 14, color: Colors.grey[500]),
-                          const SizedBox(width: 6),
                           Text(
-                            customer.phone ?? 'لا يوجد رقم',
-                            style: TextStyle(
+                            customer.fullName,
+                            style: const TextStyle(
                               fontFamily: 'Tajawal',
-                              fontSize: 13,
-                              color: Colors.grey[600],
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.navy,
                             ),
                           ),
-                        ],
-                      ),
-                      if (customer.idNumber != null) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(Icons.badge,
-                                size: 14, color: Colors.grey[500]),
-                            const SizedBox(width: 6),
-                            Text(
-                              customer.idNumber!,
-                              style: TextStyle(
-                                fontFamily: 'Tajawal',
-                                fontSize: 13,
-                                color: Colors.grey[600],
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Icon(Icons.phone,
+                                  size: 14, color: Colors.grey[500]),
+                              const SizedBox(width: 6),
+                              Text(
+                                customer.phone ?? 'لا يوجد رقم',
+                                style: TextStyle(
+                                  fontFamily: 'Tajawal',
+                                  fontSize: 13,
+                                  color: Colors.grey[600],
+                                ),
                               ),
+                            ],
+                          ),
+                          if (customer.idNumber != null) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(Icons.badge,
+                                    size: 14, color: Colors.grey[500]),
+                                const SizedBox(width: 6),
+                                Text(
+                                  customer.idNumber!,
+                                  style: TextStyle(
+                                    fontFamily: 'Tajawal',
+                                    fontSize: 13,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                // Menu
-                PopupMenuButton<String>(
-                  icon: Icon(Icons.more_vert, color: Colors.grey[600]),
-                  onSelected: (value) {
-                    if (value == 'edit') {
-                      _editCustomer(context);
-                    } else if (value == 'delete') {
-                      _deleteCustomer(context);
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          Icon(Icons.edit, color: AppColors.electric, size: 20),
-                          const SizedBox(width: 8),
-                          const Text('تعديل',
-                              style: TextStyle(fontFamily: 'Tajawal')),
                         ],
                       ),
                     ),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete, color: AppColors.danger, size: 20),
-                          const SizedBox(width: 8),
-                          const Text('حذف',
-                              style: TextStyle(fontFamily: 'Tajawal')),
-                        ],
+                    // Active installments badge
+                    if (customer.activeInstallmentsCount > 0)
+                      Container(
+                        margin: const EdgeInsets.only(left: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.electric.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${customer.activeInstallmentsCount} قسط',
+                          style: TextStyle(
+                            fontFamily: 'Tajawal',
+                            fontSize: 12,
+                            color: AppColors.electric,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    // Menu
+                    PopupMenuButton<String>(
+                      icon: Icon(Icons.more_vert, color: Colors.grey[600]),
+                      onSelected: _isDeleting
+                          ? null
+                          : (value) {
+                              if (value == 'edit') {
+                                _editCustomer(context);
+                              } else if (value == 'delete') {
+                                _deleteCustomer(context);
+                              }
+                            },
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit,
+                                  color: AppColors.electric, size: 20),
+                              const SizedBox(width: 8),
+                              const Text('تعديل',
+                                  style: TextStyle(fontFamily: 'Tajawal')),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete,
+                                  color: AppColors.danger, size: 20),
+                              const SizedBox(width: 8),
+                              const Text('حذف',
+                                  style: TextStyle(fontFamily: 'Tajawal')),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        // Loading Overlay when deleting
+        if (_isDeleting)
+          Positioned.fill(
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.85),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      color: AppColors.navy,
+                      strokeWidth: 3,
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'جاري الحذف...',
+                      style: TextStyle(
+                        fontFamily: 'Tajawal',
+                        color: AppColors.navy,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+      ],
     );
   }
 
@@ -333,7 +403,7 @@ class _CustomerCard extends StatelessWidget {
         minChildSize: 0.4,
         expand: false,
         builder: (context, scrollController) => _CustomerDetailsSheet(
-          customer: customer,
+          customer: widget.customer,
           scrollController: scrollController,
         ),
       ),
@@ -344,7 +414,7 @@ class _CustomerCard extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => CustomerFormScreen(customer: customer),
+        builder: (context) => CustomerFormScreen(customer: widget.customer),
       ),
     );
   }
@@ -356,7 +426,7 @@ class _CustomerCard extends StatelessWidget {
         title:
             const Text('تأكيد الحذف', style: TextStyle(fontFamily: 'Tajawal')),
         content: Text(
-          'هل أنت متأكد من حذف العميل "${customer.fullName}"؟',
+          'هل أنت متأكد من حذف العميل "${widget.customer.fullName}"؟\n\nسيتم حذف العميل وجميع صوره وأقساطه نهائياً.',
           style: const TextStyle(fontFamily: 'Tajawal'),
         ),
         actions: [
@@ -367,13 +437,34 @@ class _CustomerCard extends StatelessWidget {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
+              setState(() => _isDeleting = true);
+
               final provider = context.read<CustomerProvider>();
-              final success = await provider.deleteCustomer(customer.id);
+              final success = await provider.deleteCustomer(widget.customer.id);
+
+              if (mounted) {
+                setState(() => _isDeleting = false);
+              }
+
               if (success && context.mounted) {
+                // Green Snackbar at the top
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('تم حذف العميل',
-                          style: TextStyle(fontFamily: 'Tajawal'))),
+                  SnackBar(
+                    content: const Text(
+                      'تم حذف العميل وصوره بنجاح',
+                      style: TextStyle(fontFamily: 'Tajawal'),
+                    ),
+                    backgroundColor: Colors.green[700],
+                    behavior: SnackBarBehavior.floating,
+                    margin: const EdgeInsets.only(
+                      top: 50,
+                      left: 16,
+                      right: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                 );
               }
             },
@@ -461,10 +552,10 @@ class _CustomerDetailsSheetState extends State<_CustomerDetailsSheet> {
                       child: CircleAvatar(
                         radius: 50,
                         backgroundColor: AppColors.navy.withOpacity(0.1),
-                        backgroundImage: displayCustomer.avatarUrl != null
-                            ? NetworkImage(displayCustomer.avatarUrl!)
+                        backgroundImage: displayCustomer.profileImageUrl != null
+                            ? NetworkImage(displayCustomer.profileImageUrl!)
                             : null,
-                        child: displayCustomer.avatarUrl == null
+                        child: displayCustomer.profileImageUrl == null
                             ? const Icon(Icons.person,
                                 color: AppColors.navy, size: 50)
                             : null,
@@ -509,35 +600,6 @@ class _CustomerDetailsSheetState extends State<_CustomerDetailsSheet> {
                         value:
                             '${displayCustomer.createdAt!.day}/${displayCustomer.createdAt!.month}/${displayCustomer.createdAt!.year}',
                       ),
-
-                    // Installment Summary
-                    if (summary != null) ...[
-                      const SizedBox(height: 24),
-                      _buildSectionTitle('ملخص الأقساط'),
-                      _buildSummaryCard(summary),
-                      const SizedBox(height: 12),
-                      // Button to view all installments
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            _navigateToInstallmentsScreen(
-                                context, widget.customer.id);
-                          },
-                          icon: const Icon(Icons.view_agenda),
-                          label: const Text(
-                            'عرض جدول جميع الأقساط',
-                            style: TextStyle(fontFamily: 'Tajawal'),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.electric,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                      ),
-                    ],
 
                     // Document Images
                     if (displayCustomer.idCardFrontUrl != null ||
@@ -653,10 +715,64 @@ class _CustomerDetailsSheetState extends State<_CustomerDetailsSheet> {
   }
 
   Widget _buildSummaryCard(Map<String, dynamic> summary) {
-    final totalDebt = summary['total_debt'] ?? 0;
-    final totalPaid = summary['total_paid'] ?? 0;
-    final remaining = summary['remaining_balance'] ?? 0;
-    final active = summary['active_installments'] ?? 0;
+    // Enhanced parsing with multiple possible field names
+    double parseValue(dynamic value) {
+      if (value == null || value == '') return 0;
+      if (value is num) return value.toDouble();
+      if (value is String) {
+        String cleanValue = value
+            .replaceAll(',', '')
+            .replaceAll(' ', '')
+            .replaceAll('ريال', '')
+            .replaceAll('ر.س', '')
+            .replaceAll('SAR', '')
+            .replaceAll('\$', '');
+        return double.tryParse(cleanValue) ?? 0;
+      }
+      return 0;
+    }
+
+    // Try multiple field names for total debt
+    final totalDebt = parseValue(summary['total_debt'] ??
+        summary['total_amount'] ??
+        summary['total_loan'] ??
+        summary['loan_amount'] ??
+        summary['principal_amount'] ??
+        summary['total'] ??
+        0);
+
+    // Try multiple field names for total paid
+    final totalPaid = parseValue(summary['total_paid'] ??
+        summary['paid_amount'] ??
+        summary['amount_paid'] ??
+        summary['payments_total'] ??
+        summary['paid'] ??
+        0);
+
+    // Try multiple field names for remaining
+    final remaining = parseValue(summary['remaining_balance'] ??
+        summary['remaining_amount'] ??
+        summary['balance'] ??
+        summary['outstanding'] ??
+        summary['remaining'] ??
+        0);
+
+    // Try multiple field names for active installments count
+    int parseCount(dynamic value) {
+      if (value == null || value == '') return 0;
+      if (value is int) return value;
+      if (value is double) return value.toInt();
+      if (value is String) return int.tryParse(value) ?? 0;
+      return 0;
+    }
+
+    final active = parseCount(summary['active_installments'] ??
+        summary['active_installments_count'] ??
+        summary['installments_count'] ??
+        summary['active_count'] ??
+        summary['active'] ??
+        summary['count'] ??
+        0);
 
     return Card(
       color: AppColors.navy.withOpacity(0.05),
@@ -716,6 +832,66 @@ class _CustomerDetailsSheetState extends State<_CustomerDetailsSheet> {
         ),
       ],
     );
+  }
+
+  /// Calculate summary statistics from installment plans when API doesn't provide summary
+  Map<String, dynamic> _calculateSummaryFromPlans(List<dynamic> plans) {
+    double totalDebt = 0;
+    double totalPaid = 0;
+    int activeCount = 0;
+
+    for (final plan in plans) {
+      // Helper to parse amount
+      double parseAmount(dynamic value) {
+        if (value == null || value == '') return 0;
+        if (value is num) return value.toDouble();
+        if (value is String) {
+          String cleanValue = value
+              .replaceAll(',', '')
+              .replaceAll(' ', '')
+              .replaceAll('ريال', '')
+              .replaceAll('ر.س', '')
+              .replaceAll('SAR', '')
+              .replaceAll(r'$', '');
+          return double.tryParse(cleanValue) ?? 0;
+        }
+        return 0;
+      }
+
+      // Get amounts with multiple field name support
+      final totalAmount = parseAmount(plan['total_amount'] ??
+          plan['total_price'] ??
+          plan['total'] ??
+          plan['amount'] ??
+          plan['price'] ??
+          plan['loan_amount'] ??
+          0);
+
+      final paidAmount = parseAmount(plan['paid_amount'] ??
+          plan['amount_paid'] ??
+          plan['payments_total'] ??
+          plan['total_paid'] ??
+          plan['paid'] ??
+          0);
+
+      totalDebt += totalAmount;
+      totalPaid += paidAmount;
+
+      // Count active installments
+      final status = plan['status']?.toString().toLowerCase() ?? '';
+      if (status == 'active' || status == 'ongoing' || status == 'pending') {
+        activeCount++;
+      }
+    }
+
+    final remaining = totalDebt - totalPaid;
+
+    return {
+      'total_debt': totalDebt,
+      'total_paid': totalPaid,
+      'remaining_balance': remaining > 0 ? remaining : 0,
+      'active_installments': activeCount,
+    };
   }
 
   Widget _buildDocumentsGrid(CustomerModel customer) {
@@ -867,29 +1043,62 @@ class _CustomerDetailsSheetState extends State<_CustomerDetailsSheet> {
               return 0;
             }
 
-            // Try multiple field names for amounts
+            // Try multiple field names for amounts - matching web app API structure
             final totalAmount = parseAmount(plan['total_amount'] ??
+                plan['total_price'] ??
                 plan['total'] ??
                 plan['amount'] ??
                 plan['price'] ??
                 plan['loan_amount'] ??
-                plan['principal']);
+                plan['principal'] ??
+                plan['loan']);
 
             final paidAmount = parseAmount(plan['paid_amount'] ??
-                plan['paid'] ??
                 plan['amount_paid'] ??
                 plan['payments_total'] ??
-                plan['total_paid']);
+                plan['total_paid'] ??
+                plan['paid']);
 
             final remainingAmount = parseAmount(plan['remaining_amount'] ??
-                plan['remaining'] ??
+                plan['remaining_balance'] ??
                 plan['balance'] ??
-                plan['outstanding']);
+                plan['outstanding'] ??
+                plan['remaining'] ??
+                plan['left']);
+
+            // Also parse counts for progress display
+            int parseCount(dynamic value) {
+              if (value == null || value == '') return 0;
+              if (value is int) return value;
+              if (value is double) return value.toInt();
+              if (value is String) return int.tryParse(value) ?? 0;
+              return 0;
+            }
+
+            final installmentsCount = parseCount(plan['installments_count'] ??
+                plan['total_count'] ??
+                plan['total_installments'] ??
+                plan['number_of_installments'] ??
+                plan['count'] ??
+                plan['periods'] ??
+                1); // Default to 1 to avoid division by zero
+
+            final paidCount = parseCount(plan['paid_count'] ??
+                plan['completed_installments'] ??
+                plan['paid_installments'] ??
+                plan['payments_made']);
+
+            // Calculate paid amount if it's 0 but we have total and remaining
+            final effectivePaidAmount = (paidAmount > 0)
+                ? paidAmount
+                : (remainingAmount > 0 && totalAmount > remainingAmount)
+                    ? totalAmount - remainingAmount
+                    : 0;
 
             // Calculate remaining if not provided
-            final remaining = remainingAmount > 0
+            final effectiveRemaining = remainingAmount > 0
                 ? remainingAmount
-                : totalAmount - paidAmount;
+                : totalAmount - effectivePaidAmount;
 
             final status =
                 plan['status']?.toString().toLowerCase() ?? 'unknown';
@@ -897,7 +1106,7 @@ class _CustomerDetailsSheetState extends State<_CustomerDetailsSheet> {
                 plan['id']?.toString() ?? plan['installment_id']?.toString();
 
             debugPrint(
-                '💰 Parsed amounts - Total: $totalAmount, Paid: $paidAmount, Remaining: $remaining');
+                '💰 Parsed amounts - Total: $totalAmount, Paid: $effectivePaidAmount, Remaining: $effectiveRemaining');
 
             Color statusColor;
             String statusText;
@@ -976,11 +1185,49 @@ class _CustomerDetailsSheetState extends State<_CustomerDetailsSheet> {
                     children: [
                       _buildPlanStat(
                           'الإجمالي', totalAmount.toStringAsFixed(0)),
-                      _buildPlanStat('المدفوع', paidAmount.toStringAsFixed(0)),
-                      _buildPlanStat('المتبقي', remaining.toStringAsFixed(0),
+                      _buildPlanStat(
+                          'المدفوع', effectivePaidAmount.toStringAsFixed(0)),
+                      _buildPlanStat(
+                          'المتبقي', effectiveRemaining.toStringAsFixed(0),
                           isHighlight: true),
                     ],
                   ),
+                  // Progress indicator
+                  if (installmentsCount > 0) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                            child: FractionallySizedBox(
+                              alignment: Alignment.centerLeft,
+                              widthFactor: paidCount / installmentsCount,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.green,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '$paidCount/$installmentsCount',
+                          style: TextStyle(
+                            fontFamily: 'Tajawal',
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   // View Details Button
                   SizedBox(
@@ -1026,30 +1273,11 @@ class _CustomerDetailsSheetState extends State<_CustomerDetailsSheet> {
       return;
     }
 
-    // TODO: Navigate to installment details screen
-    // Navigator.push(
-    //   context,
-    //   MaterialPageRoute(
-    //     builder: (context) => InstallmentDetailsScreen(planId: planId),
-    //   ),
-    // );
-
-    // For now, show a placeholder message
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title:
-            const Text('تفاصيل القسط', style: TextStyle(fontFamily: 'Tajawal')),
-        content: Text(
-          'معرف القسط: $planId\n\n(سيتم ربط شاشة التفاصيل قريباً)',
-          style: const TextStyle(fontFamily: 'Tajawal'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('حسناً', style: TextStyle(fontFamily: 'Tajawal')),
-          ),
-        ],
+    // Navigate to installment details screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => InstallmentDetailsScreen(planId: planId),
       ),
     );
   }

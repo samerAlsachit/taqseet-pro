@@ -26,6 +26,11 @@ interface Installment {
   end_date: string;
   installments_count: number;
   paid_count: number;
+  customer_name?: string;
+  customer_phone?: string;
+  total_count?: number;
+  customer_id?: string;
+  customerId?: string;
 }
 
 export default function CustomerDetailPage() {
@@ -56,14 +61,63 @@ export default function CustomerDetailPage() {
 
       if (!customerData.success) {
         setError(customerData.error || 'العميل غير موجود');
+        setLoading(false);
         return;
       }
       
       // الـ API يرجع customer داخل data.customer
       setCustomer(customerData.data.customer);
       
-      // الأقساط موجودة في customerData.data.installment_plans
-      setInstallments(customerData.data.installment_plans || []);
+      // جلب الأقساط بشكل منفصل من endpoint الأقساط مع فلتر customer_id
+      try {
+        // محاولة 1: جلب بفلتر customer_id
+        let installmentsUrl = `${process.env.NEXT_PUBLIC_API_URL}/installments?customer_id=${customerId}&limit=100`;
+        console.log('Fetching installments from:', installmentsUrl);
+        
+        let installmentsRes = await fetch(
+          installmentsUrl,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        let installmentsData = await installmentsRes.json();
+        
+        console.log('Installments API response:', installmentsData);
+        
+        // محاولة 2: إذا لم يرجع نتائج، جلب جميع الأقساط وفلترة 클라ي언ت-سايد
+        if (!installmentsData.success || !installmentsData.data?.installments?.length) {
+          console.log('No results with customer_id filter, trying to fetch all installments...');
+          
+          const allInstallmentsRes = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/installments?limit=1000`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          const allInstallmentsData = await allInstallmentsRes.json();
+          
+          if (allInstallmentsData.success && allInstallmentsData.data?.installments) {
+            // فلترة الأقساط حسب customer_id
+            const customerInstallments = allInstallmentsData.data.installments.filter(
+              (inst: any) => inst.customer_id === customerId || inst.customerId === customerId
+            );
+            console.log(`Found ${customerInstallments.length} installments by client-side filtering`);
+            setInstallments(customerInstallments);
+            return; // نجحنا في جلب الأقساط
+          }
+        }
+        
+        if (installmentsData.success && installmentsData.data?.installments) {
+          console.log(`Found ${installmentsData.data.installments.length} installments`);
+          setInstallments(installmentsData.data.installments);
+        } else {
+          console.warn('No installments from /installments endpoint, trying customer API fallback');
+          // محاولة ثالثة: جلب من API العميل إذا كان يدعم
+          const fallbackPlans = customerData.data?.installment_plans || [];
+          console.log('Fallback installments from customer API:', fallbackPlans);
+          setInstallments(fallbackPlans);
+        }
+      } catch (instError) {
+        console.error('خطأ في جلب الأقساط:', instError);
+        // استخدام الأقساط من API العميل كـ fallback
+        setInstallments(customerData.data?.installment_plans || []);
+      }
       
     } catch {
       setError('حدث خطأ في جلب البيانات');
@@ -174,16 +228,32 @@ export default function CustomerDetailPage() {
       <div className="bg-[var(--card-bg)] rounded-xl shadow-sm p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-[var(--text-primary)]">الأقساط</h2>
-          <Link
-            href={`/installments/new?customer_id=${customerId}`}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition"
-          >
-            + إضافة قسط جديد
-          </Link>
+          <div className="flex gap-2">
+            <button
+              onClick={fetchData}
+              className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm transition"
+              disabled={loading}
+            >
+              {loading ? 'جاري التحميل...' : '↻ تحديث'}
+            </button>
+            <Link
+              href={`/installments/new?customer_id=${customerId}`}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition"
+            >
+              + إضافة قسط جديد
+            </Link>
+          </div>
         </div>
 
         {installments.length === 0 ? (
-          <p className="text-[var(--text-secondary)] text-center py-8">لا توجد أقساط لهذا العميل</p>
+          <div className="text-center py-8">
+            <p className="text-[var(--text-secondary)] mb-4">لا توجد أقساط لهذا العميل</p>
+            {/* Debug info - remove in production */}
+            <div className="text-xs text-gray-400 mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded">
+              <p>Customer ID: {customerId}</p>
+              <p>Check browser console (F12) for API response details</p>
+            </div>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -199,12 +269,14 @@ export default function CustomerDetailPage() {
               </thead>
               <tbody>
                 {installments.map((inst) => {
-                  const progress = ((inst.paid_count || 0) / inst.installments_count) * 100;
+                  const totalCount = inst.total_count || inst.installments_count || 1;
+                  const paidCount = inst.paid_count || 0;
+                  const progress = (paidCount / totalCount) * 100;
                   return (
                     <tr key={inst.id} className="border-b border-[var(--border-color)] hover:bg-[var(--border-color)]">
                       <td className="py-3 px-4 text-[var(--text-primary)]">{inst.product_name}</td>
-                      <td className="py-3 px-4 text-[var(--text-primary)]">{inst.total_price.toLocaleString()} IQD</td>
-                      <td className="py-3 px-4 text-[var(--text-primary)]">{inst.remaining_amount.toLocaleString()} IQD</td>
+                      <td className="py-3 px-4 text-[var(--text-primary)]">{inst.total_price?.toLocaleString()} IQD</td>
+                      <td className="py-3 px-4 text-[var(--text-primary)]">{inst.remaining_amount?.toLocaleString()} IQD</td>
                       <td className="py-3 px-4">
                         <div className="w-24 bg-[var(--border-color)] rounded-full h-2">
                           <div
@@ -213,7 +285,7 @@ export default function CustomerDetailPage() {
                           />
                         </div>
                         <span className="text-xs text-[var(--text-secondary)] mt-1">
-                          {inst.paid_count || 0}/{inst.installments_count}
+                          {paidCount}/{totalCount}
                         </span>
                       </td>
                       <td className="py-3 px-4">{getStatusBadge(inst.status)}</td>

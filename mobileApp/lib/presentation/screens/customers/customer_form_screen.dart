@@ -46,7 +46,9 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
       _phoneController.text = widget.customer!.phone ?? '';
       _idNumberController.text = widget.customer!.idNumber ?? '';
       _addressController.text = widget.customer!.address ?? '';
-      _avatarUrl = widget.customer!.avatarUrl;
+      // Use profileImageUrl getter for unified naming pattern
+      _avatarUrl =
+          widget.customer!.profileImageUrl ?? widget.customer!.avatarUrl;
       _idCardFrontUrl = widget.customer!.idCardFrontUrl;
       _idCardBackUrl = widget.customer!.idCardBackUrl;
       _residenceFrontUrl = widget.customer!.residenceFrontUrl;
@@ -431,8 +433,8 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
+                                color: AppColors.navy,
+                                strokeWidth: 3,
                               ),
                             ),
                             SizedBox(width: 12),

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../core/config/app_config.dart';
 
 class CustomerModel {
   final String id;
@@ -14,6 +15,7 @@ class CustomerModel {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final bool isSynced;
+  final int activeInstallmentsCount; // From API summary
 
   CustomerModel({
     required this.id,
@@ -29,6 +31,7 @@ class CustomerModel {
     this.createdAt,
     this.updatedAt,
     this.isSynced = false,
+    this.activeInstallmentsCount = 0,
   });
 
   factory CustomerModel.fromJson(Map<String, dynamic> json) {
@@ -67,8 +70,16 @@ class CustomerModel {
     final residenceFrontUrl = extraDocs.length > 2 ? extraDocs[2] : null;
     final residenceBackUrl = extraDocs.length > 3 ? extraDocs[3] : null;
 
+    // Parse ID from multiple possible field names
+    final String customerId = json['id']?.toString() ??
+        json['customer_id']?.toString() ??
+        json['user_id']?.toString() ??
+        json['_id']?.toString() ??
+        json['uuid']?.toString() ??
+        '';
+
     return CustomerModel(
-      id: json['id']?.toString() ?? '',
+      id: customerId,
       fullName: json['full_name']?.toString() ??
           json['name']?.toString() ??
           'غير معروف',
@@ -91,6 +102,10 @@ class CustomerModel {
           ? DateTime.tryParse(json['updated_at'].toString())
           : null,
       isSynced: json['is_synced'] == true || json['is_synced'] == 1,
+      activeInstallmentsCount: json['active_installments_count'] ??
+          json['active_installments'] ??
+          json['installments_count'] ??
+          0,
     );
   }
 
@@ -126,6 +141,7 @@ class CustomerModel {
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? isSynced,
+    int? activeInstallmentsCount,
   }) {
     return CustomerModel(
       id: id ?? this.id,
@@ -141,6 +157,32 @@ class CustomerModel {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       isSynced: isSynced ?? this.isSynced,
+      activeInstallmentsCount:
+          activeInstallmentsCount ?? this.activeInstallmentsCount,
     );
+  }
+
+  /// Get the profile image URL with unified naming pattern
+  /// Format: ${id}_profile.jpg with cache-busting
+  String? get profileImageUrl {
+    if (id.isEmpty) {
+      print('⚠️ [CustomerModel] Empty customer ID, cannot build image URL');
+      return null;
+    }
+
+    // Sanitize ID: remove spaces and special characters
+    final sanitizedId = id.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    final fileName = '${sanitizedId}_profile.jpg';
+
+    // Build URL with cache-busting parameter
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final url = AppConfig.buildStorageUrlWithFolder('avatars', fileName);
+
+    print('🔗 [CustomerModel] Building profile image URL:');
+    print('   Customer ID: $id (sanitized: $sanitizedId)');
+    print('   File name: $fileName');
+    print('   Full URL: $url?v=$timestamp');
+
+    return '$url?v=$timestamp';
   }
 }
