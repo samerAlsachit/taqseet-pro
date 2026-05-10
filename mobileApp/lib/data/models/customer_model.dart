@@ -85,8 +85,9 @@ class CustomerModel {
           'غير معروف',
       phone: json['phone']?.toString(),
       address: json['address']?.toString(),
-      idNumber:
-          json['id_number']?.toString() ?? json['national_id']?.toString(),
+      // Parse ID number from multiple possible field names
+      // Handle empty strings by filtering them out
+      idNumber: _parseIdNumber(json),
       avatarUrl:
           json['avatar_url']?.toString() ?? json['id_doc_url']?.toString(),
       idCardFrontUrl: json['id_card_front_url']?.toString() ?? idCardFrontUrl,
@@ -107,6 +108,28 @@ class CustomerModel {
           json['installments_count'] ??
           0,
     );
+  }
+
+  /// Helper method to parse ID number from JSON
+  /// Returns null if all possible fields are empty/null
+  static String? _parseIdNumber(Map<String, dynamic> json) {
+    final possibleFields = [
+      'id_number',
+      'national_id',
+      'idNumber',
+      'nationalId',
+      'identity_number',
+      'card_id',
+      'civil_id',
+    ];
+
+    for (final field in possibleFields) {
+      final value = json[field]?.toString();
+      if (value != null && value.isNotEmpty && value != 'null') {
+        return value;
+      }
+    }
+    return null;
   }
 
   Map<String, dynamic> toJson() {

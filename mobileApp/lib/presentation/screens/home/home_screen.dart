@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/customer_provider.dart';
 import '../customers/customers_screen.dart';
 import '../installments/installments_screen.dart';
 import '../inventory/inventory_screen.dart';
@@ -13,7 +14,26 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+    final customerProvider = context.watch<CustomerProvider>();
     final user = authProvider.user;
+
+    // Check for subscription errors from API calls
+    if (customerProvider.error != null) {
+      final isSubscriptionError =
+          customerProvider.error!.toLowerCase().contains('subscription') ||
+              customerProvider.error!.toLowerCase().contains('expired') ||
+              customerProvider.error!.toLowerCase().contains('403') ||
+              customerProvider.error!.contains('اشتراك') ||
+              customerProvider.error!.contains('منتهي') ||
+              customerProvider.error!.contains('تجديد');
+
+      if (isSubscriptionError && !authProvider.isSubscriptionExpired) {
+        // Use Future.microtask to avoid setState during build
+        Future.microtask(() {
+          authProvider.checkAndHandleSubscriptionError(customerProvider.error);
+        });
+      }
+    }
 
     return Scaffold(
       backgroundColor: AppColors.white,
@@ -23,6 +43,13 @@ class HomeScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Subscription Expired Warning Banner
+              if (authProvider.isSubscriptionExpired)
+                _buildSubscriptionWarning(
+                    authProvider.subscriptionErrorMessage),
+              if (authProvider.isSubscriptionExpired)
+                const SizedBox(height: 16),
+
               // Header
               _buildHeader(context, user?.fullName ?? 'مستخدم'),
               const SizedBox(height: 24),
@@ -40,6 +67,64 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// Build subscription expired warning banner
+  Widget _buildSubscriptionWarning(String? message) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.danger.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.danger,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.danger,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.warning_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '⚠️ تنبيه مهم',
+                  style: TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.danger,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  message ??
+                      'انتهى اشتراكك. لم يتم جلب البيانات. يرجى التجديد للاستمرار.',
+                  style: TextStyle(
+                    fontFamily: 'Tajawal',
+                    fontSize: 13,
+                    color: AppColors.danger.withOpacity(0.9),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

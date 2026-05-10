@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../services/api/api_service.dart';
+import 'receipt_screen.dart';
 
 class InstallmentDetailsScreen extends StatefulWidget {
   final String planId;
@@ -49,13 +50,23 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
       final result = await apiService.get('/installments/${widget.planId}');
 
       if (result.success && result.data != null) {
-        final data = result.data as Map<String, dynamic>?;
-        final innerData = data?['data'] as Map<String, dynamic>?;
+        final data = result.data is Map<String, dynamic>
+            ? result.data as Map<String, dynamic>
+            : <String, dynamic>{};
+        final innerData = data['data'] is Map<String, dynamic>
+            ? data['data'] as Map<String, dynamic>
+            : <String, dynamic>{};
 
         setState(() {
-          _plan = innerData?['plan'] as Map<String, dynamic>?;
-          _schedule = innerData?['installments'] as List<dynamic>? ?? [];
-          _payments = innerData?['payments'] as List<dynamic>? ?? [];
+          _plan = innerData['plan'] is Map<String, dynamic>
+              ? innerData['plan'] as Map<String, dynamic>
+              : null;
+          _schedule = innerData['installments'] is List
+              ? innerData['installments'] as List<dynamic>
+              : [];
+          _payments = innerData['payments'] is List
+              ? innerData['payments'] as List<dynamic>
+              : [];
           _isLoading = false;
         });
 
@@ -710,89 +721,103 @@ class _InstallmentDetailsScreenState extends State<InstallmentDetailsScreen> {
               final amount = payment['amount_paid'] ?? 0;
               final notes = payment['notes'] ?? '';
 
-              return Container(
-                margin: const EdgeInsets.symmetric(vertical: 4),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: cardBackground,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    // Success Icon
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: const BoxDecoration(
-                        color: AppColors.success,
-                        shape: BoxShape.circle,
+              return InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ReceiptScreen(
+                        payment: payment,
+                        plan: _plan,
                       ),
-                      child: const Icon(Icons.check,
-                          color: Colors.white, size: 24),
                     ),
-                    const SizedBox(width: 12),
-                    // Payment Details
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '$amount $currency',
-                            style: TextStyle(
-                              fontFamily: 'Tajawal',
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'رقم الوصل: $receiptNumber',
-                            style: TextStyle(
-                              fontFamily: 'Tajawal',
-                              fontSize: 13,
-                              color: textSecondary,
-                            ),
-                          ),
-                          Text(
-                            _formatDate(paymentDate),
-                            style: TextStyle(
-                              fontFamily: 'Tajawal',
-                              fontSize: 12,
-                              color: textSecondary.withOpacity(0.8),
-                            ),
-                          ),
-                          if (notes.isNotEmpty)
+                  );
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: cardBackground,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      // Success Icon
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: const BoxDecoration(
+                          color: AppColors.success,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.check,
+                            color: Colors.white, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      // Payment Details
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Text(
-                              notes,
+                              '$amount $currency',
+                              style: TextStyle(
+                                fontFamily: 'Tajawal',
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'رقم الوصل: $receiptNumber',
+                              style: TextStyle(
+                                fontFamily: 'Tajawal',
+                                fontSize: 13,
+                                color: textSecondary,
+                              ),
+                            ),
+                            Text(
+                              _formatDate(paymentDate),
                               style: TextStyle(
                                 fontFamily: 'Tajawal',
                                 fontSize: 12,
-                                color: textSecondary,
-                                fontStyle: FontStyle.italic,
+                                color: textSecondary.withOpacity(0.8),
                               ),
                             ),
+                            if (notes.isNotEmpty)
+                              Text(
+                                notes,
+                                style: TextStyle(
+                                  fontFamily: 'Tajawal',
+                                  fontSize: 12,
+                                  color: textSecondary,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      // Print/Share Button
+                      Column(
+                        children: [
+                          IconButton(
+                            onPressed: () => _showReceiptPreview(payment),
+                            icon: const Icon(Icons.visibility,
+                                color: AppColors.navy),
+                            tooltip: 'معاينة الوصل',
+                          ),
+                          IconButton(
+                            onPressed: () => _shareReceipt(payment),
+                            icon: const Icon(Icons.share,
+                                color: AppColors.electric),
+                            tooltip: 'مشاركة الوصل',
+                          ),
                         ],
                       ),
-                    ),
-                    // Print/Share Button
-                    Column(
-                      children: [
-                        IconButton(
-                          onPressed: () => _showReceiptPreview(payment),
-                          icon: const Icon(Icons.visibility,
-                              color: AppColors.navy),
-                          tooltip: 'معاينة الوصل',
-                        ),
-                        IconButton(
-                          onPressed: () => _shareReceipt(payment),
-                          icon: const Icon(Icons.share,
-                              color: AppColors.electric),
-                          tooltip: 'مشاركة الوصل',
-                        ),
-                      ],
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               );
             },

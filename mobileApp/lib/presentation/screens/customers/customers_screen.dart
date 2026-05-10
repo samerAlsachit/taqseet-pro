@@ -154,6 +154,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag:
+            'customers_fab_add_customer', // Unique tag to avoid Hero conflict
         onPressed: () {
           Navigator.push(
             context,
@@ -269,7 +271,9 @@ class _CustomerCardState extends State<_CustomerCard> {
                               ),
                             ],
                           ),
-                          if (customer.idNumber != null) ...[
+                          // Show ID number if available (check for null and empty)
+                          if (customer.idNumber != null &&
+                              customer.idNumber!.isNotEmpty) ...[
                             const SizedBox(height: 4),
                             Row(
                               children: [
@@ -586,7 +590,10 @@ class _CustomerDetailsSheetState extends State<_CustomerDetailsSheet> {
                     _InfoCard(
                       icon: Icons.badge,
                       title: 'رقم الهوية',
-                      value: displayCustomer.idNumber ?? 'غير متوفر',
+                      value: (displayCustomer.idNumber != null &&
+                              displayCustomer.idNumber!.isNotEmpty)
+                          ? displayCustomer.idNumber!
+                          : 'غير متوفر',
                     ),
                     _InfoCard(
                       icon: Icons.location_on,

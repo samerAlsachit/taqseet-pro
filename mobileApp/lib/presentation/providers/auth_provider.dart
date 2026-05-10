@@ -24,6 +24,8 @@ class AuthProvider extends ChangeNotifier {
   bool _isLoading = true; // Start as true during initialization
   String? _error;
   bool _isBiometricEnabled = false;
+  bool _isSubscriptionExpired = false;
+  String? _subscriptionErrorMessage;
 
   UserModel? get user => _user;
   String? get token => _token;
@@ -31,6 +33,8 @@ class AuthProvider extends ChangeNotifier {
   String? get error => _error;
   bool get isAuthenticated => _token != null && _user != null;
   bool get isBiometricEnabled => _isBiometricEnabled;
+  bool get isSubscriptionExpired => _isSubscriptionExpired;
+  String? get subscriptionErrorMessage => _subscriptionErrorMessage;
 
   AuthProvider() {
     // Load stored auth in background
@@ -232,5 +236,47 @@ class AuthProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// Set subscription expired status when API returns 403
+  void setSubscriptionExpired(String? message) {
+    _isSubscriptionExpired = true;
+    _subscriptionErrorMessage =
+        message ?? 'انتهى اشتراكك. يرجى التجديد للاستمرار.';
+    debugPrint('🔴 Subscription expired set: $_subscriptionErrorMessage');
+    notifyListeners();
+  }
+
+  /// Clear subscription expired status (after renewal)
+  void clearSubscriptionExpired() {
+    _isSubscriptionExpired = false;
+    _subscriptionErrorMessage = null;
+    debugPrint('✅ Subscription expired cleared');
+    notifyListeners();
+  }
+
+  /// Check if error is subscription-related and set status
+  bool checkAndHandleSubscriptionError(String? errorMessage) {
+    if (errorMessage == null) return false;
+
+    final subscriptionKeywords = [
+      'subscription',
+      'اشتراك',
+      'منتهي',
+      'expired',
+      'تجديد',
+      'renew',
+      '403',
+    ];
+
+    final isSubscriptionError = subscriptionKeywords.any(
+      (keyword) => errorMessage.toLowerCase().contains(keyword.toLowerCase()),
+    );
+
+    if (isSubscriptionError) {
+      setSubscriptionExpired(errorMessage);
+      return true;
+    }
+    return false;
   }
 }

@@ -157,14 +157,21 @@ class _CustomerFormScreenState extends State<CustomerFormScreen> {
         'phone': _phoneController.text.trim().isEmpty
             ? ''
             : _phoneController.text.trim(),
-        'id_number': _idNumberController.text.trim().isEmpty
-            ? null
-            : _idNumberController.text.trim(),
+        // Send both field names for compatibility with API
+        'national_id': _idNumberController.text.trim(),
+        'id_number': _idNumberController.text.trim(),
         'address': _addressController.text.trim().isEmpty
             ? null
             : _addressController.text.trim(),
         'id_doc_url': _avatarUrl,
       };
+
+      debugPrint('📤 Sending customer data:');
+      debugPrint('   full_name: ${data['full_name']}');
+      debugPrint('   phone: ${data['phone']}');
+      debugPrint('   national_id: ${data['national_id']}');
+      debugPrint('   id_number: ${data['id_number']}');
+      debugPrint('   address: ${data['address']}');
 
       bool success;
       if (isEditing) {

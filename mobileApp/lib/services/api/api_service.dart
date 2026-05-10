@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -48,6 +49,16 @@ class ApiService {
           // Handle 401 - Token expired
           if (error.response?.statusCode == 401) {
             // Try to refresh token or logout
+          }
+          // Handle 403 - Subscription expired
+          if (error.response?.statusCode == 403) {
+            final errorMessage = error.response?.data?['error']?.toString() ??
+                error.response?.data?['message']?.toString() ??
+                'Subscription expired';
+            debugPrint('🔴 Subscription error (403): $errorMessage');
+            // Mark error as subscription-related for UI handling
+            error.response?.extra['subscription_error'] = true;
+            error.response?.extra['subscription_message'] = errorMessage;
           }
           return handler.next(error);
         },
@@ -212,10 +223,15 @@ class ApiService {
   Future<ApiResult> get(String endpoint, {Map<String, dynamic>? params}) async {
     try {
       final response = await _dio.get(endpoint, queryParameters: params);
+
+      // Handle string responses by parsing JSON
+      final Map<String, dynamic> data =
+          response.data is String ? jsonDecode(response.data) : response.data;
+
       return ApiResult(
         success: response.statusCode == 200,
-        data: response.data,
-        message: response.data?['message'],
+        data: data,
+        message: data['message'],
       );
     } on DioException catch (e) {
       return ApiResult(
@@ -229,10 +245,15 @@ class ApiService {
   Future<ApiResult> post(String endpoint, {dynamic data}) async {
     try {
       final response = await _dio.post(endpoint, data: data);
+
+      // Handle string responses by parsing JSON
+      final Map<String, dynamic> responseData =
+          response.data is String ? jsonDecode(response.data) : response.data;
+
       return ApiResult(
         success: response.statusCode == 200 || response.statusCode == 201,
-        data: response.data,
-        message: response.data?['message'],
+        data: responseData,
+        message: responseData['message'],
       );
     } on DioException catch (e) {
       return ApiResult(
@@ -246,10 +267,15 @@ class ApiService {
   Future<ApiResult> put(String endpoint, {dynamic data}) async {
     try {
       final response = await _dio.put(endpoint, data: data);
+
+      // Handle string responses by parsing JSON
+      final Map<String, dynamic> responseData =
+          response.data is String ? jsonDecode(response.data) : response.data;
+
       return ApiResult(
         success: response.statusCode == 200,
-        data: response.data,
-        message: response.data?['message'],
+        data: responseData,
+        message: responseData['message'],
       );
     } on DioException catch (e) {
       return ApiResult(
@@ -263,10 +289,15 @@ class ApiService {
   Future<ApiResult> delete(String endpoint) async {
     try {
       final response = await _dio.delete(endpoint);
+
+      // Handle string responses by parsing JSON
+      final Map<String, dynamic> responseData =
+          response.data is String ? jsonDecode(response.data) : response.data;
+
       return ApiResult(
         success: response.statusCode == 200,
-        data: response.data,
-        message: response.data?['message'],
+        data: responseData,
+        message: responseData['message'],
       );
     } on DioException catch (e) {
       return ApiResult(
@@ -443,6 +474,128 @@ class ApiService {
       return ApiResult(
         success: false,
         message: e.response?.data?['error'] ?? e.message ?? 'Upload failed',
+      );
+    } catch (e) {
+      return ApiResult(success: false, message: e.toString());
+    }
+  }
+
+  // ==================== Product APIs ====================
+
+  Future<ApiResult> getProducts() async {
+    try {
+      final response = await _dio.get(
+        ApiConstants.products,
+        options: Options(headers: await _getHeaders()),
+      );
+      return ApiResult(
+        success: response.statusCode == 200,
+        data: response.data,
+        message: response.data['message'],
+      );
+    } on DioException catch (e) {
+      return ApiResult(
+        success: false,
+        message: e.response?.data?['error'] ??
+            e.message ??
+            'Failed to fetch products',
+      );
+    } catch (e) {
+      return ApiResult(success: false, message: e.toString());
+    }
+  }
+
+  Future<ApiResult> getProductById(String id) async {
+    try {
+      final url = ApiConstants.productById.replaceAll('{id}', id);
+      final response = await _dio.get(
+        url,
+        options: Options(headers: await _getHeaders()),
+      );
+      return ApiResult(
+        success: response.statusCode == 200,
+        data: response.data['data'],
+        message: response.data['message'],
+      );
+    } on DioException catch (e) {
+      return ApiResult(
+        success: false,
+        message: e.response?.data?['error'] ??
+            e.message ??
+            'Failed to fetch product',
+      );
+    } catch (e) {
+      return ApiResult(success: false, message: e.toString());
+    }
+  }
+
+  Future<ApiResult> createProduct(Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.post(
+        ApiConstants.products,
+        data: data,
+        options: Options(headers: await _getHeaders()),
+      );
+      return ApiResult(
+        success: response.statusCode == 200 || response.statusCode == 201,
+        data: response.data['data'],
+        message: response.data['message'],
+      );
+    } on DioException catch (e) {
+      return ApiResult(
+        success: false,
+        message: e.response?.data?['error'] ??
+            e.message ??
+            'Failed to create product',
+      );
+    } catch (e) {
+      return ApiResult(success: false, message: e.toString());
+    }
+  }
+
+  Future<ApiResult> updateProduct(String id, Map<String, dynamic> data) async {
+    try {
+      final url = ApiConstants.productById.replaceAll('{id}', id);
+      final response = await _dio.put(
+        url,
+        data: data,
+        options: Options(headers: await _getHeaders()),
+      );
+      return ApiResult(
+        success: response.statusCode == 200,
+        data: response.data['data'],
+        message: response.data['message'],
+      );
+    } on DioException catch (e) {
+      return ApiResult(
+        success: false,
+        message: e.response?.data?['error'] ??
+            e.message ??
+            'Failed to update product',
+      );
+    } catch (e) {
+      return ApiResult(success: false, message: e.toString());
+    }
+  }
+
+  Future<ApiResult> deleteProduct(String id) async {
+    try {
+      final url = ApiConstants.productById.replaceAll('{id}', id);
+      final response = await _dio.delete(
+        url,
+        options: Options(headers: await _getHeaders()),
+      );
+      return ApiResult(
+        success: response.statusCode == 200 || response.statusCode == 204,
+        data: response.data,
+        message: response.data?['message'] ?? 'Product deleted successfully',
+      );
+    } on DioException catch (e) {
+      return ApiResult(
+        success: false,
+        message: e.response?.data?['error'] ??
+            e.message ??
+            'Failed to delete product',
       );
     } catch (e) {
       return ApiResult(success: false, message: e.toString());

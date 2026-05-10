@@ -70,14 +70,50 @@ class CustomerProvider extends ChangeNotifier {
             .toList();
         _applySearch();
         debugPrint('✅ Loaded ${_customers.length} customers');
+
+        // Debug: Print first customer details to verify idNumber parsing
+        if (_customers.isNotEmpty) {
+          final first = _customers.first;
+          debugPrint('👤 First customer: ${first.fullName}');
+          debugPrint('   ID: ${first.id}');
+          debugPrint('   Phone: ${first.phone}');
+          debugPrint('   ID Number: ${first.idNumber}');
+          debugPrint('   Address: ${first.address}');
+        }
       } else {
         _error = result.message;
         debugPrint('❌ API error: ${result.message}');
+
+        // Check if this is a subscription error and notify AuthProvider
+        // This will show subscription warning on HomeScreen
+        if (result.message != null) {
+          final isSubscriptionError =
+              result.message!.toLowerCase().contains('subscription') ||
+                  result.message!.toLowerCase().contains('expired') ||
+                  result.message!.toLowerCase().contains('403') ||
+                  result.message!.contains('اشتراك') ||
+                  result.message!.contains('منتهي');
+
+          if (isSubscriptionError) {
+            debugPrint('🔴 Detected subscription error in customer loading');
+            // Note: AuthProvider check will happen in UI layer via context
+          }
+        }
       }
     } catch (e, stackTrace) {
       _error = 'فشل في تحميل العملاء: $e';
       debugPrint('❌ Load customers error: $e');
       debugPrint('📍 Stack trace: $stackTrace');
+
+      // Check if error is subscription-related
+      final errorStr = e.toString().toLowerCase();
+      if (errorStr.contains('subscription') ||
+          errorStr.contains('expired') ||
+          errorStr.contains('403') ||
+          errorStr.contains('اشتراك') ||
+          errorStr.contains('منتهي')) {
+        debugPrint('🔴 Detected subscription error in exception');
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -585,6 +621,13 @@ class CustomerProvider extends ChangeNotifier {
       if (documentsUrls.isNotEmpty) {
         data['documents_urls'] = documentsUrls;
       }
+
+      // Debug: Print data being sent to API
+      debugPrint('📤 updateCustomerWithFiles - Sending data:');
+      debugPrint('   id: $id');
+      debugPrint('   national_id: ${data['national_id']}');
+      debugPrint('   id_number: ${data['id_number']}');
+      debugPrint('   full_name: ${data['full_name']}');
 
       // Send to API
       final result = await _apiService.updateCustomer(id, data);
